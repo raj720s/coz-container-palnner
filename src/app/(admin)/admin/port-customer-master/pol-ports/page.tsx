@@ -1,0 +1,349 @@
+"use client";
+
+import Button from "@/components/ui/button/Button";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  getSortedRowModel,
+  getFilteredRowModel,
+  SortingState,
+} from "@tanstack/react-table";
+import Input from "@/components/form/input/InputField";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
+import { FormModal } from "@/components/ui/modal/FormModal";
+import { useFormModal } from "@/hooks/useFormModal";
+import { PortForm } from "@/components/forms/PortForm";
+import toast from "react-hot-toast";
+import { dataService, type POLPort } from "@/utils/dataService";
+import { withRouteAuth } from "@/components/auth/withAuth";
+
+const columnHelper = createColumnHelper<POLPort>();
+
+function POLPortsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const action = searchParams.get('action');
+  
+  // POL Ports data
+  const [polPorts, setPolPorts] = useState<POLPort[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Load POL ports from data service on component mount
+  useEffect(() => {
+    loadPOLPorts();
+  }, []);
+
+  const loadPOLPorts = async () => {
+    try {
+      setLoading(true);
+      const data = await dataService.getPOLPorts();
+      setPolPorts(data);
+    } catch (error) {
+      console.error('Error loading POL ports:', error);
+      toast.error('Failed to load POL ports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const {
+    isOpen: isModalOpen,
+    isLoading: isModalLoading,
+    editingItem,
+    openModal,
+    closeModal,
+    setLoading: setModalLoading,
+  } = useFormModal();
+
+  // Auto-open modal if action=add
+  useEffect(() => {
+    if (action === 'add') {
+      openModal(undefined);
+    }
+  }, [action, openModal]);
+
+  const columns = useMemo(() => [
+    columnHelper.accessor("code", { 
+      header: "Port Code", 
+      cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("name", { 
+      header: "Port Name", 
+      cell: (info) => <span className="font-medium">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("country", { 
+      header: "Country", 
+      cell: (info) => info.getValue() 
+    }),
+    columnHelper.accessor("region", { 
+      header: "Region", 
+      cell: (info) => (
+        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("isActive", {
+      header: "Status",
+      cell: (info) => (
+        <span className={`px-2 py-1 text-xs rounded-full ${
+          info.getValue()
+            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+            : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+        }`}>
+          {info.getValue() ? "Active" : "Inactive"}
+        </span>
+      ),
+    }),
+    columnHelper.accessor("createdAt", {
+      header: "Created",
+      cell: (info) => (
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {new Date(info.getValue()).toLocaleDateString()}
+        </span>
+      ),
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "Actions",
+      cell: (info) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openModal(info.row.original)}
+            className="p-1"
+          >
+            <PencilIcon className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDelete(info.row.original.id)}
+            className="p-1 text-red-600 hover:text-red-700"
+          >
+            <TrashBinIcon className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    }),
+  ], [openModal]);
+
+  const filteredData = useMemo(() => {
+    return polPorts.filter(item => {
+      const matchesSearch =
+        item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.region.toLowerCase().includes(globalFilter.toLowerCase());
+
+      return matchesSearch;
+    });
+  }, [polPorts, globalFilter]);
+
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+  });
+
+  const handleAddNew = () => {
+    openModal(undefined);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this POL port?')) {
+      try {
+        await dataService.deletePOLPort(id);
+        await loadPOLPorts();
+        toast.success('POL port deleted successfully');
+      } catch (error) {
+        console.error('Error deleting POL port:', error);
+        toast.error('Failed to delete POL port');
+      }
+    }
+  };
+
+  const handleSubmit = async (formData: any) => {
+    try {
+      setModalLoading(true);
+      
+      if (editingItem) {
+        // Update existing port
+        await dataService.updatePOLPort(editingItem.id, formData);
+        toast.success('POL port updated successfully');
+      } else {
+        // Create new port
+        await dataService.createPOLPort(formData);
+        toast.success('POL port created successfully');
+      }
+      
+      await loadPOLPorts();
+      closeModal();
+    } catch (error) {
+      console.error('Error saving POL port:', error);
+      toast.error('Failed to save POL port');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const exportData = () => {
+    const headers = ["Port Code", "Port Name", "Country", "Region", "Status", "Created"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredData.map(row => [
+        row.code,
+        row.name,
+        row.country,
+        row.region,
+        row.isActive ? "Active" : "Inactive",
+        new Date(row.createdAt).toLocaleDateString()
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "pol_ports.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("Export completed successfully");
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading POL ports...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.back()}
+            className="flex items-center gap-2"
+          >
+            <ChevronLeftIcon className="w-4 h-4" />
+            Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              POL Ports Management
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Manage Port of Loading (POL) ports and their configurations
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Button onClick={exportData} size="sm" variant="outline">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={handleAddNew} size="sm">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add POL Port
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-6">
+        <Input
+          placeholder="Search ports by code, name, country, or region..."
+          value={globalFilter}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+
+      {/* Table */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {filteredData.length === 0 && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No POL ports found matching your search criteria.
+        </div>
+      )}
+
+      {/* Form Modal */}
+      <FormModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingItem ? "Edit POL Port" : "Add New POL Port"}
+        isLoading={isModalLoading}
+      >
+        <PortForm
+          initialData={editingItem}
+          onSubmit={handleSubmit}
+          portType="POL"
+        />
+      </FormModal>
+    </div>
+  );
+}
+
+export default withRouteAuth(POLPortsPage, "admin/port-customer-master/pol-ports");
+
