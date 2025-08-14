@@ -4,18 +4,18 @@ import { withUserAuth } from "@/components/auth/withAuth";
 import Button from "@/components/ui/button/Button";
 import { useRouter } from "next/navigation";
 
-function UserTestValidationPage() {
+function TestValidationPage() {
   const router = useRouter();
 
-  console.log('UserTestValidationPage: Component rendering');
+  console.log('TestValidationPage: Component rendering');
 
   const handleGoToValidationSummary = () => {
-    console.log('UserTestValidationPage: Navigating to validation summary');
+    console.log('TestValidationPage: Navigating to validation summary');
     router.push('/user/validation-summary');
   };
 
   const handleGoToUpload = () => {
-    console.log('UserTestValidationPage: Navigating to upload');
+    console.log('TestValidationPage: Navigating to upload');
     router.push('/user/shipment-upload');
   };
 
@@ -27,7 +27,7 @@ function UserTestValidationPage() {
       
       <div className="space-y-4">
         <p className="text-gray-600 dark:text-gray-400">
-          This is a test page to verify routing and basic functionality for users.
+          This is a test page to verify routing and basic functionality.
         </p>
         
         <div className="flex space-x-4">
@@ -54,4 +54,4 @@ function UserTestValidationPage() {
   );
 }
 
-export default withUserAuth(UserTestValidationPage);
+export default withUserAuth(TestValidationPage);

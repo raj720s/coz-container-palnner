@@ -17,14 +17,32 @@ import Input from "@/components/form/input/InputField";
 import { 
   DownloadIcon, 
   EyeIcon, 
+  FilterIcon,
   RefreshIcon, 
   PackageIcon,
   CalendarIcon,
   MapPinIcon,
+  UserIcon,
   TruckIcon
 } from "@/icons";
-import { localStorageService } from '@/utils/localStorageService';
-import { useAuth } from "@/context/AuthContext";
+import { localStorageService, type UploadedFile } from '@/utils/localStorageService';
+
+interface ShipmentDataRow {
+  SHIPMENT?: string;
+  CUSTOMER?: string;
+  CUSTOME?: string;
+  SUPPLIER?: string;
+  VOLUME?: string;
+  Qty?: string;
+  'RCV/PUG'?: string;
+  POL?: string;
+  Destsite?: string;
+  [key: string]: string | undefined;
+}
+
+interface ExtendedUploadedFile extends UploadedFile {
+  validData?: ShipmentDataRow[];
+}
 
 interface Shipment {
   id: string;
@@ -44,9 +62,8 @@ interface Shipment {
 
 const columnHelper = createColumnHelper<Shipment>();
 
-function UserShipmentHistoryPage() {
+function ShipmentHistoryPage() {
   const router = useRouter();
-  const { user: currentUser } = useAuth();
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -66,16 +83,16 @@ function UserShipmentHistoryPage() {
       const files = localStorageService.getUploadedFiles();
       const allShipments: Shipment[] = [];
       
-      files.forEach((file: any) => {
+      files.forEach((file: ExtendedUploadedFile) => {
         if (file.validData && Array.isArray(file.validData)) {
-          file.validData.forEach((shipment: any, index: number) => {
+          file.validData.forEach((shipment: ShipmentDataRow, index: number) => {
             allShipments.push({
               id: `${file.id}_${index}`,
               shipmentId: shipment.SHIPMENT || `SHIP_${index}`,
               customer: shipment.CUSTOMER || shipment.CUSTOME || 'Unknown',
               supplier: shipment.SUPPLIER || 'Unknown',
-              volume: parseFloat(shipment.VOLUME) || 0,
-              quantity: parseInt(shipment.Qty) || 0,
+              volume: parseFloat(shipment.VOLUME || '0') || 0,
+              quantity: parseInt(shipment.Qty || '0') || 0,
               rcvPug: shipment['RCV/PUG'] || 'Unknown',
               pol: shipment.POL || 'Unknown',
               destsite: shipment.Destsite || 'Unknown',
@@ -87,11 +104,7 @@ function UserShipmentHistoryPage() {
         }
       });
       
-      // Filter to show only current user's shipments (in real app, this would filter by userId)
-      // For now, we'll show all shipments but this should be filtered by userId in production
-      const userShipments = allShipments;
-      
-      setShipments(userShipments);
+      setShipments(allShipments);
     } catch (error) {
       console.error('Error loading shipments:', error);
     } finally {
@@ -103,20 +116,20 @@ function UserShipmentHistoryPage() {
     columnHelper.accessor("shipmentId", { 
       header: "Shipment ID", 
       cell: (info) => (
-        <div className="flex items-center gap-2">
-          <PackageIcon className="w-4 h-4 text-blue-500" />
-          <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
-            {info.getValue()}
-          </span>
-        </div>
+        <span className="font-medium text-gray-900 dark:text-white">
+          {info.getValue()}
+        </span>
       )
     }),
     columnHelper.accessor("customer", { 
       header: "Customer", 
       cell: (info) => (
-        <span className="font-medium text-gray-900 dark:text-white">
-          {info.getValue()}
-        </span>
+        <div className="flex items-center gap-2">
+          <UserIcon className="w-4 h-4 text-gray-400" />
+          <span className="text-sm text-gray-600 dark:text-gray-300">
+            {info.getValue()}
+          </span>
+        </div>
       )
     }),
     columnHelper.accessor("supplier", { 
@@ -130,13 +143,21 @@ function UserShipmentHistoryPage() {
     columnHelper.accessor("volume", { 
       header: "Volume (CBM)", 
       cell: (info) => (
-        <span className="font-mono text-sm text-gray-900 dark:text-white">
+        <span className="font-mono text-sm">
           {info.getValue().toFixed(2)}
         </span>
       )
     }),
     columnHelper.accessor("quantity", { 
       header: "Quantity", 
+      cell: (info) => (
+        <span className="font-medium text-gray-900 dark:text-white">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("rcvPug", { 
+      header: "RCV/PUG", 
       cell: (info) => (
         <span className="text-sm text-gray-600 dark:text-gray-300">
           {info.getValue()}
@@ -146,8 +167,8 @@ function UserShipmentHistoryPage() {
     columnHelper.accessor("pol", { 
       header: "POL", 
       cell: (info) => (
-        <div className="flex items-center gap-1">
-          <MapPinIcon className="w-3 h-3 text-gray-400" />
+        <div className="flex items-center gap-2">
+          <MapPinIcon className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-600 dark:text-gray-300">
             {info.getValue()}
           </span>
@@ -160,17 +181,6 @@ function UserShipmentHistoryPage() {
         <span className="text-sm text-gray-600 dark:text-gray-300">
           {info.getValue()}
         </span>
-      )
-    }),
-    columnHelper.accessor("rcvPug", { 
-      header: "RCV/PUG", 
-      cell: (info) => (
-        <div className="flex items-center gap-1">
-          <CalendarIcon className="w-3 h-3 text-gray-400" />
-          <span className="text-sm text-gray-600 dark:text-gray-300">
-            {info.getValue()}
-          </span>
-        </div>
       )
     }),
     columnHelper.accessor("status", {
@@ -204,13 +214,17 @@ function UserShipmentHistoryPage() {
         );
       },
     }),
-    columnHelper.accessor("uploadDate", {
-      header: "Upload Date",
+    columnHelper.accessor("uploadDate", { 
+      header: "Upload Date", 
       cell: (info) => (
-        <div className="flex items-center gap-1">
-          <CalendarIcon className="w-3 h-3 text-gray-400" />
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="w-4 h-4 text-gray-400" />
           <span className="text-sm text-gray-600 dark:text-gray-300">
-            {new Date(info.getValue()).toLocaleDateString()}
+            {new Date(info.getValue()).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            })}
           </span>
         </div>
       )
@@ -219,7 +233,7 @@ function UserShipmentHistoryPage() {
       id: "actions",
       header: "Actions",
       cell: (info) => (
-        <div className="flex gap-2">
+        <div className="flex space-x-2">
           <Button
             size="sm"
             variant="outline"
@@ -227,7 +241,6 @@ function UserShipmentHistoryPage() {
             className="p-1"
           >
             <EyeIcon className="w-4 h-4" />
-            <span className="ml-1">View</span>
           </Button>
         </div>
       ),
@@ -240,9 +253,11 @@ function UserShipmentHistoryPage() {
         item.shipmentId.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.customer.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.supplier.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.status.toLowerCase().includes(globalFilter.toLowerCase());
+        item.pol.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.destsite.toLowerCase().includes(globalFilter.toLowerCase());
       
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+      
       const matchesPol = polFilter === "all" || item.pol === polFilter;
       
       return matchesSearch && matchesStatus && matchesPol;
@@ -262,23 +277,23 @@ function UserShipmentHistoryPage() {
   });
 
   const viewShipmentDetails = (shipment: Shipment) => {
-    // Navigate to shipment details view
-    router.push(`/user/shipment-details/${shipment.id}`);
+    // Navigate to shipment details page
+    router.push(`/user/shipment-operations/shipment-details/${shipment.id}`);
   };
 
   const exportShipments = () => {
-    const headers = ["Shipment ID", "Customer", "Supplier", "Volume (CBM)", "Quantity", "POL", "Destination", "RCV/PUG", "Status", "Upload Date"];
+    const headers = ["Shipment ID", "Customer", "Supplier", "Volume (CBM)", "Quantity", "RCV/PUG", "POL", "Destination", "Status", "Upload Date"];
     const csvContent = [
       headers.join(","),
       ...filteredData.map(row => [
         row.shipmentId,
         row.customer,
         row.supplier,
-        row.volume.toFixed(2),
+        row.volume,
         row.quantity,
+        row.rcvPug,
         row.pol,
         row.destsite,
-        row.rcvPug,
         row.status,
         new Date(row.uploadDate).toLocaleDateString()
       ].join(","))
@@ -288,7 +303,7 @@ function UserShipmentHistoryPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "my_shipment_history.csv";
+    a.download = "shipment_history.csv";
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -316,10 +331,10 @@ function UserShipmentHistoryPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            My Shipment History
+            Shipment History
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            View and track all your shipment records and their current status.
+            View and track all shipment records from uploaded files
           </p>
         </div>
         <div className="flex gap-3">
@@ -350,41 +365,41 @@ function UserShipmentHistoryPage() {
         
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-              <TruckIcon className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {shipments.filter(item => item.status === 'pending').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <MapPinIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Assigned</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {shipments.filter(item => item.status === 'assigned').length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
             <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
               <TruckIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Delivered</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Volume</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {shipments.filter(item => item.status === 'delivered').length}
+                {shipments.reduce((sum, item) => sum + item.volume, 0).toFixed(2)} CBM
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+              <MapPinIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Unique POLs</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {new Set(shipments.map(item => item.pol)).size}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
+              <UserIcon className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Unique Customers</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {new Set(shipments.map(item => item.customer)).size}
               </p>
             </div>
           </div>
@@ -399,7 +414,7 @@ function UserShipmentHistoryPage() {
               Search
             </label>
             <Input
-              placeholder="Search shipments..."
+              placeholder="Search by shipment ID, customer, supplier, POL, or destination..."
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className="w-full"
@@ -413,7 +428,7 @@ function UserShipmentHistoryPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
             >
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
@@ -422,7 +437,7 @@ function UserShipmentHistoryPage() {
               <option value="delivered">Delivered</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               POL Filter
@@ -430,18 +445,19 @@ function UserShipmentHistoryPage() {
             <select
               value={polFilter}
               onChange={(e) => setPolFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
             >
               <option value="all">All POLs</option>
-              {Array.from(new Set(shipments.map(s => s.pol))).map(pol => (
+              {Array.from(new Set(shipments.map(item => item.pol))).map(pol => (
                 <option key={pol} value={pol}>{pol}</option>
               ))}
             </select>
           </div>
         </div>
         
-        <div className="mt-4">
+        <div className="mt-4 flex justify-end">
           <Button onClick={resetFilters} size="sm" variant="outline">
+            <FilterIcon className="w-4 h-4 mr-2" />
             Reset Filters
           </Button>
         </div>
@@ -500,4 +516,4 @@ function UserShipmentHistoryPage() {
   );
 }
 
-export default withUserAuth(UserShipmentHistoryPage);
+export default withUserAuth(ShipmentHistoryPage);

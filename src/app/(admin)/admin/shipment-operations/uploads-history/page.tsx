@@ -29,6 +29,12 @@ import {
 } from "@/icons";
 import { getUploadedFiles } from "@/utils/clientShipmentService";
 import { formatFileSize } from "@/utils/formatUtils";
+import { type UploadedFile } from "@/utils/localStorageService";
+
+interface ExtendedUploadedFile extends UploadedFile {
+  errors?: string[];
+  warnings?: string[];
+}
 
 interface UploadHistory {
   id: string;
@@ -82,7 +88,7 @@ function UploadsHistoryPage() {
       const files = getUploadedFiles();
       
       // Transform the data to match our new interface
-      const historyData: UploadHistory[] = files.map((file: any, index: number) => {
+      const historyData: UploadHistory[] = files.map((file: ExtendedUploadedFile, index: number) => {
         // Determine status based on validation results
         let status: UploadHistory['status'] = 'PENDING';
         if (file.validRows > 0 && file.invalidRows === 0) {
@@ -370,7 +376,7 @@ function UploadsHistoryPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
@@ -425,24 +431,12 @@ function UploadsHistoryPage() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-              <UserIcon className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Users</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {new Set(uploadHistory.map(item => item.userId)).size}
-              </p>
-            </div>
-          </div>
-        </div>
+       
       </div>
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Search
@@ -473,7 +467,7 @@ function UploadsHistoryPage() {
             />
           </div>
 
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               User Filter
             </label>
@@ -487,7 +481,7 @@ function UploadsHistoryPage() {
               className="w-full"
             />
           </div>
-          
+           */}
           <div className="flex items-end">
             <Button onClick={resetFilters} size="sm" variant="outline" className="w-full">
               Reset Filters

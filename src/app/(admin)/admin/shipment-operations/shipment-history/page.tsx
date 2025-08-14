@@ -25,7 +25,24 @@ import {
   UserIcon,
   TruckIcon
 } from "@/icons";
-import { localStorageService } from '@/utils/localStorageService';
+import { localStorageService, type UploadedFile } from '@/utils/localStorageService';
+
+interface ShipmentDataRow {
+  SHIPMENT?: string;
+  CUSTOMER?: string;
+  CUSTOME?: string;
+  SUPPLIER?: string;
+  VOLUME?: string;
+  Qty?: string;
+  'RCV/PUG'?: string;
+  POL?: string;
+  Destsite?: string;
+  [key: string]: string | undefined;
+}
+
+interface ExtendedUploadedFile extends UploadedFile {
+  validData?: ShipmentDataRow[];
+}
 
 interface Shipment {
   id: string;
@@ -66,16 +83,16 @@ function ShipmentHistoryPage() {
       const files = localStorageService.getUploadedFiles();
       const allShipments: Shipment[] = [];
       
-      files.forEach((file: any) => {
+      files.forEach((file: ExtendedUploadedFile) => {
         if (file.validData && Array.isArray(file.validData)) {
-          file.validData.forEach((shipment: any, index: number) => {
+          file.validData.forEach((shipment: ShipmentDataRow, index: number) => {
             allShipments.push({
               id: `${file.id}_${index}`,
               shipmentId: shipment.SHIPMENT || `SHIP_${index}`,
               customer: shipment.CUSTOMER || shipment.CUSTOME || 'Unknown',
               supplier: shipment.SUPPLIER || 'Unknown',
-              volume: parseFloat(shipment.VOLUME) || 0,
-              quantity: parseInt(shipment.Qty) || 0,
+              volume: parseFloat(shipment.VOLUME || '0') || 0,
+              quantity: parseInt(shipment.Qty || '0') || 0,
               rcvPug: shipment['RCV/PUG'] || 'Unknown',
               pol: shipment.POL || 'Unknown',
               destsite: shipment.Destsite || 'Unknown',
@@ -243,10 +260,8 @@ function ShipmentHistoryPage() {
         item.supplier.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.pol.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.destsite.toLowerCase().includes(globalFilter.toLowerCase());
-      
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
       const matchesPOL = polFilter === "all" || item.pol === polFilter;
-      
       return matchesSearch && matchesStatus && matchesPOL;
     });
   }, [shipments, globalFilter, statusFilter, polFilter]);

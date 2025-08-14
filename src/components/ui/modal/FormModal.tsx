@@ -4,12 +4,12 @@ import { Modal } from "./index";
 import Button from "@/components/ui/button/Button";
 import { CloseIcon } from "@/icons";
 
-interface FormModalProps {
+interface FormModalProps<T = unknown> {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  onSubmit?: (data?: any) => void;
+  onSubmit?: (data?: T) => void;
   submitText?: string;
   cancelText?: string;
   isLoading?: boolean;
@@ -17,7 +17,7 @@ interface FormModalProps {
   showFooter?: boolean;
 }
 
-export const FormModal: React.FC<FormModalProps> = ({
+export const FormModal = <T = unknown>({
   isOpen,
   onClose,
   title,

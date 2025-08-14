@@ -1,3 +1,4 @@
+import { any } from 'zod';
 import { localStorageService, type ShipmentData, type ContainerAssignment } from './localStorageService';
 
 // Types for the container planning system
@@ -69,7 +70,7 @@ function createBuckets(shipments: ShipmentData[]): BucketData[] {
         customer: shipment.customer,
         pol: shipment.pol,
         pod: shipment.destsite,
-        shipments: [],
+        shipments: [],  // Initialize shipments array 
         totalCBM: 0,
         totalQty: 0,
         isGroupMix: false
@@ -94,8 +95,8 @@ async function getContainerPriorities(): Promise<ContainerPriority[]> {
     const data = await response.json();
     const priorities = data.containerPriorities || [];
     return priorities
-      .filter(p => p.status === 'active')
-      .sort((a, b) => a.priority - b.priority);
+      .filter((p: ContainerPriority) => p.status === 'active')
+      .sort((a: ContainerPriority, b: ContainerPriority) => a.priority - b.priority);
   } catch (error) {
     console.error('Error loading container priorities:', error);
     // Fallback to hardcoded priorities
@@ -118,7 +119,7 @@ async function getThresholdForContainer(containerType: string, pol: string): Pro
     const thresholds = data.containerThresholds || [];
     
     // First try to find POL-specific threshold
-    const polSpecific = thresholds.find(t => 
+    const polSpecific = thresholds.find((t: ContainerThreshold) => 
       t.containerType === containerType && 
       t.pol === pol && 
       t.isActive
@@ -127,7 +128,7 @@ async function getThresholdForContainer(containerType: string, pol: string): Pro
     if (polSpecific) return polSpecific;
     
     // Fall back to default threshold
-    const defaultThreshold = thresholds.find(t => 
+    const defaultThreshold = thresholds.find((t: ContainerThreshold) => 
       t.containerType === containerType && 
       t.isDefault && 
       t.isActive

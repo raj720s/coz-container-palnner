@@ -144,7 +144,6 @@ export default function SignUpForm() {
                     <Input
                       type="text"
                       id="firstName"
-                      name="firstName"
                       placeholder="Enter your first name"
                       {...register("firstName")}
                       error={errors.firstName?.message}
@@ -158,7 +157,6 @@ export default function SignUpForm() {
                     <Input
                       type="text"
                       id="lastName"
-                      name="lastName"
                       placeholder="Enter your last name"
                       {...register("lastName")}
                       error={errors.lastName?.message}
@@ -173,7 +171,6 @@ export default function SignUpForm() {
                   <Input
                     type="email"
                     id="email"
-                    name="email"
                     placeholder="Enter your email"
                     {...register("email")}
                     error={errors.email?.message}
@@ -208,7 +205,7 @@ export default function SignUpForm() {
                   <Checkbox
                     className="w-5 h-5"
                     checked={agreeToTerms || false}
-                    onChange={(checked: boolean) => setValue("agreeToTerms", checked)}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => setValue("agreeToTerms", event.target.checked)}
                   />
                   <p className="inline-block font-normal text-gray-500 dark:text-gray-400">
                     By creating an account means you agree to the{" "}

@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { localStorageService } from './localStorageService';
+import { localStorageService, type POLPort, type PODPort } from './localStorageService';
 
 interface ValidationError {
   rowNumber: number;
@@ -9,11 +9,24 @@ interface ValidationError {
   severity: "error" | "warning";
 }
 
+interface ShipmentDataRow {
+  SHIPMENT?: string;
+  CUSTOMER?: string;
+  CUSTOME?: string;
+  SUPPLIER?: string;
+  VOLUME?: string;
+  Qty?: string;
+  'RCV/PUG'?: string;
+  POL?: string;
+  Destsite?: string;
+  [key: string]: string | undefined;
+}
+
 interface FileValidationResult {
   fileName: string;
   fileSize: number;
   totalRows: number;
-  dataRows: any[][];
+  dataRows: string[][];
   headers: string[];
   errors: ValidationError[];
   warnings: ValidationError[];
@@ -23,7 +36,7 @@ interface ValidationResult {
   success: boolean;
   errors: ValidationError[];
   warnings: ValidationError[];
-  validData: any[];
+  validData: ShipmentDataRow[];
   fileValidation: FileValidationResult;
 }
 
@@ -37,7 +50,7 @@ interface UploadProgress {
 /**
  * Read POL ports from localStorage (client-side)
  */
-function getPOLPorts(): any[] {
+function getPOLPorts(): POLPort[] {
   try {
     const ports = localStorageService.getPOLPorts();
     return ports || [];
@@ -50,7 +63,7 @@ function getPOLPorts(): any[] {
 /**
  * Read POD ports from localStorage (client-side)
  */
-function getPODPorts(): any[] {
+function getPODPorts(): PODPort[] {
   try {
     const ports = localStorageService.getPODPorts();
     return ports || [];
@@ -63,7 +76,7 @@ function getPODPorts(): any[] {
 /**
  * Validate file structure and headers
  */
-function validateFileStructure(data: any[][], fileName: string, fileSize: number): FileValidationResult {
+function validateFileStructure(data: string[][], fileName: string, fileSize: number): FileValidationResult {
   const result: FileValidationResult = {
     fileName,
     fileSize,
@@ -146,7 +159,7 @@ function validateFileStructure(data: any[][], fileName: string, fileSize: number
 /**
  * Validate individual shipment data row
  */
-function validateShipmentData(data: any[], headers: string[], rowNumber: number): ValidationError[] {
+function validateShipmentData(data: string[], headers: string[], rowNumber: number): ValidationError[] {
   const errors: ValidationError[] = [];
 
   // Map data based on headers and ensure all values are strings
@@ -348,7 +361,7 @@ function validateShipmentData(data: any[], headers: string[], rowNumber: number)
 /**
  * Check for duplicate rows within the file
  */
-function checkDuplicateRows(dataRows: any[][]): ValidationError[] {
+function checkDuplicateRows(dataRows: string[][]): ValidationError[] {
   const errors: ValidationError[] = [];
   const rowMap = new Map<string, number[]>();
 
@@ -497,7 +510,7 @@ export async function processExcelFile(
     };
 
     // Basic file structure validation
-    const fileValidation = validateFileStructure(jsonData as any[][], file.name, file.size);
+    const fileValidation = validateFileStructure(jsonData as string[][], file.name, file.size);
     validationResult.fileValidation = fileValidation;
 
     // Add file validation errors
@@ -531,7 +544,7 @@ export async function processExcelFile(
       
       if (rowErrors.length === 0) {
         // Row is valid, add to validData
-        const rowData: { [key: string]: any } = {};
+        const rowData: { [key: string]: string } = {};
         headers.forEach((header, headerIndex) => {
           const value = row[headerIndex];
           

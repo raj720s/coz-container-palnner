@@ -7,13 +7,9 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { 
   UserIcon, 
-  ShieldCheckIcon, 
-  LockClosedIcon, 
-  EyeIcon,
-  EyeSlashIcon,
-  SaveIcon,
-  RefreshIcon,
-  TrashIcon,
+  ShieldIcon, 
+  
+  TrashBinIcon,
   PlusIcon
 } from "@/icons";
 import { 
@@ -33,6 +29,7 @@ import {
   removeRouteAccess,
   hasCategoryAccess
 } from "@/utils/accessControl";
+import { FiSave } from "react-icons/fi";
 
 interface AccessControlManagerProps {
   onUserUpdate?: (userId: string, updates: UpdateUserData) => void;
@@ -331,7 +328,7 @@ function AccessControlManager({
                     {editingUser && (
                       <>
                         <Button onClick={handleSaveChanges} size="sm" className="flex items-center gap-2">
-                          <SaveIcon className="w-4 h-4" />
+                          <FiSave className="w-4 h-4" />
                           Save Changes
                         </Button>
                         <Button 
@@ -356,7 +353,7 @@ function AccessControlManager({
                       variant="outline"
                       className="text-red-600 hover:text-red-700"
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <TrashBinIcon className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -464,7 +461,7 @@ function AccessControlManager({
           ) : (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="text-center text-gray-500 dark:text-gray-400">
-                <ShieldCheckIcon className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                <ShieldIcon className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                 <p>Select a user to manage their access control</p>
               </div>
             </div>
@@ -532,7 +529,7 @@ function AccessControlManager({
                   </div>
                 </div>
                 <div className="flex gap-3 justify-end mt-6">
-                  <Button type="submit" className="flex items-center gap-2">
+                  <Button className="flex items-center gap-2">
                     <PlusIcon className="w-4 h-4" />
                     Create User
                   </Button>

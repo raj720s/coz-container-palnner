@@ -235,7 +235,7 @@ function SortableRow({
 }: { 
   children: React.ReactNode; 
   id: string; 
-  [key: string]: any;
+  [key: string]: string | number | boolean | React.ReactNode | undefined;
 }) {
   const {
     attributes,
@@ -347,7 +347,7 @@ function ContainerPriorityPage() {
       if (editingItem) {
         // Update existing priority
         const updatedData = data.map(item => 
-          item.id === editingItem.id 
+          item.id === (editingItem as ContainerPriority).id 
             ? { ...item, ...formData, updatedAt: new Date().toISOString() }
             : item
         );
@@ -464,6 +464,7 @@ function ContainerPriorityPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Container Priority" : "Add New Container Priority"}
         isLoading={isModalLoading}
@@ -471,7 +472,7 @@ function ContainerPriorityPage() {
         showFooter={false}
       >
         <ContainerPriorityForm
-          initialData={editingItem}
+          initialData={editingItem as ContainerPriority | undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

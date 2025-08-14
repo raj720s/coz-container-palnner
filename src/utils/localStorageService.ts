@@ -128,7 +128,7 @@ export interface ShipmentData {
   destsite: string;
   fileId: string;
   uploadDate: string;
-  [key: string]: any;
+  [key: string]: string | number | boolean | Record<string, any> | undefined;
 }
 
 export interface ContainerPlanningResult {
@@ -766,11 +766,11 @@ export const localStorageService = {
   },
 
   saveShipmentData(shipments: Omit<ShipmentData, 'id'>[]): ShipmentData[] {
-    const existingShipments = this.getShipmentData();
-    const newShipments: ShipmentData[] = shipments.map(shipment => ({
+    const existingShipments = this.getShipmentData()
+    const newShipments = shipments.map((shipment: Omit<ShipmentData, 'id'>) => ({
       ...shipment,
       id: generateId()
-    }));
+    })) as ShipmentData[];
     
     const allShipments = [...existingShipments, ...newShipments];
     setToStorage(STORAGE_KEYS.SHIPMENT_DATA, allShipments);

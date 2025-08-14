@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 
 import { FormModal } from "@/components/ui/modal/FormModal";
-import { UserForm } from "@/components/forms/UserForm";
+import { UserForm, type UserFormData } from "@/components/forms/UserForm";
 import { useFormModal } from "@/hooks/useFormModal";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon } from "@/icons";
@@ -157,7 +157,7 @@ function AdminUserManagementPage() {
     toast.success("Exporting user data...");
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: UserFormData) => {
     setLoading(true);
     
     try {

@@ -81,12 +81,11 @@ const mockCustomers: Customer[] = [
 function CustomersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const action = searchParams.get('action');
+  const action = searchParams?.get('action') || '';
   const { showSuccess, showError } = useMessage();
   
   // Customers data
   const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
-  const [loading, setLoading] = useState(false);
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -221,14 +220,14 @@ function CustomersPage() {
     }
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: Customer) => {
     try {
       setModalLoading(true);
       
       if (editingItem) {
         // Update existing customer
         const updatedCustomers = customers.map(customer => 
-          customer.id === editingItem.id 
+          customer.id === (editingItem as Customer).id 
             ? { ...customer, ...formData, updatedAt: new Date().toISOString() }
             : customer
         );
@@ -317,6 +316,34 @@ function CustomersPage() {
         </div>
       </div>
 
+      {/* Summary Stats */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {customers.length}
+          </div>
+          <div className="text-sm text-blue-600 dark:text-blue-400">Total Customers</div>
+        </div>
+        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {customers.filter(item => item.isActive).length}
+          </div>
+          <div className="text-sm text-green-600 dark:text-green-400">Active Customers</div>
+        </div>
+        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {new Set(customers.map(item => item.country)).size}
+          </div>
+          <div className="text-sm text-purple-600 dark:text-purple-400">Countries</div>
+        </div>
+        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            {new Set(customers.map(item => item.region)).size}
+          </div>
+          <div className="text-sm text-orange-600 dark:text-orange-400">Regions</div>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="mb-6">
         <Input
@@ -377,12 +404,13 @@ function CustomersPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Customer" : "Add New Customer"}
         isLoading={isModalLoading}
       >
         <CustomerForm
-          initialData={editingItem}
+          initialData={editingItem as Customer | undefined}
           onSubmit={handleSubmit}
         />
       </FormModal>
@@ -391,7 +419,7 @@ function CustomersPage() {
 }
 
 // Simple Customer Form Component
-function CustomerForm({ initialData, onSubmit }: { initialData?: Customer; onSubmit: (data: any) => void }) {
+function CustomerForm({ initialData, onSubmit }: { initialData?: Customer; onSubmit: (data: Customer) => void }) {
   const [formData, setFormData] = useState({
     code: initialData?.code || '',
     name: initialData?.name || '',
@@ -405,7 +433,12 @@ function CustomerForm({ initialData, onSubmit }: { initialData?: Customer; onSub
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      id: initialData?.id || '',
+      createdAt: initialData?.createdAt || '',
+      updatedAt: initialData?.updatedAt || ''
+    });
   };
 
   return (

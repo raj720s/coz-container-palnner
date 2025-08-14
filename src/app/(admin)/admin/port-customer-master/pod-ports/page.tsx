@@ -17,7 +17,7 @@ import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PortForm } from "@/components/forms/PortForm";
+import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { dataService, type PODPort } from "@/utils/dataService";
 
@@ -168,7 +168,7 @@ function PODPortsPage() {
     }
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: PortFormData) => {
     setLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
@@ -357,7 +357,7 @@ function PODPortsPage() {
         size="lg"
       >
         <PortForm
-          initialData={editingItem as any}
+          initialData={editingItem}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 
-interface ContainerThresholdFormData {
+export interface ContainerThresholdFormData {
   containerType: string;
   minCBM: number;
   maxCBM: number;

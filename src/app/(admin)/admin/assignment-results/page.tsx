@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   SortingState,
-  ColumnDef,
+
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon } from "@/icons";
@@ -44,21 +44,21 @@ function AssignmentResultsPage() {
       const storedData = sessionStorage.getItem('planningResults');
       if (storedData) {
         const parsed = JSON.parse(storedData);
-        return parsed.assignments.map((assignment: any, index: number) => ({
+        return parsed.assignments.map((assignment: Record<string, unknown>, index: number) => ({
           id: (index + 1).toString(),
-          shipmentId: assignment.shipmentId,
-          customer: assignment.customer,
-          optimizedContainerRef: assignment.containerRef || assignment.optimizedContainerRef || '',
-          containerType: assignment.containerType || 'Unknown',
-          minThreshold: assignment.minThreshold || 0,
-          maxThreshold: assignment.maxThreshold || 0,
-          totalCBM: assignment.totalCBM || assignment.volume || 0,
-          volume: assignment.volume || assignment.cbm || 0,
-          pol: assignment.pol || assignment.pol || '',
-          destsite: assignment.pod || assignment.destsite || '',
-          qty: assignment.qty || 0,
-          totalQty: assignment.totalQty || 0,
-          status: assignment.status || 'assigned',
+          shipmentId: (assignment.shipmentId as string) || '',
+          customer: (assignment.customer as string) || '',
+          optimizedContainerRef: (assignment.containerRef as string) || (assignment.optimizedContainerRef as string) || '',
+          containerType: (assignment.containerType as string) || 'Unknown',
+          minThreshold: (assignment.minThreshold as number) || 0,
+          maxThreshold: (assignment.maxThreshold as number) || 0,
+          totalCBM: (assignment.totalCBM as number) || (assignment.volume as number) || 0,
+          volume: (assignment.volume as number) || (assignment.cbm as number) || 0,
+          pol: (assignment.pol as string) || '',
+          destsite: (assignment.pod as string) || (assignment.destsite as string) || '',
+          qty: (assignment.qty as number) || 0,
+          totalQty: (assignment.totalQty as number) || 0,
+          status: (assignment.status as string) || 'assigned',
           createdAt: new Date().toISOString().split('T')[0],
         }));
       }
@@ -122,7 +122,7 @@ function AssignmentResultsPage() {
     ];
   };
 
-  const [data, setData] = useState<AssignmentResult[]>(getAssignmentData());
+  const [data] = useState<AssignmentResult[]>(getAssignmentData());
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -261,16 +261,16 @@ function AssignmentResultsPage() {
     toast.success("Export completed successfully");
   };
 
-  const getSummaryStats = () => {
+  const getSummaryStats = useMemo(() => {
     const total = filteredData.length;
     const assigned = filteredData.filter(item => item.status === "assigned").length;
     const unassigned = filteredData.filter(item => item.status === "unassigned").length;
     const errors = filteredData.filter(item => item.status === "error").length;
 
     return { total, assigned, unassigned, errors };
-  };
+  }, [filteredData]);
 
-  const stats = useMemo(() => getSummaryStats(), [filteredData]);
+  const stats = getSummaryStats;
 
   return (
     <div className="p-6">

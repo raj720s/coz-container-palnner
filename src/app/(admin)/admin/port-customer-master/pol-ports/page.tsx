@@ -16,7 +16,7 @@ import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PortForm } from "@/components/forms/PortForm";
+import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { dataService, type POLPort } from "@/utils/dataService";
 import { withRouteAuth } from "@/components/auth/withAuth";
@@ -177,7 +177,7 @@ function POLPortsPage() {
     }
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: PortFormData) => {
     try {
       setModalLoading(true);
       
@@ -268,6 +268,32 @@ function POLPortsPage() {
             <PlusIcon className="w-4 h-4 mr-2" />
             Add POL Port
           </Button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total POL Ports</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{polPorts.length}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Active Ports</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+            {polPorts.filter(p => p.isActive).length}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
+          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            {new Set(polPorts.map(p => p.country)).size}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Regions</div>
+          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            {new Set(polPorts.map(p => p.region)).size}
+          </div>
         </div>
       </div>
 

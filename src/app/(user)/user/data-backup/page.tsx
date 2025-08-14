@@ -30,45 +30,45 @@ interface BackupSchedule {
   nextRun?: string;
 }
 
-function UserDataBackupPage() {
+function DataBackupPage() {
   const [backupJobs, setBackupJobs] = useState<BackupJob[]>([
     {
       id: "1",
-      name: "My Data Backup - 2024-01-15",
+      name: "Full Backup - 2024-01-15",
       type: "full",
       status: "completed",
-      size: "45 MB",
+      size: "2.4 GB",
       createdAt: "2024-01-15T02:00:00Z",
-      completedAt: "2024-01-15T02:05:00Z",
-      duration: "5 minutes",
-      location: "Cloud Storage",
+      completedAt: "2024-01-15T02:45:00Z",
+      duration: "45 minutes",
+      location: "Local Storage",
       retention: "30 days"
     },
     {
       id: "2",
-      name: "My Incremental Backup - 2024-01-16",
+      name: "Incremental Backup - 2024-01-16",
       type: "incremental",
       status: "completed",
-      size: "12 MB",
+      size: "156 MB",
       createdAt: "2024-01-16T02:00:00Z",
-      completedAt: "2024-01-16T02:02:00Z",
-      duration: "2 minutes",
+      completedAt: "2024-01-16T02:05:00Z",
+      duration: "5 minutes",
       location: "Cloud Storage",
       retention: "7 days"
     },
     {
       id: "3",
-      name: "My Full Backup - 2024-01-17",
+      name: "Full Backup - 2024-01-17",
       type: "full",
       status: "running",
-      size: "52 MB",
+      size: "2.1 GB",
       createdAt: "2024-01-17T02:00:00Z",
-      location: "Cloud Storage",
+      location: "Local Storage",
       retention: "30 days"
     },
     {
       id: "4",
-      name: "My Differential Backup - 2024-01-14",
+      name: "Differential Backup - 2024-01-14",
       type: "differential",
       status: "failed",
       size: "0 MB",
@@ -78,12 +78,12 @@ function UserDataBackupPage() {
     },
     {
       id: "5",
-      name: "My Incremental Backup - 2024-01-18",
+      name: "Incremental Backup - 2024-01-18",
       type: "incremental",
       status: "scheduled",
       size: "0 MB",
       createdAt: "2024-01-18T02:00:00Z",
-      location: "Cloud Storage",
+      location: "Local Storage",
       retention: "7 days"
     }
   ]);
@@ -91,370 +91,416 @@ function UserDataBackupPage() {
   const [schedules, setSchedules] = useState<BackupSchedule[]>([
     {
       id: "1",
-      name: "My Daily Backup",
+      name: "Daily Full Backup",
       frequency: "daily",
       time: "02:00",
-      type: "incremental",
+      type: "full",
       isActive: true,
       lastRun: "2024-01-17T02:00:00Z",
       nextRun: "2024-01-18T02:00:00Z"
     },
     {
       id: "2",
-      name: "My Weekly Full Backup",
-      frequency: "weekly",
-      time: "03:00",
-      type: "full",
+      name: "Hourly Incremental",
+      frequency: "hourly",
+      time: "00:00",
+      type: "incremental",
       isActive: true,
-      lastRun: "2024-01-14T03:00:00Z",
-      nextRun: "2024-01-21T03:00:00Z"
+      lastRun: "2024-01-17T17:00:00Z",
+      nextRun: "2024-01-17T18:00:00Z"
     },
     {
       id: "3",
-      name: "My Monthly Archive",
-      frequency: "monthly",
-      time: "04:00",
+      name: "Weekly Full Backup",
+      frequency: "weekly",
+      time: "03:00",
       type: "full",
       isActive: false,
-      lastRun: "2023-12-01T04:00:00Z",
-      nextRun: "2024-02-01T04:00:00Z"
+      lastRun: "2024-01-14T03:00:00Z",
+      nextRun: "2024-01-21T03:00:00Z"
     }
   ]);
 
   const [selectedJob, setSelectedJob] = useState<BackupJob | null>(null);
   const [showRestoreModal, setShowRestoreModal] = useState(false);
 
-  const startBackup = (type: "full" | "incremental" | "differential") => {
+  const handleCreateBackup = () => {
     const newJob: BackupJob = {
       id: Date.now().toString(),
-      name: `My ${type.charAt(0).toUpperCase() + type.slice(1)} Backup - ${new Date().toISOString().split('T')[0]}`,
-      type,
+      name: `Manual Backup - ${new Date().toLocaleDateString()}`,
+      type: "full",
       status: "running",
       size: "0 MB",
       createdAt: new Date().toISOString(),
-      location: "Cloud Storage",
-      retention: type === "full" ? "30 days" : "7 days"
+      location: "Local Storage",
+      retention: "30 days"
     };
-
     setBackupJobs(prev => [newJob, ...prev]);
-    toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} backup started successfully`);
+    toast.success("Backup job created and started");
   };
 
-  const pauseBackup = (jobId: string) => {
+  const handlePauseBackup = (jobId: string) => {
     setBackupJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, status: "paused" } : job
+      job.id === jobId ? { ...job, status: "paused" as const } : job
     ));
-    toast.success("Backup paused successfully");
+    toast.success("Backup paused");
   };
 
-  const resumeBackup = (jobId: string) => {
+  const handleResumeBackup = (jobId: string) => {
     setBackupJobs(prev => prev.map(job => 
-      job.id === jobId ? { ...job, status: "running" } : job
+      job.id === jobId ? { ...job, status: "running" as const } : job
     ));
-    toast.success("Backup resumed successfully");
+    toast.success("Backup resumed");
   };
 
-  const cancelBackup = (jobId: string) => {
-    setBackupJobs(prev => prev.filter(job => job.id !== jobId));
-    toast.success("Backup cancelled successfully");
-  };
-
-  const deleteBackup = (jobId: string) => {
-    if (window.confirm("Are you sure you want to delete this backup?")) {
+  const handleDeleteBackup = (jobId: string) => {
+    if (confirm("Are you sure you want to delete this backup?")) {
       setBackupJobs(prev => prev.filter(job => job.id !== jobId));
-      toast.success("Backup deleted successfully");
+      toast.success("Backup deleted");
     }
   };
 
-  const downloadBackup = (job: BackupJob) => {
-    if (job.status === "completed") {
-      toast.success(`Downloading ${job.name}`);
-      // In real app, this would trigger actual download
-    } else {
-      toast.error("Cannot download incomplete backup");
-    }
+  const handleRestoreBackup = (job: BackupJob) => {
+    setSelectedJob(job);
+    setShowRestoreModal(true);
   };
 
-  const restoreBackup = (job: BackupJob) => {
-    if (job.status === "completed") {
-      setSelectedJob(job);
-      setShowRestoreModal(true);
-    } else {
-      toast.error("Cannot restore incomplete backup");
-    }
-  };
-
-  const confirmRestore = () => {
-    if (selectedJob) {
-      toast.success(`Restoring from ${selectedJob.name}`);
-      setShowRestoreModal(false);
-      setSelectedJob(null);
-    }
-  };
-
-  const toggleSchedule = (scheduleId: string) => {
+  const handleToggleSchedule = (scheduleId: string) => {
     setSchedules(prev => prev.map(schedule => 
       schedule.id === scheduleId ? { ...schedule, isActive: !schedule.isActive } : schedule
     ));
+    toast.success("Schedule status updated");
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "completed": return "text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300";
-      case "running": return "text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-300";
-      case "failed": return "text-red-600 bg-red-100 dark:bg-red-900 dark:text-red-300";
-      case "scheduled": return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300";
-      case "paused": return "text-gray-600 bg-gray-100 dark:bg-gray-900 dark:text-gray-300";
-      default: return "text-gray-600 bg-gray-100 dark:bg-gray-900 dark:text-gray-300";
+      case "completed": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      case "running": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "failed": return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+      case "scheduled": return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+      case "paused": return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed": return <CheckCircleIcon className="w-4 h-4" />;
+      case "running": return <PlayIcon className="w-4 h-4" />;
+      case "failed": return <AlertIcon className="w-4 h-4" />;
+      case "scheduled": return <TimeIcon className="w-4 h-4" />;
+      case "paused": return <PauseIcon className="w-4 h-4" />;
+      default: return <TimeIcon className="w-4 h-4" />;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "full": return "text-purple-600 bg-purple-100 dark:bg-purple-900 dark:text-purple-300";
-      case "incremental": return "text-blue-600 bg-blue-100 dark:bg-blue-900 dark:text-blue-300";
-      case "differential": return "text-green-600 bg-green-100 dark:bg-green-900 dark:text-green-300";
-      default: return "text-gray-600 bg-gray-100 dark:bg-gray-900 dark:text-gray-300";
+      case "full": return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200";
+      case "incremental": return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+      case "differential": return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+      default: return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200";
     }
   };
 
+  const getSummaryStats = () => {
+    const total = backupJobs.length;
+    const completed = backupJobs.filter(job => job.status === "completed").length;
+    const running = backupJobs.filter(job => job.status === "running").length;
+    const failed = backupJobs.filter(job => job.status === "failed").length;
+    const totalSize = backupJobs
+      .filter(job => job.status === "completed")
+      .reduce((sum, job) => sum + parseFloat(job.size.split(" ")[0]), 0);
+
+    return { total, completed, running, failed, totalSize };
+  };
+
+  const stats = getSummaryStats();
+
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            My Data Backup
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage your personal data backups and restore operations
-          </p>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Data Backup</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Manage system backups, schedules, and restoration
+        </p>
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Backups</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+            </div>
+            <DatabaseIcon className="w-8 h-8 text-blue-600" />
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={() => startBackup("full")} className="flex items-center gap-2">
-            <DatabaseIcon className="w-4 h-4" />
-            Full Backup
-          </Button>
-          <Button onClick={() => startBackup("incremental")} variant="outline" className="flex items-center gap-2">
-            <DatabaseIcon className="w-4 h-4" />
-            Incremental Backup
-          </Button>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Completed</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.completed}</p>
+            </div>
+            <CheckCircleIcon className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Running</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.running}</p>
+            </div>
+            <PlayIcon className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Failed</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.failed}</p>
+            </div>
+            <AlertIcon className="w-8 h-8 text-red-600" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Size</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalSize.toFixed(1)} GB</p>
+            </div>
+            <DatabaseIcon className="w-8 h-8 text-purple-600" />
+          </div>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <DatabaseIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Backups</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{backupJobs.length}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-              <CheckCircleIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {backupJobs.filter(job => job.status === "completed").length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <PlayIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Running</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {backupJobs.filter(job => job.status === "running").length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
-              <AlertIcon className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Failed</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {backupJobs.filter(job => job.status === "failed").length}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <Button onClick={handleCreateBackup} size="md">
+          <DatabaseIcon className="w-5 h-5 mr-2" />
+          Create Backup
+        </Button>
+        <Button variant="outline" size="md">
+          <DownloadIcon className="w-5 h-5 mr-2" />
+          Export Backup Log
+        </Button>
+        <Button variant="outline" size="md">
+          <RefreshIcon className="w-5 h-5 mr-2" />
+          Refresh Status
+        </Button>
       </div>
 
       {/* Backup Jobs */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Backup Jobs</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Size</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Created</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {backupJobs.map((job) => (
-                <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    {job.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(job.type)}`}>
-                      {job.type}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(job.status)}`}>
-                      {job.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                    {job.size}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                    {new Date(job.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex gap-2">
-                      {job.status === "running" && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => pauseBackup(job.id)}>
-                            <PauseIcon className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => cancelBackup(job.id)}>
-                            <TrashBinIcon className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      {job.status === "paused" && (
-                        <Button size="sm" variant="outline" onClick={() => resumeBackup(job.id)}>
-                          <PlayIcon className="w-4 h-4" />
-                        </Button>
-                      )}
-                      {job.status === "completed" && (
-                        <>
-                          <Button size="sm" variant="outline" onClick={() => downloadBackup(job)}>
-                            <DownloadIcon className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => restoreBackup(job)}>
-                            <RefreshIcon className="w-4 h-4" />
-                          </Button>
-                        </>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => deleteBackup(job.id)}>
-                        <TrashBinIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Recent Backup Jobs
+        </h2>
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-800">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Backup Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Size
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                {backupJobs.map((job) => (
+                  <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {job.name}
+                      </div>
+                      {job.duration && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          Duration: {job.duration}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(job.type)}`}>
+                        {job.type.charAt(0).toUpperCase() + job.type.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${getStatusColor(job.status)}`}>
+                        {getStatusIcon(job.status)}
+                        {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {job.size}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(job.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {job.location}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      <div className="flex gap-2">
+                        {job.status === "completed" && (
+                          <Button
+                            onClick={() => handleRestoreBackup(job)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Restore
+                          </Button>
+                        )}
+                        {job.status === "running" && (
+                          <Button
+                            onClick={() => handlePauseBackup(job.id)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Pause
+                          </Button>
+                        )}
+                        {job.status === "paused" && (
+                          <Button
+                            onClick={() => handleResumeBackup(job.id)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            Resume
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => handleDeleteBackup(job.id)}
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <TrashBinIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
       {/* Backup Schedules */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-white">Backup Schedules</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Frequency</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Next Run</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {schedules.map((schedule) => (
-                <tr key={schedule.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Backup Schedules
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {schedules.map((schedule) => (
+            <div key={schedule.id} className="bg-white dark:bg-gray-800 rounded-lg p-6 border">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     {schedule.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                    {schedule.frequency}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                    {schedule.time}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTypeColor(schedule.type)}`}>
-                      {schedule.type}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)} {schedule.type} backup
+                  </p>
+                </div>
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={schedule.isActive}
+                    onChange={() => handleToggleSchedule(schedule.id)}
+                    className="sr-only"
+                  />
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    schedule.isActive ? 'bg-brand-600' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      schedule.isActive ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </div>
+                </label>
+              </div>
+              
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Time:</span>
+                  <span className="text-gray-900 dark:text-white">{schedule.time}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                  <span className={`px-2 py-1 text-xs rounded-full ${getTypeColor(schedule.type)}`}>
+                    {schedule.type.charAt(0).toUpperCase() + schedule.type.slice(1)}
+                  </span>
+                </div>
+                {schedule.lastRun && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Last Run:</span>
+                    <span className="text-gray-900 dark:text-white">
+                      {new Date(schedule.lastRun).toLocaleDateString()}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${schedule.isActive ? getStatusColor("running") : getStatusColor("paused")}`}>
-                      {schedule.isActive ? "Active" : "Inactive"}
+                  </div>
+                )}
+                {schedule.nextRun && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Next Run:</span>
+                    <span className="text-gray-900 dark:text-white">
+                      {new Date(schedule.nextRun).toLocaleDateString()}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">
-                    {schedule.nextRun ? new Date(schedule.nextRun).toLocaleDateString() : "N/A"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <Button 
-                      size="sm" 
-                      variant={schedule.isActive ? "outline" : "primary"}
-                      onClick={() => toggleSchedule(schedule.id)}
-                    >
-                      {schedule.isActive ? "Disable" : "Enable"}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Restore Modal */}
       {showRestoreModal && selectedJob && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
-            <div className="mt-3 text-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Restore Backup
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                Are you sure you want to restore from "{selectedJob.name}"? This will overwrite your current data.
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Restore Backup
+            </h3>
+            <div className="mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                Are you sure you want to restore from this backup?
               </p>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={confirmRestore} className="bg-red-600 hover:bg-red-700">
-                  Confirm Restore
-                </Button>
-                <Button onClick={() => setShowRestoreModal(false)} variant="outline">
-                  Cancel
-                </Button>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {selectedJob.name}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Size: {selectedJob.size} | Created: {new Date(selectedJob.createdAt).toLocaleDateString()}
+                </p>
               </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button onClick={() => setShowRestoreModal(false)} variant="outline">
+                Cancel
+              </Button>
+              <Button onClick={() => {
+                setShowRestoreModal(false);
+                toast.success("Backup restoration started");
+              }}>
+                Restore
+              </Button>
             </div>
           </div>
         </div>
@@ -463,4 +509,4 @@ function UserDataBackupPage() {
   );
 }
 
-export default withUserAuth(UserDataBackupPage);
+export default withUserAuth(DataBackupPage);

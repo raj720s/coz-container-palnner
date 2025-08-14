@@ -1,12 +1,20 @@
 "use client";
 
 import { withUserAuth } from "@/components/auth/withAuth";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, SortingState } from "@tanstack/react-table";
-import { useState, useMemo } from "react";
-import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
+import toast from "react-hot-toast";
+import React, { useState, useMemo } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  getSortedRowModel,
+  getFilteredRowModel,
+  SortingState,
+} from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, CheckCircleIcon, AlertIcon, TimeIcon } from "@/icons";
+import { DownloadIcon } from "@/icons";
 
 interface AssignmentResult {
   id: string;
@@ -19,41 +27,37 @@ interface AssignmentResult {
   totalCBM: number;
   volume: number;
   pol: string;
-  pod: string;
+  destsite: string;
   qty: number;
   totalQty: number;
-  status: "assigned" | "pending" | "error";
+  status: "assigned" | "unassigned" | "error";
   createdAt: string;
 }
 
 const columnHelper = createColumnHelper<AssignmentResult>();
 
-function UserAssignmentResultsPage() {
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sorting, setSorting] = useState<SortingState>([]);
-
+function AssignmentResultsPage() {
   // Get planning results from session storage or use mock data
   const getAssignmentData = (): AssignmentResult[] => {
     try {
-      const storedData = sessionStorage.getItem('planningResult');
+      const storedData = sessionStorage.getItem('planningResults');
       if (storedData) {
         const parsed = JSON.parse(storedData);
-        return parsed.assignments.map((assignment: any, index: number) => ({
+        return parsed.assignments.map((assignment: Record<string, unknown>, index: number) => ({
           id: (index + 1).toString(),
-          shipmentId: assignment.shipmentId,
-          customer: assignment.customer,
-          optimizedContainerRef: assignment.containerRef || assignment.optimizedContainerRef || '',
-          containerType: assignment.containerType || 'Unknown',
-          minThreshold: assignment.minThreshold || 0,
-          maxThreshold: assignment.maxThreshold || 0,
-          totalCBM: assignment.totalCBM || assignment.volume || 0,
-          volume: assignment.volume || assignment.cbm || 0,
-          pol: assignment.pol || '',
-          pod: assignment.pod || assignment.destsite || '',
-          qty: assignment.qty || 0,
-          totalQty: assignment.totalQty || 0,
-          status: assignment.status || 'assigned',
+          shipmentId: (assignment.shipmentId as string) || '',
+          customer: (assignment.customer as string) || '',
+          optimizedContainerRef: (assignment.containerRef as string) || (assignment.optimizedContainerRef as string) || '',
+          containerType: (assignment.containerType as string) || 'Unknown',
+          minThreshold: (assignment.minThreshold as number) || 0,
+          maxThreshold: (assignment.maxThreshold as number) || 0,
+          totalCBM: (assignment.totalCBM as number) || (assignment.volume as number) || 0,
+          volume: (assignment.volume as number) || (assignment.cbm as number) || 0,
+          pol: (assignment.pol as string) || '',
+          destsite: (assignment.pod as string) || (assignment.destsite as string) || '',
+          qty: (assignment.qty as number) || 0,
+          totalQty: (assignment.totalQty as number) || 0,
+          status: (assignment.status as string) || 'assigned',
           createdAt: new Date().toISOString().split('T')[0],
         }));
       }
@@ -74,7 +78,7 @@ function UserAssignmentResultsPage() {
         totalCBM: 61.381,
         volume: 56.557,
         pol: "Qingdao",
-        pod: "HALDENSLEBEN",
+        destsite: "HALDENSLEBEN",
         qty: 2873,
         totalQty: 4376,
         status: "assigned",
@@ -91,7 +95,7 @@ function UserAssignmentResultsPage() {
         totalCBM: 61.381,
         volume: 4.824,
         pol: "Qingdao",
-        pod: "HALDENSLEBEN",
+        destsite: "HALDENSLEBEN",
         qty: 1503,
         totalQty: 4376,
         status: "assigned",
@@ -108,7 +112,7 @@ function UserAssignmentResultsPage() {
         totalCBM: 57.645,
         volume: 54.024,
         pol: "Qingdao",
-        pod: "HALDENSLEBEN",
+        destsite: "HALDENSLEBEN",
         qty: 3217,
         totalQty: 12212,
         status: "assigned",
@@ -117,9 +121,13 @@ function UserAssignmentResultsPage() {
     ];
   };
 
-  const data: AssignmentResult[] = useMemo(() => getAssignmentData(), []);
+  const [data] = useState<AssignmentResult[]>(getAssignmentData());
 
-  // Define columns
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Define columns inside the component to avoid infinite re-renders
   const columns = useMemo(() => [
     columnHelper.accessor("customer", { 
       header: "Customer", 
@@ -165,7 +173,7 @@ function UserAssignmentResultsPage() {
       header: "POL", 
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
-    columnHelper.accessor("pod", { 
+    columnHelper.accessor("destsite", { 
       header: "Destination", 
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
@@ -183,7 +191,7 @@ function UserAssignmentResultsPage() {
         <span className={`px-2 py-1 text-xs rounded-full ${
           info.getValue() === "assigned"
             ? "bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300"
-            : info.getValue() === "pending"
+            : info.getValue() === "unassigned"
             ? "bg-warning-100 text-warning-700 dark:bg-warning-900 dark:text-warning-300"
             : "bg-error-100 text-error-700 dark:bg-error-900 dark:text-error-300"
         }`}>
@@ -193,14 +201,13 @@ function UserAssignmentResultsPage() {
     }),
   ], []);
 
-  // Filter data with memoization
   const filteredData = useMemo(() => data.filter(item => {
     const matchesSearch =
       item.shipmentId.toLowerCase().includes(globalFilter.toLowerCase()) ||
       item.customer.toLowerCase().includes(globalFilter.toLowerCase()) ||
       item.optimizedContainerRef.toLowerCase().includes(globalFilter.toLowerCase()) ||
       item.pol.toLowerCase().includes(globalFilter.toLowerCase()) ||
-      item.pod.toLowerCase().includes(globalFilter.toLowerCase());
+      item.destsite.toLowerCase().includes(globalFilter.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
 
@@ -219,7 +226,7 @@ function UserAssignmentResultsPage() {
     onSortingChange: setSorting,
   });
 
-  const handleExport = () => {
+  const exportToExcel = () => {
     const headers = [
       "Customer", "Shipment", "Optimized Container Ref", "Cont. Type", "Min. Threshold", "Max. Threshold", "Total CBM", "CBM", "POL", "Destination", "Qty", "Total Qty", "Status"
     ];
@@ -236,7 +243,7 @@ function UserAssignmentResultsPage() {
         row.totalCBM,
         row.volume,
         row.pol,
-        row.pod,
+        row.destsite,
         row.qty,
         row.totalQty,
         row.status
@@ -253,47 +260,43 @@ function UserAssignmentResultsPage() {
     toast.success("Export completed successfully");
   };
 
-  // Calculate summary stats with memoization
-  const stats = useMemo(() => {
+  const getSummaryStats = useMemo(() => {
     const total = filteredData.length;
     const assigned = filteredData.filter(item => item.status === "assigned").length;
-    const pending = filteredData.filter(item => item.status === "pending").length;
+    const unassigned = filteredData.filter(item => item.status === "unassigned").length;
     const errors = filteredData.filter(item => item.status === "error").length;
-    const totalQty = filteredData.reduce((sum, item) => sum + item.totalQty, 0);
 
-    return { total, assigned, pending, errors, totalQty };
+    return { total, assigned, unassigned, errors };
   }, [filteredData]);
+
+  const stats = getSummaryStats;
 
   return (
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Assignment Results
+          Container Assignment Results
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          View and manage your shipment assignment results
+          View and manage container assignment results from the latest planning run
         </p>
       </div>
 
-             {/* Summary Cards */}
-       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</div>
           <div className="text-sm text-gray-600 dark:text-gray-400">Total Shipments</div>
         </div>
         <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 shadow">
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.assigned}</div>
-          <div className="text-sm text-green-600 dark:text-green-400">Assigned</div>
+          <div className="text-sm text-green-600 dark:text-gray-400">Assigned</div>
         </div>
         <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 shadow">
-          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.pending}</div>
-          <div className="text-sm text-yellow-600 dark:text-yellow-400">Pending</div>
+          <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.unassigned}</div>
+          <div className="text-sm text-yellow-600 dark:text-yellow-400">Unassigned</div>
         </div>
 
-        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 shadow">
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.totalQty.toLocaleString()}</div>
-          <div className="text-sm text-purple-600 dark:text-purple-400">Total Qty</div>
-        </div>
       </div>
 
       {/* Filters and Actions */}
@@ -314,10 +317,11 @@ function UserAssignmentResultsPage() {
           >
             <option value="all">All Status</option>
             <option value="assigned">Assigned</option>
-            <option value="pending">Pending</option>
+            <option value="unassigned">Unassigned</option>
             <option value="error">Error</option>
           </select>
-          <Button onClick={handleExport} size="sm">
+
+          <Button onClick={exportToExcel} size="sm">
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export to Excel
           </Button>
@@ -352,7 +356,7 @@ function UserAssignmentResultsPage() {
                 <tr
                   key={row.id}
                   className={`hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                    row.original.status === "error" ? "bg-red-50 dark:bg-red-900/20" : ""
+                    row.original.status === "error" ? "bg-error-50 dark:bg-error-900/20" : ""
                   }`}
                 >
                   {row.getVisibleCells().map((cell) => (
@@ -376,4 +380,4 @@ function UserAssignmentResultsPage() {
   );
 }
 
-export default withUserAuth(UserAssignmentResultsPage); 
+export default withUserAuth(AssignmentResultsPage); 
