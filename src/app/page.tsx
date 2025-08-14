@@ -23,21 +23,21 @@ function HomePage() {
 
   const adminShortcuts = [
     {
-      title: "Container Types",
+      title: "Container Type Master",
       description: "Manage container configurations and properties",
       icon: <BoxIcon className="w-8 h-8 text-blue-600" />,
       path: "/admin/container-types",
       color: "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
     },
     {
-      title: "Container Thresholds",
+      title: "Threshold Configuration",
       description: "Set min/max CBM values for containers",
       icon: <CheckCircleIcon className="w-8 h-8 text-green-600" />,
       path: "/admin/container-thresholds",
-      color: "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800"
+      color: "bg-green-50 dark:bg-blue-900/20 border-green-200 dark:border-green-800"
     },
     {
-      title: "Container Priority",
+      title: "Priority Configuration",
       description: "Manage container type priorities",
       icon: <BoltIcon className="w-8 h-8 text-yellow-600" />,
       path: "/admin/container-priority",

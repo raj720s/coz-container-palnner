@@ -167,7 +167,7 @@ function AdminUserManagementPage() {
       if (editingItem) {
         // Update existing user
         setData(prev => prev.map(user =>
-          user.id === editingItem.id
+          user.id === (editingItem as User).id
             ? { 
                 ...user, 
                 ...formData,
@@ -204,7 +204,7 @@ function AdminUserManagementPage() {
   };
 
   const handleAddNew = () => {
-    console.log("add new");
+    // console.log("add new");
     openModal();
   };
 
@@ -514,9 +514,10 @@ function AdminUserManagementPage() {
         isLoading={isModalLoading}
         size="lg"
         showFooter={false}
+        onSubmit={handleSubmit}
       >
         <UserForm
-          initialData={editingItem}
+          initialData={editingItem as User | undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

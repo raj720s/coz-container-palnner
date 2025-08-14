@@ -11,11 +11,12 @@ import { User, DEFAULT_ROLE_ACCESS } from "@/types/user";
 import { AccessControlForm } from "./AccessControlForm";
 
 const userSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  role: z.enum(["admin", "user"], { required_error: "Please select a role" }),
+  role: z.number().min(1, "Please select a role").max(2, "Please select a role"),
   status: z.enum(["active", "inactive", "pending"], { required_error: "Please select a status" }),
-  department: z.string().optional(),
+  organisation_name: z.string().optional(),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
   accessControl: z.array(z.string()).optional(),
@@ -65,10 +66,10 @@ export const UserForm: React.FC<UserFormProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<"details" | "access">("details");
   const [accessControlData, setAccessControlData] = useState<{
-    role: "admin" | "user";
+    role: number;
     accessControl: string[];
   }>({
-    role: initialData?.role || "user",
+    role: initialData?.role || 2,
     accessControl: initialData?.accessControl || DEFAULT_ROLE_ACCESS.user,
   });
 
@@ -82,11 +83,12 @@ export const UserForm: React.FC<UserFormProps> = ({
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
-      role: "user",
+      role: 2,
       status: "active",
-      department: "",
+      organisation_name: "",
       password: "",
       confirmPassword: "",
       accessControl: DEFAULT_ROLE_ACCESS.user,
@@ -100,33 +102,35 @@ export const UserForm: React.FC<UserFormProps> = ({
   useEffect(() => {
     if (initialData) {
       reset({
-        name: initialData.name,
+        firstName: initialData.firstName,
+        lastName: initialData.lastName,
         email: initialData.email,
         role: initialData.role,
         status: initialData.status,
-        department: initialData.department || "",
+        organisation_name: initialData.organisation_name || "",
         password: "",
         confirmPassword: "",
-        accessControl: initialData.accessControl || DEFAULT_ROLE_ACCESS[initialData.role],
+        accessControl: initialData.accessControl || DEFAULT_ROLE_ACCESS[initialData.role as keyof typeof DEFAULT_ROLE_ACCESS],
       });
       setAccessControlData({
         role: initialData.role,
-        accessControl: initialData.accessControl || DEFAULT_ROLE_ACCESS[initialData.role],
+        accessControl: initialData.accessControl || DEFAULT_ROLE_ACCESS[initialData.role as keyof typeof DEFAULT_ROLE_ACCESS],
       });
     } else {
       // Reset form when creating new user
       reset({
-        name: "",
+        firstName: "",
+        lastName: "",
         email: "",
-        role: "user",
+        role: 2,
         status: "active",
-        department: "",
+        organisation_name: "",
         password: "",
         confirmPassword: "",
         accessControl: DEFAULT_ROLE_ACCESS.user,
       });
       setAccessControlData({
-        role: "user",
+        role: 2,
         accessControl: DEFAULT_ROLE_ACCESS.user,
       });
     }
@@ -137,9 +141,9 @@ export const UserForm: React.FC<UserFormProps> = ({
     setAccessControlData(prev => ({
       ...prev,
       role,
-      accessControl: DEFAULT_ROLE_ACCESS[role],
+      accessControl: DEFAULT_ROLE_ACCESS[role as keyof typeof DEFAULT_ROLE_ACCESS],
     }));
-    setValue("accessControl", DEFAULT_ROLE_ACCESS[role]);
+    setValue("accessControl", DEFAULT_ROLE_ACCESS[role as keyof typeof DEFAULT_ROLE_ACCESS]);
   }, [role, setValue]);
 
   const handleFormSubmit = (data: UserFormData) => {
@@ -161,8 +165,8 @@ export const UserForm: React.FC<UserFormProps> = ({
   };
 
   const roleOptions = [
-    { value: "user", label: "User" },
-    { value: "admin", label: "Admin" },
+    { value: 2, label: "User" },
+    { value: 1, label: "Admin" },
   ];
 
   const statusOptions = [
@@ -171,7 +175,7 @@ export const UserForm: React.FC<UserFormProps> = ({
     { value: "pending", label: "Pending" },
   ];
 
-  const departmentOptions = [
+  const organisationOptions = [
     { value: "Operations", label: "Operations" },
     { value: "Logistics", label: "Logistics" },
     { value: "Sales", label: "Sales" },
@@ -215,14 +219,14 @@ export const UserForm: React.FC<UserFormProps> = ({
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="name" required>
-                Full Name
+              <Label htmlFor="firstName" required>
+                First Name
               </Label>
               <Input
-                id="name"
-                placeholder="Enter full name"
-                {...register("name")}
-                error={errors.name?.message}
+                id="firstName"
+                placeholder="Enter first name"
+                {...register("firstName")}
+                error={errors.firstName?.message}
               />
             </div>
 
@@ -248,7 +252,7 @@ export const UserForm: React.FC<UserFormProps> = ({
               <Select
                 options={roleOptions}
                 value={role}
-                onChange={(value) => setValue("role", value as "admin" | "user")}
+                onChange={(value) => setValue("role", value as 1 | 2)}
                 placeholder="Select role"
                 error={errors.role?.message}
               />
@@ -269,15 +273,15 @@ export const UserForm: React.FC<UserFormProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="department">
-              Department
+            <Label htmlFor="organisation_name">
+              Organisation Name
             </Label>
             <Select
-              options={departmentOptions}
-              value={watch("department") || ""}
-              onChange={(value) => setValue("department", value)}
-              placeholder="Select department"
-              error={errors.department?.message}
+              options={organisationOptions}
+              value={watch("organisation_name") || ""}
+              onChange={(value) => setValue("organisation_name", value)}
+              placeholder="Select organisation name"
+              error={errors.organisation_name?.message}
             />
           </div>
 

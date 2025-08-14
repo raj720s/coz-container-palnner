@@ -1,0 +1,271 @@
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { RootState } from '../index';
+import { BASEURL } from '@/config/variables';
+import superAxios from '@/utils/superAxios';
+import {
+  CreateUserRequest,
+  UserResponse,
+  UserDetailResponse,
+  UserShortInfo,
+  UserListResponse,
+  UserListParams,
+  SuperuserModifyRequest,
+  SuperuserModifyResponse,
+  CreateRoleRequest,
+  RoleResponse,
+  RoleListResponse,
+  RoleListParams,
+  Privilege,
+  PrivilegeListResponse,
+  RoleUserResponse,
+  ApiResponse
+} from '@/types/api';
+
+// Custom base query using superAxios
+const axiosBaseQuery = () => async (args: any) => {
+  try {
+    const { url, method = 'GET', data, params } = args;
+    
+    const result = await superAxios({
+      url,
+      method,
+      data,
+      params,
+    });
+    
+    return { data: result.data };
+  } catch (axiosError: any) {
+    return {
+      error: {
+        status: axiosError.response?.status,
+        data: axiosError.response?.data || axiosError.message,
+      },
+    };
+  }
+};
+
+// Define the API slice
+export const apiSlice = createApi({
+  reducerPath: 'api',
+  baseQuery: axiosBaseQuery(),
+  
+  // Define tag types for cache invalidation
+  tagTypes: ['User', 'Role', 'Privilege'],
+  
+  endpoints: (builder) => ({
+    // === USER MANAGEMENT ENDPOINTS ===
+    
+    // Get users list with filtering and pagination
+    getUsers: builder.query<UserListResponse, UserListParams>({
+      query: (params = {}) => ({
+        url: '/user/v1/list',
+        params: cleanParams(params),
+      }),
+      providesTags: ['User'],
+    }),
+    
+    // Get single user by ID
+    getUser: builder.query<UserDetailResponse, number>({
+      query: (id) => `/user/v1/${id}`,
+      providesTags: (result, error, id) => [{ type: 'User', id }],
+    }),
+    
+    // Get user details
+    getUserDetail: builder.query<UserDetailResponse, number>({
+      query: (id) => `/user/v1/detail/${id}`,
+      providesTags: (result, error, id) => [{ type: 'User', id }],
+    }),
+    
+    // Get user short info
+    getUserShortInfo: builder.query<UserShortInfo, number>({
+      query: (id) => `/user/v1/short-info/${id}`,
+      providesTags: (result, error, id) => [{ type: 'User', id }],
+    }),
+    
+    // Create new user
+    createUser: builder.mutation<UserResponse, CreateUserRequest>({
+      query: (userData) => ({
+        url: '/user/v1',
+        method: 'POST',
+        body: userData,
+      }),
+      invalidatesTags: ['User'],
+    }),
+    
+    // Update user
+    updateUser: builder.mutation<UserDetailResponse, { id: number; data: Partial<CreateUserRequest> }>({
+      query: ({ id, data }) => ({
+        url: `/user/v1/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'User', id }, 'User'],
+    }),
+    
+    // Delete user
+    deleteUser: builder.mutation<ApiResponse, number>({
+      query: (id) => ({
+        url: `/user/v1/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['User'],
+    }),
+    
+    // Modify superuser status
+    modifySuperuserStatus: builder.mutation<SuperuserModifyResponse, { id: number; data: SuperuserModifyRequest }>({
+      query: ({ id, data }) => ({
+        url: `/user/v1/superuser/modify/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'User', id }],
+    }),
+    
+    // Bulk update user status
+    bulkUpdateUserStatus: builder.mutation<ApiResponse, { userIds: number[]; status: boolean }>({
+      query: ({ userIds, status }) => ({
+        url: '/user/v1/bulk-status',
+        method: 'PUT',
+        body: { user_ids: userIds, status },
+      }),
+      invalidatesTags: ['User'],
+    }),
+    
+    // === ROLE MANAGEMENT ENDPOINTS ===
+    
+    // Get roles list with filtering and pagination
+    getRoles: builder.query<RoleListResponse, RoleListParams>({
+      query: (params = {}) => ({
+        url: '/admin/v1/role/list',
+        params: cleanParams(params),
+      }),
+      providesTags: ['Role'],
+    }),
+    
+    // Get single role by ID
+    getRole: builder.query<RoleResponse, number>({
+      query: (id) => `/admin/v1/role/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Role', id }],
+    }),
+    
+    // Create new role
+    createRole: builder.mutation<RoleResponse, CreateRoleRequest>({
+      query: (roleData) => ({
+        url: '/admin/v1/role',
+        method: 'POST',
+        body: roleData,
+      }),
+      invalidatesTags: ['Role'],
+    }),
+    
+    // Update role
+    updateRole: builder.mutation<RoleResponse, { id: number; data: Partial<CreateRoleRequest> }>({
+      query: ({ id, data }) => ({
+        url: `/admin/v1/role/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Role', id }, 'Role'],
+    }),
+    
+    // Delete role
+    deleteRole: builder.mutation<ApiResponse, number>({
+      query: (id) => ({
+        url: `/admin/v1/role/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Role'],
+    }),
+    
+    // Get all privileges
+    getPrivileges: builder.query<PrivilegeListResponse, void>({
+      query: () => '/admin/v1/privilege/list',
+      providesTags: ['Privilege'],
+    }),
+    
+    // Get role users
+    getRoleUsers: builder.query<RoleUserResponse, number>({
+      query: (roleId) => ({
+        url: '/admin/v1/role/user',
+        params: { role_id: roleId },
+      }),
+      providesTags: (result, error, roleId) => [{ type: 'Role', id: roleId }],
+    }),
+    
+    // Assign privileges to role
+    assignPrivilegesToRole: builder.mutation<ApiResponse, { roleId: number; privilegeIds: number[] }>({
+      query: ({ roleId, privilegeIds }) => ({
+        url: `/admin/v1/role/${roleId}/privileges`,
+        method: 'PUT',
+        body: { privilege_ids: privilegeIds },
+      }),
+      invalidatesTags: (result, error, { roleId }) => [{ type: 'Role', id: roleId }],
+    }),
+    
+    // Remove privileges from role
+    removePrivilegesFromRole: builder.mutation<ApiResponse, { roleId: number; privilegeIds: number[] }>({
+      query: ({ roleId, privilegeIds }) => ({
+        url: `/admin/v1/role/${roleId}/privileges`,
+        method: 'DELETE',
+        body: { privilege_ids: privilegeIds },
+      }),
+      invalidatesTags: (result, error, { roleId }) => [{ type: 'Role', id: roleId }],
+    }),
+    
+    // Bulk update role status
+    bulkUpdateRoleStatus: builder.mutation<ApiResponse, { roleIds: number[]; isActive: boolean }>({
+      query: ({ roleIds, isActive }) => ({
+        url: '/admin/v1/role/bulk-status',
+        method: 'PUT',
+        body: { role_ids: roleIds, is_active: isActive },
+      }),
+      invalidatesTags: ['Role'],
+    }),
+    
+    // Get role statistics
+    getRoleStatistics: builder.query<ApiResponse, void>({
+      query: () => '/admin/v1/role/statistics',
+      providesTags: ['Role'],
+    }),
+  }),
+});
+
+// Utility function to clean parameters
+function cleanParams(params: Record<string, any>): Record<string, any> {
+  const cleanedParams: Record<string, any> = {};
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      cleanedParams[key] = value;
+    }
+  });
+  
+  return cleanedParams;
+}
+
+// Export hooks for components to use
+export const {
+  // User management hooks
+  useGetUsersQuery,
+  useGetUserQuery,
+  useGetUserDetailQuery,
+  useGetUserShortInfoQuery,
+  useCreateUserMutation,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+  useModifySuperuserStatusMutation,
+  useBulkUpdateUserStatusMutation,
+  
+  // Role management hooks
+  useGetRolesQuery,
+  useGetRoleQuery,
+  useCreateRoleMutation,
+  useUpdateRoleMutation,
+  useDeleteRoleMutation,
+  useGetPrivilegesQuery,
+  useGetRoleUsersQuery,
+  useAssignPrivilegesToRoleMutation,
+  useRemovePrivilegesFromRoleMutation,
+  useBulkUpdateRoleStatusMutation,
+  useGetRoleStatisticsQuery,
+} = apiSlice;

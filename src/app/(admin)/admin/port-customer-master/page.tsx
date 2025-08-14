@@ -28,7 +28,7 @@ function PortCustomerMasterPage() {
   const masterSections: MasterSection[] = [
     {
       id: "pol-ports",
-      title: "POL Ports",
+      title: "POL Master",
       description: "Manage Port of Loading ports for container shipments",
       icon: <BoxIcon className="w-8 h-8" />,
       path: "/admin/port-customer-master/pol-ports",
@@ -37,7 +37,7 @@ function PortCustomerMasterPage() {
     },
     {
       id: "pod-ports",
-      title: "POD Ports", 
+      title: "POD Master", 
       description: "Manage Port of Discharge ports for container shipments",
       icon: <GlobeIcon className="w-8 h-8" />,
       path: "/admin/port-customer-master/pod-ports",
@@ -46,7 +46,7 @@ function PortCustomerMasterPage() {
     },
     {
       id: "customers",
-      title: "Customer Management",
+      title: "Customer Records",
       description: "Manage customer information and contact details",
       icon: <SettingsIcon className="w-8 h-8" />,
       path: "/admin/port-customer-master/customers",

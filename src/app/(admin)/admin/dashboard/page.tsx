@@ -142,18 +142,13 @@ function AdminDashboard() {
     <div className="p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Admin Dashboard
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              System overview and operational metrics
-            </p>
-          </div>
-          <Button onClick={handleLogout} variant="outline" size="sm" disabled={isLoading}>
-            Logout
-          </Button>
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Admin Dashboard
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            System overview and operational metrics
+          </p>
         </div>
         <div className="bg-gradient-to-r from-brand-500 to-brand-600 dark:from-brand-600 dark:to-brand-700 rounded-lg p-6 text-white">
           <h2 className="text-xl font-semibold mb-2">
