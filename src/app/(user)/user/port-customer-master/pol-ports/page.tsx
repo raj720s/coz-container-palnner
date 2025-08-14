@@ -360,6 +360,7 @@ function UserPOLPorts() {
         onClose={closeModal}
         title={editingItem ? "Edit POL Port" : "Add New POL Port"}
         isLoading={isModalLoading}
+        onSubmit={handleSubmit}
       >
         <PortForm
           initialData={editingItem}

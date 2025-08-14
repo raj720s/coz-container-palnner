@@ -1,32 +1,35 @@
 export interface User {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: "admin" | "user";
+  role: 1 | 2;
   status: "active" | "inactive" | "pending";
   lastLogin: string;
   createdAt: string;
-  department?: string;
+  organisation_name?: string;
   permissions: string[];
   accessControl: string[]; // Array of allowed routes
 }
 
 export interface CreateUserData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  role: "admin" | "user";
+  role: 1 | 2;
   status: "active" | "inactive" | "pending";
-  department?: string;
+  organisation_name?: string;
   password: string;
   accessControl?: string[];
 }
 
 export interface UpdateUserData {
-  name?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
-  role?: "admin" | "user";
+  role?: 1 | 2;
   status?: "active" | "inactive" | "pending";
-  department?: string;
+  organisation_name?: string;
   accessControl?: string[];
 }
 
@@ -35,13 +38,13 @@ export const AVAILABLE_ROUTES = {
   // Admin routes
   "admin/dashboard": "Admin Dashboard",
   "admin/user-management": "User Management",
-  "admin/container-types": "Container Types",
-  "admin/container-priority": "Container Priority",
-  "admin/container-thresholds": "Container Thresholds",
+  "admin/container-types": "Container Type Master",
+  "admin/container-priority": "Priority Configuration",
+  "admin/container-thresholds": "Threshold Configuration",
   "admin/port-customer-master": "Port & Customer Master",
-  "admin/port-customer-master/pol-ports": "POL Ports Management",
-  "admin/port-customer-master/pod-ports": "POD Ports Management",
-  "admin/port-customer-master/customers": "Customer Management",
+  "admin/port-customer-master/pol-ports": "POL Master",
+  "admin/port-customer-master/pod-ports": "POD Master",
+  "admin/port-customer-master/customers": "Customer Records",
   "admin/shipment-upload": "Shipment Upload",
   "admin/container-planning": "Container Planning",
   "admin/assignment-results": "Assignment Results",
