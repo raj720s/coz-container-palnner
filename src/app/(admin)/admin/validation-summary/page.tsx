@@ -104,7 +104,7 @@ function ValidationSummaryPage() {
           uploadDate: parsed.uploadDate,
           fileSize: parsed.fileSize,
           storedFileName: parsed.storedFileName,
-          errors: parsed.errors.map((error: any, index: number) => ({
+          errors: parsed.errors.map((error: ValidationError, index: number) => ({
             id: (index + 1).toString(),
             rowNumber: error.rowNumber,
             field: error.field,

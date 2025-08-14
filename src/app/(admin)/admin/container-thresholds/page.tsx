@@ -3,7 +3,7 @@
 import { withAdminAuth } from "@/components/auth/withAuth";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,30 +12,23 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   SortingState,
-  ColumnDef,
+  
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
-import { ContainerThresholdForm } from "@/components/forms/ContainerThresholdForm";
+import { ContainerThresholdForm, ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
 import { useFormModal } from "@/hooks/useFormModal";
 import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { z } from "zod";
 
-const thresholdSchema = z.object({
-  containerType: z.string().min(1, "Container type is required"),
-  minCBM: z.number().min(0, "Min CBM must be 0 or greater"),
-  maxCBM: z.number().min(1, "Max CBM must be greater than 0"),
-  pol: z.string().optional(),
-  isDefault: z.boolean(),
-  isActive: z.boolean().default(true),
-  description: z.string().optional(),
-}).refine((data) => data.maxCBM > data.minCBM, {
-  message: "Max CBM must be greater than Min CBM",
-  path: ["maxCBM"],
-});
-
-type ContainerThreshold = z.infer<typeof thresholdSchema> & {
+type ContainerThreshold = {
   id: string;
+  containerType: string;
+  minCBM: number;
+  maxCBM: number;
+  pol: string;
+  isDefault: boolean;
+  isActive: boolean;
+  description: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -266,7 +259,7 @@ function ContainerThresholdsPage() {
     openModal,
     closeModal,
     setLoading,
-  } = useFormModal();
+  } = useFormModal<ContainerThreshold>();
 
   const table = useReactTable({
     data,
@@ -299,14 +292,14 @@ function ContainerThresholdsPage() {
     } as TableMeta,
   });
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: ContainerThresholdFormData) => {
     setLoading(true);
     
     try {
       if (editingItem) {
         // Update existing item
         const updatedData = data.map(item => 
-          item.id === editingItem.id 
+          item.id === (editingItem as ContainerThreshold).id 
             ? { ...item, ...formData, updatedAt: new Date().toISOString() }
             : item
         );
@@ -411,6 +404,7 @@ function ContainerThresholdsPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Threshold" : "Add New Threshold"}
         isLoading={isModalLoading}
@@ -418,7 +412,15 @@ function ContainerThresholdsPage() {
         showFooter={false}
       >
         <ContainerThresholdForm
-          initialData={editingItem}
+          initialData={editingItem ? {
+            containerType: editingItem.containerType,
+            minCBM: editingItem.minCBM,
+            maxCBM: editingItem.maxCBM,
+            pol: editingItem.pol || "",
+            isDefault: editingItem.isDefault,
+            isActive: editingItem.isActive,
+            description: editingItem.description
+          } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ContainerPlanningResult, ContainerAssignment } from './localStorageService';
+import { ContainerPlanningResult, ContainerAssignment, type ContainerThreshold } from './localStorageService';
 
 export interface ExportRow {
   Customer: string;
@@ -124,7 +124,7 @@ export function exportResultsInBookFormat(
 ): void {
   try {
     // Transform assignments to match Book-results.xlsx format exactly
-    const exportData: any[][] = [];
+    const exportData: string[][] = [];
     
     // Add headers exactly as in Book-results.xlsx
     const headers = [
@@ -241,7 +241,7 @@ function getContainerThresholds(containerType: string): { minCBM: number; maxCBM
       const thresholdsData = localStorage.getItem('nxt_admin_container_thresholds');
       if (thresholdsData) {
         const thresholds = JSON.parse(thresholdsData);
-        const threshold = thresholds.find((t: any) => t.containerType === containerType);
+        const threshold = thresholds.find((t: ContainerThreshold) => t.containerType === containerType);
         if (threshold) {
           return { minCBM: threshold.minCBM, maxCBM: threshold.maxCBM };
         }

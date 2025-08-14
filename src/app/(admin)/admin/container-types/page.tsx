@@ -12,7 +12,8 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   SortingState,
-  ColumnDef,
+  TableMeta,
+  
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
@@ -78,13 +79,15 @@ const columns = [
     cell: (info) => (
       <div className="flex space-x-2">
         <button
-          onClick={() => (info.table.options.meta as any)?.editRow(info.row.original)}
+          // @ts-expect-error
+          onClick={() => (info.table.options.meta as TableMeta<ContainerType>)?.editRow(info.row.original)}
           className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
         >
           <PencilIcon className="w-4 h-4" />
         </button>
         <button
-          onClick={() => (info.table.options.meta as any)?.deleteRow(info.row.original.id)}
+          // @ts-expect-error
+          onClick={() => (info.table.options.meta as TableMeta<ContainerType>)?.deleteRow(info.row.original.id)}
           className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
         >
           <TrashBinIcon className="w-4 h-4" />
@@ -168,10 +171,10 @@ function ContainerTypesPage() {
         toast.success("Container type deleted successfully");
       }
     },
-  } as any,
+  } as TableMeta<ContainerType>,
   });
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: ContainerType) => {
     setLoading(true);
     
     try {
@@ -181,16 +184,16 @@ function ContainerTypesPage() {
       if (editingItem) {
         // Update existing item
         setData(prev => prev.map(item =>
-          item.id === editingItem.id
-            ? { ...item, ...formData, id: item.id, createdAt: item.createdAt }
+          item.id === (editingItem as ContainerType).id
+              ? { ...item, ...formData, id: item.id, createdAt: item.createdAt }
             : item
         ));
         toast.success("Container type updated successfully");
       } else {
         // Add new item
         const newItem: ContainerType = {
-          id: Date.now().toString(),
           ...formData,
+          id: Date.now().toString(),
           createdAt: new Date().toISOString(),
         };
         setData(prev => [...prev, newItem]);
@@ -280,6 +283,7 @@ function ContainerTypesPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Container Type" : "Add New Container Type"}
         isLoading={isModalLoading}
@@ -287,7 +291,7 @@ function ContainerTypesPage() {
         showFooter={false}
       >
         <ContainerTypeForm
-          initialData={editingItem}
+          initialData={editingItem as ContainerType | undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

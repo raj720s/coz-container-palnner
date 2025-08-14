@@ -1,21 +1,21 @@
 import { useState, useCallback } from "react";
 
-interface UseFormModalReturn {
+interface UseFormModalReturn<T> {
   isOpen: boolean;
   isLoading: boolean;
-  editingItem: any | null;
-  openModal: (item?: any) => void;
+  editingItem: T | null;
+  openModal: (item?: T) => void;
   closeModal: () => void;
   setLoading: (loading: boolean) => void;
   resetModal: () => void;
 }
 
-export const useFormModal = (): UseFormModalReturn => {
+export const useFormModal = <T = unknown>(): UseFormModalReturn<T> => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [editingItem, setEditingItem] = useState<T | null>(null);
 
-  const openModal = useCallback((item?: any) => {
+  const openModal = useCallback((item?: T) => {
     setEditingItem(item || null);
     setIsOpen(true);
   }, []);

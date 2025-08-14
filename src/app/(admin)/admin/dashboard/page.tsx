@@ -4,15 +4,13 @@ import { withAdminAuth } from "@/components/auth/withAuth";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import React from "react";
+import React, { useState } from "react";
 import Button from "@/components/ui/button/Button";
 import { 
   UserCircleIcon, 
   BoxIcon, 
-  FileIcon, 
   CheckCircleIcon, 
   BoltIcon,
-  DownloadIcon,
   DocsIcon,
   TableIcon,
   PieChartIcon,
@@ -23,15 +21,17 @@ import {
 function AdminDashboard() {
   const { user, logout } = useAuth();
   const router = useRouter();
-
+  const [isLoading, setIsLoading] = useState(false);
   const handleLogout = () => {
+    setIsLoading(true);
     logout();
     router.push("/signin");
-    toast.success("Logged out successfully");
+    toast.success("Logged out successfully"); 
+    setIsLoading(false);
   };
 
   // System Health Metrics
-  const systemMetrics = [
+  /* const systemMetrics = [
     {
       title: "System Health",
       value: "98.5%",
@@ -64,10 +64,10 @@ function AdminDashboard() {
       icon: <AlertIcon className="w-6 h-6 text-red-600" />,
       color: "bg-red-50 dark:bg-red-900/20"
     }
-  ];
+  ]; */
 
   // Container Operations Metrics
-  const containerMetrics = [
+  /* const containerMetrics = [
     {
       title: "Total Containers",
       value: "1,247",
@@ -100,7 +100,7 @@ function AdminDashboard() {
       icon: <CheckCircleIcon className="w-6 h-6 text-emerald-600" />,
       color: "bg-emerald-50 dark:bg-emerald-900/20"
     }
-  ];
+  ]; */
 
   // Quick Actions
   const quickActions = [
@@ -151,7 +151,7 @@ function AdminDashboard() {
               System overview and operational metrics
             </p>
           </div>
-          <Button onClick={handleLogout} variant="outline" size="sm">
+          <Button onClick={handleLogout} variant="outline" size="sm" disabled={isLoading}>
             Logout
           </Button>
         </div>
@@ -228,7 +228,7 @@ function AdminDashboard() {
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
           Quick Actions
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
           {quickActions.map((action, index) => (
             <div
               key={index}

@@ -132,7 +132,6 @@ export const AccessControlForm: React.FC<AccessControlFormProps> = ({
       {/* Access Control Actions */}
       <div className="flex flex-wrap gap-2">
         <Button
-          type="button"
           variant="outline"
           size="sm"
           onClick={handleSelectAll}
@@ -140,7 +139,6 @@ export const AccessControlForm: React.FC<AccessControlFormProps> = ({
           Select All
         </Button>
         <Button
-          type="button"
           variant="outline"
           size="sm"
           onClick={handleClearAll}
@@ -148,7 +146,6 @@ export const AccessControlForm: React.FC<AccessControlFormProps> = ({
           Clear All
         </Button>
         <Button
-          type="button"
           variant="outline"
           size="sm"
           onClick={handleSelectDefault}
@@ -221,7 +218,6 @@ export const AccessControlForm: React.FC<AccessControlFormProps> = ({
       <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
         {onCancel && (
           <Button
-            type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isLoading}
@@ -230,7 +226,6 @@ export const AccessControlForm: React.FC<AccessControlFormProps> = ({
           </Button>
         )}
         <Button
-          type="submit"
           disabled={isLoading}
           className="min-w-[100px]"
         >

@@ -25,15 +25,21 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
-  ClockIcon,
   UserIcon
 } from "@/icons";
 import { getUploadedFiles } from "@/utils/clientShipmentService";
 import { formatFileSize } from "@/utils/formatUtils";
-import { useAuth } from "@/context/AuthContext";
+import { type UploadedFile } from "@/utils/localStorageService";
+
+interface ExtendedUploadedFile extends UploadedFile {
+  errors?: string[];
+  warnings?: string[];
+}
 
 interface UploadHistory {
   id: string;
+  userId: string;
+  userName: string;
   originalName: string;
   uploadDate: string;
   fileSize: number;
@@ -47,11 +53,19 @@ interface UploadHistory {
   outputFileName?: string;
 }
 
+// Mock users for demonstration - in real app, this would come from API
+const mockUsers = [
+  { id: "user1", name: "John Doe" },
+  { id: "user2", name: "Jane Smith" },
+  { id: "user3", name: "Bob Johnson" },
+  { id: "user4", name: "Alice Brown" },
+  { id: "user5", name: "Charlie Wilson" },
+];
+
 const columnHelper = createColumnHelper<UploadHistory>();
 
-function UserViewHistoryPage() {
+function UploadsHistoryPage() {
   const router = useRouter();
-  const { user: currentUser } = useAuth();
   const [uploadHistory, setUploadHistory] = useState<UploadHistory[]>([]);
   const [loading, setLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -61,6 +75,7 @@ function UserViewHistoryPage() {
     pageSize: 10,
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedUser, setSelectedUser] = useState<string>("all");
 
   // Load upload history on component mount
   useEffect(() => {
@@ -72,8 +87,8 @@ function UserViewHistoryPage() {
       setLoading(true);
       const files = getUploadedFiles();
       
-      // Transform the data to match our interface
-      const historyData: UploadHistory[] = files.map((file: any) => {
+      // Transform the data to match our new interface
+      const historyData: UploadHistory[] = files.map((file: ExtendedUploadedFile, index: number) => {
         // Determine status based on validation results
         let status: UploadHistory['status'] = 'PENDING';
         if (file.validRows > 0 && file.invalidRows === 0) {
@@ -83,9 +98,14 @@ function UserViewHistoryPage() {
         } else if (file.validRows === 0 && file.invalidRows === 0) {
           status = 'PROCESSING';
         }
-
+        
+        // Assign mock user data for demonstration
+        const mockUser = mockUsers[index % mockUsers.length];
+        
         return {
           id: file.id,
+          userId: mockUser.id,
+          userName: mockUser.name,
           originalName: file.originalName,
           uploadDate: file.uploadDate,
           fileSize: file.fileSize,
@@ -108,14 +128,7 @@ function UserViewHistoryPage() {
         new Date(item.uploadDate) >= threeMonthsAgo
       );
 
-      // Filter to show only current user's records (in real app, this would come from file metadata)
-      // For now, we'll show all records but this should be filtered by userId in production
-      const userRecords = filteredByDate;
-
-      // Limit to last 10 records per user
-      const limitedRecords = userRecords.slice(0, 10);
-
-      setUploadHistory(limitedRecords);
+      setUploadHistory(filteredByDate);
     } catch (error) {
       console.error('Error loading upload history:', error);
     } finally {
@@ -124,6 +137,17 @@ function UserViewHistoryPage() {
   };
 
   const columns = useMemo(() => [
+    columnHelper.accessor("userName", {
+      header: "User",
+      cell: (info) => (
+        <div className="flex items-center gap-2">
+          <UserIcon className="w-4 h-4 text-gray-400" />
+          <span className="font-medium text-gray-900 dark:text-white">
+            {info.getValue()}
+          </span>
+        </div>
+      )
+    }),
     columnHelper.accessor("originalName", { 
       header: "Input File Name", 
       cell: (info) => (
@@ -184,16 +208,16 @@ function UserViewHistoryPage() {
         );
       },
     }),
-    columnHelper.accessor("fileSize", { 
-      header: "File Size", 
+    columnHelper.accessor("fileSize", {
+      header: "File Size",
       cell: (info) => (
         <span className="text-sm text-gray-600 dark:text-gray-300">
           {formatFileSize(info.getValue())}
         </span>
       )
     }),
-    columnHelper.accessor("totalRows", { 
-      header: "Total Records", 
+    columnHelper.accessor("totalRows", {
+      header: "Total Records",
       cell: (info) => (
         <span className="font-medium text-gray-900 dark:text-white">
           {info.getValue()}
@@ -247,13 +271,16 @@ function UserViewHistoryPage() {
     return uploadHistory.filter(item => {
       const matchesSearch =
         item.originalName.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.userName.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.status.toLowerCase().includes(globalFilter.toLowerCase());
       
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;
       
-      return matchesSearch && matchesStatus;
+      const matchesUser = selectedUser === "all" || item.userId === selectedUser;
+      
+      return matchesSearch && matchesStatus && matchesUser;
     });
-  }, [uploadHistory, globalFilter, statusFilter]);
+  }, [uploadHistory, globalFilter, statusFilter, selectedUser]);
 
   const table = useReactTable({
     data: filteredData,
@@ -273,24 +300,20 @@ function UserViewHistoryPage() {
 
   const viewInputFile = (upload: UploadHistory) => {
     // Navigate to input file viewer
-    router.push(`/user/input-file/${upload.id}`);
+    router.push(`/user/shipment-operations/input-file/${upload.id}`);
   };
 
   const viewOutputFile = (upload: UploadHistory) => {
     // Navigate to output file viewer
-    router.push(`/user/output-file/${upload.id}`);
-  };
-
-  const downloadFile = (upload: UploadHistory) => {
-    // Implement file download logic
-    console.log('Downloading file:', upload.originalName);
+    router.push(`/user/shipment-operations/output-file/${upload.id}`);
   };
 
   const exportHistory = () => {
-    const headers = ["Input File Name", "Upload Date", "Status", "File Size", "Total Records", "Valid Records", "Invalid Records"];
+    const headers = ["User", "Input File Name", "Upload Date", "Status", "File Size", "Total Records", "Valid Records", "Invalid Records"];
     const csvContent = [
       headers.join(","),
       ...filteredData.map(row => [
+        row.userName,
         row.originalName,
         new Date(row.uploadDate).toLocaleString(),
         row.status,
@@ -305,7 +328,7 @@ function UserViewHistoryPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "my_upload_history.csv";
+    a.download = "uploads_history.csv";
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -313,6 +336,7 @@ function UserViewHistoryPage() {
   const resetFilters = () => {
     setGlobalFilter("");
     setStatusFilter("all");
+    setSelectedUser("all");
     setPagination({ pageIndex: 0, pageSize: 10 });
   };
 
@@ -333,10 +357,10 @@ function UserViewHistoryPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            My Upload History
+            View History Page
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            View your shipment file uploads and processing results. Shows last 10 upload records from the past 3 months.
+            View and manage all shipment file uploads and their processing results. Shows last 10 upload records per user from the past 3 months.
           </p>
         </div>
         <div className="flex gap-3">
@@ -406,6 +430,8 @@ function UserViewHistoryPage() {
             </div>
           </div>
         </div>
+
+       
       </div>
 
       {/* Filters */}
@@ -416,7 +442,7 @@ function UserViewHistoryPage() {
               Search
             </label>
             <Input
-              placeholder="Search by file name or status..."
+              placeholder="Search by file name, user, or status..."
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               className="w-full"
@@ -440,7 +466,22 @@ function UserViewHistoryPage() {
               className="w-full"
             />
           </div>
-          
+
+          {/* <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              User Filter
+            </label>
+            <Select
+              value={selectedUser}
+              onChange={(value) => setSelectedUser(value)}
+              options={[
+                { value: "all", label: "All Users" },
+                ...mockUsers.map(user => ({ value: user.id, label: user.name }))
+              ]}
+              className="w-full"
+            />
+          </div>
+           */}
           <div className="flex items-end">
             <Button onClick={resetFilters} size="sm" variant="outline" className="w-full">
               Reset Filters
@@ -568,4 +609,4 @@ function UserViewHistoryPage() {
   );
 }
 
-export default withUserAuth(UserViewHistoryPage);
+export default withUserAuth(UploadsHistoryPage);

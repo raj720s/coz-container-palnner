@@ -16,7 +16,7 @@ const containerTypeSchema = z.object({
   isActive: z.boolean(),
 });
 
-type ContainerTypeFormData = z.infer<typeof containerTypeSchema>;
+export type ContainerTypeFormData = z.infer<typeof containerTypeSchema>;
 
 interface ContainerTypeFormProps {
   initialData?: ContainerTypeFormData & { id?: string };

@@ -45,7 +45,7 @@ export function readExcelFile(file: File): Promise<ExcelData> {
         const headers = jsonData[0] as string[];
         const rows = jsonData.slice(1).map((row: unknown, index: number) => {
           const rowData: ExcelRow = {};
-          const rowArray = row as any[];
+          const rowArray = row as string[];
           headers.forEach((header, colIndex) => {
             rowData[header] = rowArray[colIndex] || '';
           });

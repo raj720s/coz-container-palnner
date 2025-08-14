@@ -18,7 +18,7 @@ const portSchema = z.object({
   isActive: z.boolean(),
 });
 
-type PortFormData = z.infer<typeof portSchema>;
+export type PortFormData = z.infer<typeof portSchema>;
 
 interface PortFormProps {
   initialData?: PortFormData & { id?: string };

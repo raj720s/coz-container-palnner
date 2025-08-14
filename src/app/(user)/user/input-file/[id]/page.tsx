@@ -7,11 +7,12 @@ import Button from "@/components/ui/button/Button";
 import { ArrowLeftIcon, DownloadIcon, FileIcon } from "@/icons";
 import { getUploadedFiles } from "@/utils/clientShipmentService";
 import { formatFileSize } from "@/utils/formatUtils";
+import { type UploadedFile } from "@/utils/localStorageService";
 
 function UserInputFileViewerPage() {
   const params = useParams();
   const router = useRouter();
-  const [file, setFile] = useState<any>(null);
+  const [file, setFile] = useState<UploadedFile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ function UserInputFileViewerPage() {
     try {
       setLoading(true);
       const files = getUploadedFiles();
-      const foundFile = files.find((f: any) => f.id === params.id);
+      const foundFile = files.find((f: UploadedFile) => f.id === params.id);
       
       if (foundFile) {
         setFile(foundFile);
