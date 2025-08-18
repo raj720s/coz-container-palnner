@@ -8,14 +8,19 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useProfileSync } from '@/hooks/useProfileSync';
+import { useSelector } from 'react-redux';
+import { selectUser } from '@/store/slices/authSlice';
 
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logout } = useAuth();
+  const { user: contextUser, logout } = useAuth();
   const router = useRouter();
 
   // Use profile sync hook to get profile data and sync with auth state
   const { userProfile, isLoading: profileLoading } = useProfileSync();
+  
+  // Get user from Redux state (which has the updated interface)
+  const reduxUser = useSelector(selectUser);
 
   function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     e.stopPropagation();
@@ -33,7 +38,7 @@ export default function UserDropdown() {
     closeDropdown();
   };
 
-  if (!user) {
+  if (!contextUser) {
     return null;
   }
 
@@ -53,7 +58,7 @@ export default function UserDropdown() {
         </span> */}
 
         <span className="block mr-1 font-medium text-theme-sm">
-          {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : user.name}
+          {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : contextUser.name}
         </span>
 
         <svg
@@ -83,13 +88,13 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : user.name}
+            {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : contextUser.name}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {userProfile?.email || user.email}
+            {userProfile?.email || contextUser.email}
           </span>
           <span className="mt-1 block text-theme-xs text-gray-400 dark:text-gray-500">
-            Role: {userProfile?.role_details?.name || user.role === "admin" ? "Administrator" : "User"}
+            Role: {userProfile?.role?.[0]?.role_name || (reduxUser?.is_superuser ? "Administrator" : "User")}
           </span>
           {userProfile?.organisation_name && (
             <span className="mt-1 block text-theme-xs text-gray-400 dark:text-gray-500">

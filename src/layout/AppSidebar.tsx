@@ -5,6 +5,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { useSelector } from 'react-redux';
+import { selectUser } from '@/store/slices/authSlice';
 import { 
   HiOutlineHome, 
   HiOutlineCog, 
@@ -145,8 +147,20 @@ const navItems: NavItem[] = [
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
-  const { user } = useAuth();
+  const { user: contextUser } = useAuth();
+  const reduxUser = useSelector(selectUser);
   const pathname = usePathname();
+  
+  // Use Redux user if available, fallback to context user
+  const user = reduxUser || contextUser;
+  
+  // Helper function to check if user is admin
+  const isUserAdmin = (user: any): boolean => {
+    if (reduxUser?.is_superuser !== undefined) {
+      return reduxUser.is_superuser;
+    }
+    return user?.role === 'admin';
+  };
 
   // Memoize the isActive function
   const isActive = useCallback((path: string) => path === pathname, [pathname]);
@@ -158,19 +172,19 @@ const AppSidebar: React.FC = () => {
     return navItems.map(item => {
       // For Dashboard, set the path based on user role
       if (item.name === "Dashboard") {
-        const dashboardPath = user.role === 'admin' ? '/admin/dashboard' : '/user/dashboard';
+        const dashboardPath = isUserAdmin(user) ? '/admin/dashboard' : '/user/dashboard';
         return { ...item, path: dashboardPath };
       }
       
       return item;
     }).filter(item => {
-      if (item.adminOnly && user.role !== 'admin') return false;
-      if (item.userOnly && user.role !== 'user') return false;
+      if (item.adminOnly && !isUserAdmin(user)) return false;
+      if (item.userOnly && isUserAdmin(user)) return false;
       
       if (item.subItems) {
         const filteredSubItems = item.subItems.filter(subItem => {
-          if (subItem.adminOnly && user.role !== 'admin') return false;
-          if (subItem.userOnly && user.role !== 'user') return false;
+          if (subItem.adminOnly && !isUserAdmin(user)) return false;
+          if (subItem.userOnly && isUserAdmin(user)) return false;
           return true;
         });
         return filteredSubItems.length > 0;

@@ -17,7 +17,8 @@ import {
   Privilege,
   PrivilegeListResponse,
   RoleUserResponse,
-  ApiResponse
+  ApiResponse,
+  UserProfileResponse
 } from '@/types/api';
 
 // Simple base query that directly uses superAxios
@@ -222,7 +223,7 @@ export const apiSlice = createApi({
     // === USER PROFILE ENDPOINTS ===
     
     // Get current user profile
-    getUserProfile: builder.query<UserDetailResponse, void>({
+    getUserProfile: builder.query<UserProfileResponse, void>({
       query: () => ({
         url: '/user/v1/profile',
         method: 'GET',
@@ -231,7 +232,7 @@ export const apiSlice = createApi({
     }),
     
     // Update current user profile
-    updateUserProfile: builder.mutation<UserDetailResponse, Partial<CreateUserRequest>>({
+    updateUserProfile: builder.mutation<UserProfileResponse, Partial<CreateUserRequest>>({
       query: (profileData) => ({
         url: '/user/v1/profile',
         method: 'PUT',

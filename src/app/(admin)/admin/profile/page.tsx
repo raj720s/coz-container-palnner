@@ -236,7 +236,7 @@ export default function AdminProfilePage() {
               <Label className="text-sm font-medium text-gray-500">Role</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                  {userProfile?.role_details?.name || user?.role || 'Administrator'}
+                  {userProfile?.role?.[0]?.role_name || (userProfile?.is_superuser ? "Administrator" : "User")}
                 </span>
               </p>
             </div>
@@ -244,11 +244,11 @@ export default function AdminProfilePage() {
               <Label className="text-sm font-medium text-gray-500">Account Status</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  userProfile?.is_active 
+                  userProfile?.status 
                     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                 }`}>
-                  {userProfile?.is_active ? 'Active' : 'Inactive'}
+                  {userProfile?.status ? 'Active' : 'Inactive'}
                 </span>
               </p>
             </div>

@@ -8,10 +8,14 @@ export interface User {
   organisation_name: string;
   role: string;
   role_id: number;
-  is_superuser?: boolean;
+  is_superuser: boolean;
   is_active?: boolean;
   created_on?: string;
   updated_on?: string;
+  phone_number?: string | null;
+  country_code?: string | null;
+  country?: string | null;
+  timezone?: string | null;
 }
 
 interface AuthState {
@@ -100,6 +104,11 @@ const authSlice = createSlice({
           email: apiData.email || state.user.email,
           organisation_name: apiData.organisation_name || state.user.organisation_name,
           role_id: apiData.role_id || state.user.role_id,
+          is_superuser: apiData.is_superuser !== undefined ? apiData.is_superuser : state.user.is_superuser,
+          phone_number: apiData.phone_number !== undefined ? apiData.phone_number : state.user.phone_number,
+          country_code: apiData.country_code !== undefined ? apiData.country_code : state.user.country_code,
+          country: apiData.country !== undefined ? apiData.country : state.user.country,
+          timezone: apiData.timezone !== undefined ? apiData.timezone : state.user.timezone,
         };
       }
     },

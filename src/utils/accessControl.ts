@@ -99,6 +99,23 @@ export function isAdminRoute(route: string): boolean {
 }
 
 /**
+ * Check if user is admin based on is_superuser flag
+ */
+export function isUserAdmin(isSuperuser: boolean): boolean {
+  return isSuperuser === true;
+}
+
+/**
+ * Check if user has admin access based on role array
+ */
+export function hasAdminRoleAccess(userRoles: Array<{ id: number; role_name: string }>): boolean {
+  return userRoles.some(role => 
+    role.role_name.toLowerCase() === 'admin' || 
+    role.role_name.toLowerCase() === 'administrator'
+  );
+}
+
+/**
  * Check if a route requires user role
  */
 export function isUserRoute(route: string): boolean {

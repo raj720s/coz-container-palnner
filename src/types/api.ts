@@ -17,9 +17,9 @@ export interface UserResponse {
   created_on: string;
   role_id: number;
   phone_number: string;
-  is_active: boolean;
-  updated_on: string;
-  role_details: RoleInfo;
+  is_active?: boolean;
+  updated_on?: string;
+  role_details?: RoleInfo;
 }
 
 export interface RoleInfo {
@@ -33,6 +33,32 @@ export interface UserDetailResponse extends UserResponse {
   updated_on?: string;
   is_active?: boolean;
   role_details?: RoleInfo;
+}
+
+// New type for actual API response structure
+export interface UserProfileResponse {
+  id: number;
+  is_superuser: boolean;
+  announcement_read_flag: number;
+  role: Array<{
+    id: number;
+    role_name: string;
+  }>;
+  email: string;
+  first_name: string;
+  last_name: string;
+  created_on: string;
+  last_login: string;
+  status: boolean;
+  country_code: string | null;
+  is_deleted: boolean;
+  phone_number: string | null;
+  modified_on: string | null;
+  organisation_name: string;
+  timezone: string | null;
+  country: string | null;
+  created_by: number;
+  modified_by: number | null;
 }
 
 export interface UserShortInfo {
