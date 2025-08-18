@@ -226,7 +226,7 @@ function UploadsHistoryPage() {
     }),
     columnHelper.display({
       id: "downloadInput",
-      header: "Download Input",
+      header: "View Input",
       cell: (info) => (
         <Button
           size="sm"
@@ -241,7 +241,7 @@ function UploadsHistoryPage() {
     }),
     columnHelper.display({
       id: "downloadOutput",
-      header: "Download Output",
+      header: "View Output",
       cell: (info) => {
         const row = info.row.original;
         if (row.status === 'SUCCESS' && row.hasOutputFile) {
@@ -368,10 +368,10 @@ function UploadsHistoryPage() {
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={loadUploadHistory} size="sm" variant="outline">
-            <RefreshIcon className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
+              {/* <Button onClick={loadUploadHistory} size="sm" variant="outline">
+                <RefreshIcon className="w-4 h-4 mr-2" />
+                Refresh
+              </Button> */}
         </div>
       </div>
 

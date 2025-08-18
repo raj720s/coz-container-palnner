@@ -1,5 +1,6 @@
 import { any } from 'zod';
 import { localStorageService, type ShipmentData, type ContainerAssignment } from './localStorageService';
+import { storeAssignmentResults } from './assignmentResultsService';
 
 // Types for the container planning system
 interface BucketData {
@@ -339,7 +340,8 @@ export async function planContainers(shipments: ShipmentData[]): Promise<Plannin
  * Save planning results to localStorage
  */
 export function savePlanningResults(result: PlanningResult, fileId: string) {
-  return localStorageService.saveContainerPlanningResult({
+  // Save to localStorage service
+  const savedResult = localStorageService.saveContainerPlanningResult({
     fileId,
     planDate: new Date().toISOString(),
     assignments: result.assignments,
@@ -351,4 +353,14 @@ export function savePlanningResults(result: PlanningResult, fileId: string) {
       containerTypes: result.containerTypes
     }
   });
+
+  // Also store assignment results for uploads history
+  try {
+    const uploadDate = new Date().toISOString();
+    storeAssignmentResults(fileId, savedResult, uploadDate);
+  } catch (error) {
+    console.error('Error storing assignment results:', error);
+  }
+
+  return savedResult;
 }

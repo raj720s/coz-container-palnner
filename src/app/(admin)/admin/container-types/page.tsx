@@ -11,16 +11,18 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
   TableMeta,
-  
+  ColumnDef,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
-import { ContainerTypeForm } from "@/components/forms/ContainerTypeForm";
+import { ContainerTypeForm, type ContainerTypeFormData } from "@/components/forms/ContainerTypeForm";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { z } from "zod";
+import Pagination from "@/components/tables/Pagination";
 
 const containerTypeSchema = z.object({
   name: z.string().min(1, "Container name is required"),
@@ -40,23 +42,93 @@ const columnHelper = createColumnHelper<ContainerType>();
 
 const columns = [
   columnHelper.accessor("name", {
-    header: "Container Name",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Container Name
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue(),
   }),
   columnHelper.accessor("code", {
-    header: "Code",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Code
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue(),
   }),
   columnHelper.accessor("description", {
-    header: "Description",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Description
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue() || "-",
   }),
   columnHelper.accessor("capacity", {
-    header: "Capacity (CBM)",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Capacity (CBM)
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue(),
   }),
   columnHelper.accessor("isActive", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -70,7 +142,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("createdAt", {
-    header: "Created",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Created
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => new Date(info.getValue()).toLocaleDateString(),
   }),
   columnHelper.display({
@@ -155,26 +241,27 @@ function ContainerTypesPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
       sorting,
     },
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
-      meta: {
-    editRow: (row: ContainerType) => {
-      openModal(row);
-    },
-    deleteRow: (id: string) => {
-      if (confirm("Are you sure you want to delete this container type?")) {
-        setData(prev => prev.filter(item => item.id !== id));
-        toast.success("Container type deleted successfully");
-      }
-    },
-  } as TableMeta<ContainerType>,
+    meta: {
+      editRow: (row: ContainerType) => {
+        openModal(row);
+      },
+      deleteRow: (id: string) => {
+        if (confirm("Are you sure you want to delete this container type?")) {
+          setData(prev => prev.filter(item => item.id !== id));
+          toast.success("Container type deleted successfully");
+        }
+      },
+    } as TableMeta<ContainerType>,
   });
 
-  const handleSubmit = async (formData: ContainerType) => {
+  const handleSubmit = async (formData: ContainerTypeFormData) => {
     setLoading(true);
     
     try {
@@ -272,6 +359,23 @@ function ContainerTypesPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       </div>
 
       {data.length === 0 && (

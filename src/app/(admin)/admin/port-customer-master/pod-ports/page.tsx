@@ -11,15 +11,17 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { dataService, type PODPort } from "@/utils/dataService";
+import Pagination from "@/components/tables/Pagination";
 
 const columnHelper = createColumnHelper<PODPort>();
 
@@ -30,7 +32,7 @@ function PODPortsPage() {
   
   // POD Ports data
   const [podPorts, setPodPorts] = useState<PODPort[]>([]);
-  
+  const [loading, setLoading] = useState(false);
 
   // Load POD ports from JSON data on component mount
   useEffect(() => {
@@ -59,8 +61,8 @@ function PODPortsPage() {
     editingItem,
     openModal,
     closeModal,
-    setLoading,
-  } = useFormModal();
+    setLoading: setModalLoading,
+  } = useFormModal<PODPort>();
 
   // Auto-open modal if action=add
   useEffect(() => {
@@ -71,19 +73,75 @@ function PODPortsPage() {
 
   const columns = useMemo(() => [
     columnHelper.accessor("code", { 
-      header: "Port Code", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Port Code
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
     }),
     columnHelper.accessor("name", { 
-      header: "Port Name", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Port Name
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
     columnHelper.accessor("country", { 
-      header: "Country", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Country
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => info.getValue() 
     }),
     columnHelper.accessor("region", { 
-      header: "Region", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Region
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className="px-2 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
           {info.getValue()}
@@ -91,7 +149,21 @@ function PODPortsPage() {
       )
     }),
     columnHelper.accessor("isActive", {
-      header: "Status",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Status
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className={`px-2 py-1 text-xs rounded-full ${
           info.getValue()
@@ -103,7 +175,21 @@ function PODPortsPage() {
       ),
     }),
     columnHelper.accessor("updatedAt", {
-      header: "Last Updated",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Last Updated
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {new Date(info.getValue()).toLocaleDateString()}
@@ -151,6 +237,7 @@ function PODPortsPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       sorting,
     },
@@ -169,13 +256,14 @@ function PODPortsPage() {
   };
 
   const handleSubmit = async (formData: PortFormData) => {
-    setLoading(true);
+    setModalLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       
       if (editingItem) {
         // Update existing port
         setPodPorts(prev => prev.map(item => 
+          // @ts-ignore 
           item.id === editingItem.id ? { 
             ...item, 
             ...formData,
@@ -201,7 +289,7 @@ function PODPortsPage() {
     } catch (error) {
       toast.error("Operation failed");
     } finally {
-      setLoading(false);
+      setModalLoading(false);
     }
   };
 
@@ -238,11 +326,12 @@ function PODPortsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push("/admin/port-customer-master")}
+            onClick={() => router.back()}
+            // onClick={() => router.push("/admin/port-customer-master")}
             className="flex items-center gap-2"
           >
             <ChevronLeftIcon className="w-4 h-4" />
-            Back to Master
+            Back
           </Button>
         </div>
         
@@ -295,10 +384,10 @@ function PODPortsPage() {
             <PlusIcon className="w-4 h-4 mr-2" />
             Add POD Port
           </Button>
-          <Button onClick={exportData} size="sm" variant="outline">
+          {/* <Button onClick={exportData} size="sm" variant="outline">
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -343,6 +432,23 @@ function PODPortsPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No POD ports found matching your filters.
@@ -355,9 +461,18 @@ function PODPortsPage() {
         onClose={closeModal}
         title={editingItem ? "Edit POD Port" : "Add New POD Port"}
         size="lg"
+        isLoading={isModalLoading}
+        showFooter={false}
       >
         <PortForm
-          initialData={editingItem}
+          initialData={editingItem ? {
+            code: editingItem.code,
+            name: editingItem.name,
+            country: editingItem.country,
+            region: editingItem.region,
+            type: "POD" as const,
+            isActive: editingItem.isActive
+          } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

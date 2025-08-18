@@ -107,8 +107,8 @@ function UserPODPorts() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => router.push("/user/port-customer-master")} variant="outline" size="sm">
-              Back to Master
+            <Button onClick={() => router.back()} variant="outline" size="sm">
+              Back
             </Button>
             <Button onClick={handleExport} variant="outline" size="sm">
               <HiOutlineDownload className="w-4 h-4 mr-2" />

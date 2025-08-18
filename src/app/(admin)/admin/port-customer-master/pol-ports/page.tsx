@@ -10,16 +10,18 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { dataService, type POLPort } from "@/utils/dataService";
 import { withRouteAuth } from "@/components/auth/withAuth";
+import Pagination from "@/components/tables/Pagination";
 
 const columnHelper = createColumnHelper<POLPort>();
 
@@ -60,7 +62,7 @@ function POLPortsPage() {
     openModal,
     closeModal,
     setLoading: setModalLoading,
-  } = useFormModal();
+  } = useFormModal<POLPort>();
 
   // Auto-open modal if action=add
   useEffect(() => {
@@ -71,19 +73,75 @@ function POLPortsPage() {
 
   const columns = useMemo(() => [
     columnHelper.accessor("code", { 
-      header: "Port Code", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Port Code
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
     }),
     columnHelper.accessor("name", { 
-      header: "Port Name", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Port Name
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
     columnHelper.accessor("country", { 
-      header: "Country", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Country
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => info.getValue() 
     }),
     columnHelper.accessor("region", { 
-      header: "Region", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Region
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
           {info.getValue()}
@@ -91,7 +149,21 @@ function POLPortsPage() {
       )
     }),
     columnHelper.accessor("isActive", {
-      header: "Status",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Status
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className={`px-2 py-1 text-xs rounded-full ${
           info.getValue()
@@ -103,7 +175,21 @@ function POLPortsPage() {
       ),
     }),
     columnHelper.accessor("createdAt", {
-      header: "Created",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Created
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className="text-sm text-gray-500 dark:text-gray-400">
           {new Date(info.getValue()).toLocaleDateString()}
@@ -154,6 +240,7 @@ function POLPortsPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       sorting,
     },
@@ -239,8 +326,9 @@ function POLPortsPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
+        
           <Button
             variant="outline"
             size="sm"
@@ -250,25 +338,18 @@ function POLPortsPage() {
             <ChevronLeftIcon className="w-4 h-4" />
             Back
           </Button>
-          <div>
+          </div>
+          
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               POL Ports Management
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage Port of Loading (POL) ports and their configurations
             </p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <Button onClick={exportData} size="sm" variant="outline">
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={handleAddNew} size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add POL Port
-          </Button>
-        </div>
+          
+        
+      
+    
       </div>
 
       {/* Stats Cards */}
@@ -298,7 +379,8 @@ function POLPortsPage() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6">
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+      <div className="flex-1">
         <Input
           placeholder="Search ports by code, name, country, or region..."
           value={globalFilter}
@@ -306,6 +388,19 @@ function POLPortsPage() {
           className="max-w-md"
         />
       </div>
+
+        <div className="flex gap-3">
+          
+          <Button onClick={handleAddNew} size="sm">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add POL Port
+          </Button>
+          {/* <Button onClick={exportData} size="sm" variant="outline">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export
+          </Button> */}
+          </div>
+        </div>
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
@@ -348,6 +443,23 @@ function POLPortsPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No POL ports found matching your search criteria.
@@ -357,12 +469,20 @@ function POLPortsPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit POL Port" : "Add New POL Port"}
         isLoading={isModalLoading}
       >
         <PortForm
-          initialData={editingItem}
+          initialData={editingItem ? {
+            code: editingItem.code,
+            name: editingItem.name,
+            country: editingItem.country,
+            region: editingItem.region,
+            type: "POL" as const,
+            isActive: editingItem.isActive
+          } : undefined}
           onSubmit={handleSubmit}
           portType="POL"
         />

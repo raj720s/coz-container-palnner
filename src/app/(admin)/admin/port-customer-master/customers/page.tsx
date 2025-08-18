@@ -11,13 +11,15 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import { useMessage } from "@/components/ui/MessageBox";
+import Pagination from "@/components/tables/Pagination";
 
 interface Customer {
   id: string;
@@ -108,19 +110,75 @@ function CustomersPage() {
 
   const columns = useMemo(() => [
     columnHelper.accessor("code", { 
-      header: "Customer Code", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Customer Code
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
     }),
     columnHelper.accessor("name", { 
-      header: "Customer Name", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Customer Name
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
     columnHelper.accessor("country", { 
-      header: "Country", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Country
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => info.getValue() 
     }),
     columnHelper.accessor("region", { 
-      header: "Region", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Region
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
           {info.getValue()}
@@ -128,11 +186,39 @@ function CustomersPage() {
       )
     }),
     columnHelper.accessor("contactPerson", { 
-      header: "Contact Person", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Contact Person
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue()}</span>
     }),
     columnHelper.accessor("email", { 
-      header: "Email", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Email
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className="text-sm text-blue-600 dark:text-blue-400">
           {info.getValue()}
@@ -140,7 +226,21 @@ function CustomersPage() {
       )
     }),
     columnHelper.accessor("isActive", {
-      header: "Status",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Status
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
         <span className={`px-2 py-1 text-xs rounded-full ${
           info.getValue()
@@ -197,6 +297,7 @@ function CustomersPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       sorting,
     },
@@ -284,8 +385,8 @@ function CustomersPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="mb-6">
+      <div className="flex items-center gap-4 mb-4">
           <Button
             variant="outline"
             size="sm"
@@ -295,26 +396,16 @@ function CustomersPage() {
             <ChevronLeftIcon className="w-4 h-4" />
             Back
           </Button>
-          <div>
+          </div>
+          
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               Customer Management
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
               Manage customer information and configurations
             </p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <Button onClick={exportData} size="sm" variant="outline">
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={handleAddNew} size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
-        </div>
-      </div>
+
+      
 
       {/* Summary Stats */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -345,14 +436,37 @@ function CustomersPage() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6">
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+      <div className="flex-1">
         <Input
           placeholder="Search customers by code, name, country, region, contact person, or email..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-md"
         />
+
       </div>
+
+      <div className="flex gap-3">
+            <Button onClick={handleAddNew} size="sm">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add Customer
+          </Button>
+        </div>     
+
+        {/* export and add customer button */}
+        {/* <div className="flex gap-3">
+          <Button onClick={exportData} size="sm" variant="outline">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
+         */}
+
+
+             
+        
+        </div>   
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
@@ -395,6 +509,23 @@ function CustomersPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No customers found matching your search criteria.
@@ -414,6 +545,7 @@ function CustomersPage() {
           onSubmit={handleSubmit}
         />
       </FormModal>
+    </div>
     </div>
   );
 }

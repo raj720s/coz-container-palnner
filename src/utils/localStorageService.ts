@@ -16,6 +16,14 @@ const STORAGE_KEYS = {
 } as const;
 
 // Types
+export interface ValidationError {
+  rowNumber: number;
+  field: string;
+  errorMessage: string;
+  value: string;
+  severity: "error" | "warning";
+}
+
 export interface ContainerPriority {
   id: string;
   containerType: string;
@@ -114,6 +122,8 @@ export interface UploadedFile {
   invalidRows: number;
   fileContent: string; // Base64 encoded file content
   shipmentIds: string[]; // For duplicate checking
+  errors?: ValidationError[]; // Validation errors
+  warnings?: ValidationError[]; // Validation warnings
 }
 
 export interface ShipmentData {

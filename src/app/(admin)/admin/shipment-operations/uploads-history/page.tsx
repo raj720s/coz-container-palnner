@@ -29,11 +29,13 @@ import {
 } from "@/icons";
 import { getUploadedFiles } from "@/utils/clientShipmentService";
 import { formatFileSize } from "@/utils/formatUtils";
-import { type UploadedFile } from "@/utils/localStorageService";
+import { type UploadedFile, type ValidationError } from "@/utils/localStorageService";
+import { ExcelViewerModal } from "@/components/ui/ExcelViewerModal";
+import { getAssignmentResultByFileId, generateAssignmentResultsExcel } from "@/utils/assignmentResultsService";
 
 interface ExtendedUploadedFile extends UploadedFile {
-  errors?: string[];
-  warnings?: string[];
+  errors?: ValidationError[];
+  warnings?: ValidationError[];
 }
 
 interface UploadHistory {
@@ -47,8 +49,8 @@ interface UploadHistory {
   validRows: number;
   invalidRows: number;
   status: "SUCCESS" | "FAILED" | "PENDING" | "PROCESSING";
-  errors?: string[];
-  warnings?: string[];
+  errors?: ValidationError[];
+  warnings?: ValidationError[];
   hasOutputFile?: boolean;
   outputFileName?: string;
 }
@@ -76,6 +78,15 @@ function UploadsHistoryPage() {
   });
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedUser, setSelectedUser] = useState<string>("all");
+  const [excelModal, setExcelModal] = useState<{
+    isOpen: boolean;
+    fileContent: string;
+    fileName: string;
+  }>({
+    isOpen: false,
+    fileContent: '',
+    fileName: ''
+  });
 
   // Load upload history on component mount
   useEffect(() => {
@@ -89,13 +100,24 @@ function UploadsHistoryPage() {
       
       // Transform the data to match our new interface
       const historyData: UploadHistory[] = files.map((file: ExtendedUploadedFile, index: number) => {
-        // Determine status based on validation results
+        // Determine status based on validation results and assignment results
         let status: UploadHistory['status'] = 'PENDING';
-        if (file.validRows > 0 && file.invalidRows === 0) {
-          status = 'SUCCESS';
-        } else if (file.invalidRows > 0) {
+        
+        // Check if there are actual validation errors (not just warnings)
+        const hasErrors = file.errors && file.errors.length > 0;
+        const hasWarnings = file.warnings && file.warnings.length > 0;
+        
+        if (file.validRows > 0 && !hasErrors) {
+          // File has valid data and no errors - check if assignment results exist
+          const assignmentResult = getAssignmentResultByFileId(file.id);
+          status = assignmentResult ? 'SUCCESS' : 'PROCESSING';
+        } else if (hasErrors) {
+          // Only fail if there are actual errors, not just warnings
           status = 'FAILED';
         } else if (file.validRows === 0 && file.invalidRows === 0) {
+          status = 'PROCESSING';
+        } else if (file.validRows > 0 && hasWarnings && !hasErrors) {
+          // File has valid data and warnings but no errors - still processing
           status = 'PROCESSING';
         }
         
@@ -115,8 +137,8 @@ function UploadsHistoryPage() {
           status,
           errors: file.errors || [],
           warnings: file.warnings || [],
-          hasOutputFile: status === 'SUCCESS',
-          outputFileName: status === 'SUCCESS' ? `${file.originalName.replace('.xlsx', '')}_processed.xlsx` : undefined
+                     hasOutputFile: status === 'SUCCESS',
+           outputFileName: status === 'SUCCESS' ? `${file.originalName.replace(/\.(xlsx|xls|csv)$/i, '')}_processed.csv` : undefined
         };
       });
 
@@ -226,7 +248,7 @@ function UploadsHistoryPage() {
     }),
     columnHelper.display({
       id: "downloadInput",
-      header: "Download Input",
+      header: "View Input",
       cell: (info) => (
         <Button
           size="sm"
@@ -241,7 +263,7 @@ function UploadsHistoryPage() {
     }),
     columnHelper.display({
       id: "downloadOutput",
-      header: "Download Output",
+      header: "View Output",
       cell: (info) => {
         const row = info.row.original;
         if (row.status === 'SUCCESS' && row.hasOutputFile) {
@@ -299,13 +321,47 @@ function UploadsHistoryPage() {
   });
 
   const viewInputFile = (upload: UploadHistory) => {
-    // Navigate to input file viewer
-    router.push(`/admin/shipment-operations/input-file/${upload.id}`);
+    // Find the actual file data
+    const files = getUploadedFiles();
+    const file = files.find(f => f.id === upload.id);
+    
+    if (file && file.fileContent) {
+      setExcelModal({
+        isOpen: true,
+        fileContent: file.fileContent,
+        fileName: upload.originalName
+      });
+    } else {
+      alert('File content not available');
+    }
   };
 
   const viewOutputFile = (upload: UploadHistory) => {
-    // Navigate to output file viewer
-    router.push(`/admin/shipment-operations/output-file/${upload.id}`);
+    // Get assignment results for this file
+    const assignmentResult = getAssignmentResultByFileId(upload.id);
+    
+    if (assignmentResult) {
+      // Generate Excel content from assignment results
+      const excelBlob = generateAssignmentResultsExcel(
+        assignmentResult, 
+        `${upload.originalName.replace('.xlsx', '')}_processed.csv`
+      );
+      
+      // Convert blob to base64 for the modal
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Content = (reader.result as string).split(',')[1]; // Remove data URL prefix
+        
+        setExcelModal({
+          isOpen: true,
+          fileContent: base64Content,
+          fileName: `${upload.originalName.replace('.xlsx', '')}_processed.csv`
+        });
+      };
+      reader.readAsDataURL(excelBlob);
+    } else {
+      alert('No assignment results found for this file. Please run container planning first.');
+    }
   };
 
   const exportHistory = () => {
@@ -368,7 +424,7 @@ function UploadsHistoryPage() {
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={loadUploadHistory} size="sm" variant="outline">
+          <Button onClick={() => loadUploadHistory()} size="sm" variant="outline">
             <RefreshIcon className="w-4 h-4 mr-2" />
             Refresh
           </Button>
@@ -605,6 +661,14 @@ function UploadsHistoryPage() {
           }
         </div>
       )}
+
+      {/* Excel Viewer Modal */}
+      <ExcelViewerModal
+        isOpen={excelModal.isOpen}
+        onClose={() => setExcelModal(prev => ({ ...prev, isOpen: false }))}
+        fileContent={excelModal.fileContent}
+        fileName={excelModal.fileName}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { withAdminAuth } from "@/components/auth/withAuth";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
 import { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
@@ -10,9 +10,10 @@ import { FormModal } from "@/components/ui/modal/FormModal";
 import { UserForm, type UserFormData } from "@/components/forms/UserForm";
 import { useFormModal } from "@/hooks/useFormModal";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon } from "@/icons";
+import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { User } from "@/types/user";
 import { AccessControlDisplay } from "@/components/user/AccessControlDisplay";
+import Pagination from "@/components/tables/Pagination";
 
 const columnHelper = createColumnHelper<User>();
 
@@ -20,13 +21,14 @@ function AdminUserManagementPage() {
   const [data, setData] = useState<User[]>([
     {
       id: "1",
-      name: "John Doe",
+      firstName: "John",
+      lastName: "Doe",
       email: "john.doe@company.com",
-      role: "admin",
+      role: 1,
       status: "active",
       lastLogin: "2024-01-15T10:30:00Z",
       createdAt: "2023-06-15T09:00:00Z",
-      department: "Operations",
+      organisation_name: "Operations",
       permissions: ["read", "write", "admin"],
       accessControl: [
         "admin/dashboard",
@@ -51,13 +53,14 @@ function AdminUserManagementPage() {
     },
     {
       id: "2",
-      name: "Jane Smith",
+      firstName: "Jane",
+      lastName: "Smith",
       email: "jane.smith@company.com",
-      role: "user",
+      role: 2,
       status: "active",
       lastLogin: "2024-01-14T14:20:00Z",
       createdAt: "2023-08-20T11:00:00Z",
-      department: "Logistics",
+      organisation_name: "Logistics",
       permissions: ["read", "write"],
       accessControl: [
         "user/dashboard",
@@ -70,13 +73,14 @@ function AdminUserManagementPage() {
     },
     {
       id: "3",
-      name: "Mike Johnson",
+      firstName: "Mike",
+      lastName: "Johnson",
       email: "mike.johnson@company.com",
-      role: "user",
+      role: 2,
       status: "inactive",
       lastLogin: "2024-01-10T16:45:00Z",
       createdAt: "2023-09-10T10:30:00Z",
-      department: "Sales",
+      organisation_name: "Sales",
       permissions: ["read"],
       accessControl: [
         "user/dashboard",
@@ -86,13 +90,14 @@ function AdminUserManagementPage() {
     },
     {
       id: "4",
-      name: "Sarah Wilson",
+      firstName: "Sarah",
+      lastName: "Wilson",
       email: "sarah.wilson@company.com",
-      role: "admin",
+      role: 1,
       status: "active",
       lastLogin: "2024-01-15T08:15:00Z",
       createdAt: "2023-07-05T13:20:00Z",
-      department: "IT",
+      organisation_name: "IT",
       permissions: ["read", "write", "admin"],
       accessControl: [
         "admin/dashboard",
@@ -114,28 +119,13 @@ function AdminUserManagementPage() {
         "user/validation-summary",
         "user/repositioning-summary",
       ]
-    },
-    {
-      id: "5",
-      name: "David Brown",
-      email: "david.brown@company.com",
-      role: "user",
-      status: "pending",
-      lastLogin: "2024-01-12T12:00:00Z",
-      createdAt: "2024-01-12T09:00:00Z",
-      department: "Finance",
-      permissions: ["read"],
-      accessControl: [
-        "user/dashboard",
-        "user/shipment-upload",
-        "user/assignment-results",
-      ]
     }
   ]);
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sorting, setSorting] = useState<any[]>([]);
 
   const {
     isOpen: isModalOpen,
@@ -146,10 +136,20 @@ function AdminUserManagementPage() {
     setLoading,
   } = useFormModal();
 
-  const handleDeleteUser = (userId: string) => {
-    if (confirm("Are you sure you want to delete this user?")) {
-      setData(prev => prev.filter(user => user.id !== userId));
-      toast.success("User deleted successfully");
+  const handleEdit = (user: User) => {
+    openModal(user);
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this user?')) {
+      try {
+        const updatedUsers = data.filter(user => user.id !== id);
+        setData(updatedUsers);
+        toast.success("User deleted successfully");
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        toast.error("Failed to delete user");
+      }
     }
   };
 
@@ -213,8 +213,8 @@ function AdminUserManagementPage() {
     const active = data.filter(item => item.status === "active").length;
     const inactive = data.filter(item => item.status === "inactive").length;
     const pending = data.filter(item => item.status === "pending").length;
-    const admins = data.filter(item => item.role === "admin").length;
-    const users = data.filter(item => item.role === "user").length;
+    const admins = data.filter(item => item.role === 1).length;
+    const users = data.filter(item => item.role === 2).length;
 
     return { total, active, inactive, pending, admins, users };
   };
@@ -222,88 +222,169 @@ function AdminUserManagementPage() {
   const stats = useMemo(() => getSummaryStats(), [data]);
 
   // Filter data based on role and status filters
-  const filteredData = useMemo(() => data.filter(item => {
-    const matchesRole = roleFilter === "all" || item.role === roleFilter;
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    return matchesRole && matchesStatus;
-  }), [data, roleFilter, statusFilter]);
+  const filteredData = useMemo(() => {
+    return data.filter(user => {
+      const matchesSearch = 
+        user.firstName.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        user.lastName.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        user.email.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        (user.organisation_name && user.organisation_name.toLowerCase().includes(globalFilter.toLowerCase()));
+      
+      const matchesRole = roleFilter === "all" || 
+        (roleFilter === "admin" && user.role === 1) || 
+        (roleFilter === "user" && user.role === 2);
+      
+      const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+      
+      return matchesSearch && matchesRole && matchesStatus;
+    });
+  }, [data, globalFilter, roleFilter, statusFilter]);
 
   // Define columns inside the component to access the handler functions
   const columns = useMemo(() => [
-    columnHelper.accessor("name", {
-      header: "Name",
+    columnHelper.accessor("firstName", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Name
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-brand-100 dark:bg-brand-900 rounded-full flex items-center justify-center">
-            <UserCircleIcon className="w-5 h-5 text-brand-600" />
+        <div className="flex items-center">
+          <UserCircleIcon className="w-8 h-8 text-gray-400 mr-3" />
+          <div>
+            <div className="font-medium text-gray-900 dark:text-white">
+              {info.getValue()} {info.row.original.lastName}
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">{info.row.original.email}</div>
           </div>
-          <span className="font-medium text-gray-900 dark:text-white">
-            {info.getValue()}
-          </span>
         </div>
       ),
     }),
-    columnHelper.accessor("email", {
-      header: "Email",
-      cell: (info) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {info.getValue()}
-        </span>
-      ),
-    }),
     columnHelper.accessor("role", {
-      header: "Role",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Role
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          info.getValue() === "admin" 
-            ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          info.getValue() === 1 
+            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
         }`}>
-          {info.getValue().charAt(0).toUpperCase() + info.getValue().slice(1)}
+          {info.getValue() === 1 ? 'admin' : 'user'}
         </span>
       ),
     }),
     columnHelper.accessor("status", {
-      header: "Status",
-      cell: (info) => {
-        const status = info.getValue();
-        const statusConfig = {
-          active: { color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", icon: CheckCircleIcon },
-          inactive: { color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200", icon: AlertIcon },
-          pending: { color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200", icon: TimeIcon }
-        };
-        const config = statusConfig[status];
-        const Icon = config.icon;
-        return (
-          <span className={`px-2 py-1 text-xs rounded-full flex items-center gap-1 ${config.color}`}>
-            <Icon className="w-3 h-3" />
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
-        );
-      },
-    }),
-    columnHelper.accessor("department", {
-      header: "Department",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Status
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {info.getValue() || "-"}
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          info.getValue() === 'active' 
+            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+            : info.getValue() === 'pending'
+            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+        }`}>
+          {info.getValue()}
         </span>
       ),
     }),
+    columnHelper.accessor("organisation_name", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Organization
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => info.getValue() || "-",
+    }),
     columnHelper.accessor("lastLogin", {
-      header: "Last Login",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Last Login
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-500">
+        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+          <TimeIcon className="w-4 h-4 mr-1" />
           {new Date(info.getValue()).toLocaleDateString()}
-        </span>
+        </div>
       ),
     }),
     columnHelper.accessor("createdAt", {
-      header: "Created",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Created
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-500">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           {new Date(info.getValue()).toLocaleDateString()}
-        </span>
+        </div>
       ),
     }),
     columnHelper.accessor("accessControl", {
@@ -316,23 +397,27 @@ function AdminUserManagementPage() {
       id: "actions",
       header: "Actions",
       cell: (info) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => openModal(info.row.original)}
-            className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+        <div className="flex space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(info.row.original)}
+            className="p-1"
           >
             <PencilIcon className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => handleDeleteUser(info.row.original.id)}
-            className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+            className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       ),
     }),
-  ], [openModal, handleDeleteUser]);
+  ], [handleEdit, handleDeleteUser]);
 
   const table = useReactTable({
     data: filteredData,
@@ -340,9 +425,13 @@ function AdminUserManagementPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    state: { globalFilter },
+    getPaginationRowModel: getPaginationRowModel(),
+    state: {
+      globalFilter,
+      sorting,
+    },
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: "includesString",
+    onSortingChange: setSorting,
   });
 
   return (
@@ -499,9 +588,26 @@ function AdminUserManagementPage() {
         </div>
       </div>
 
-      {table.getRowModel().rows.length === 0 && (
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
+      {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No users found matching your criteria.
+          No users found matching your search criteria.
         </div>
       )}
 

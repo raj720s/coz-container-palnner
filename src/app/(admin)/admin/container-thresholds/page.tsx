@@ -11,6 +11,7 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
   
 } from "@tanstack/react-table";
@@ -18,7 +19,8 @@ import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { ContainerThresholdForm, ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
+import Pagination from "@/components/tables/Pagination";
 
 type ContainerThreshold = {
   id: string;
@@ -154,7 +156,21 @@ const mockThresholds: ContainerThreshold[] = [
 
 const columns = [
   columnHelper.accessor("containerType", {
-    header: "Container Type",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Container Type
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-medium text-gray-900 dark:text-white">
         {info.getValue()}
@@ -162,7 +178,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("pol", {
-    header: "POL",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        POL
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-600 dark:text-gray-400">
         {info.getValue() || "Default (All POLs)"}
@@ -170,7 +200,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("minCBM", {
-    header: "Min CBM",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Min CBM
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue().toFixed(1)}
@@ -178,7 +222,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("maxCBM", {
-    header: "Max CBM",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Max CBM
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue().toFixed(1)}
@@ -186,7 +244,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("isDefault", {
-    header: "Default",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Default
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -200,7 +272,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("isActive", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -214,7 +300,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("createdAt", {
-    header: "Created",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Created
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-500 dark:text-gray-400">
         {new Date(info.getValue()).toLocaleDateString()}
@@ -267,6 +367,7 @@ function ContainerThresholdsPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
       sorting,
@@ -358,6 +459,7 @@ function ContainerThresholdsPage() {
         </Button>
       </div>
 
+      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -381,7 +483,7 @@ function ContainerThresholdsPage() {
               ))}
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredData.map((row) => (
+              {table.getRowModel().rows.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
@@ -393,6 +495,23 @@ function ContainerThresholdsPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       </div>
 
       {filteredData.length === 0 && (

@@ -48,7 +48,7 @@ const navItems: NavItem[] = [
     path: "/admin/port-customer-master", // Admin parent link
     adminOnly: true,
     subItems: [
-      { name: "Port & Customer Master", path: "/admin/port-customer-master" },
+      // { name: "Port & Customer Master", path: "/admin/port-customer-master" },
       { name: "POL Master", path: "/admin/port-customer-master/pol-ports" },
       { name: "POD Master", path: "/admin/port-customer-master/pod-ports" },
       { name: "Customer Records", path: "/admin/port-customer-master/customers" },
@@ -63,7 +63,7 @@ const navItems: NavItem[] = [
     path: "/user/port-customer-master", // User parent link
     userOnly: true,
     subItems: [
-      { name: "Port & Customer Master", path: "/user/port-customer-master" },
+      // { name: "Port & Customer Master", path: "/user/port-customer-master" },
       { name: "POL Master", path: "/user/port-customer-master/pol-ports" },
       { name: "POD Master", path: "/user/port-customer-master/pod-ports" },
       { name: "Customer Records", path: "/user/port-customer-master/customers" },
@@ -82,7 +82,7 @@ const navItems: NavItem[] = [
       { name: "Validation Summary", path: "/admin/validation-summary" },
       { name: "Container Planning", path: "/admin/container-planning" },
       { name: "Assignment Results", path: "/admin/assignment-results" },
-      { name: "Repositioning Summary", path: "/admin/repositioning-summary" },
+      // { name: "Repositioning Summary", path: "/admin/repositioning-summary" },
     ],
   },
   {
@@ -95,7 +95,7 @@ const navItems: NavItem[] = [
       { name: "Validation Summary", path: "/user/validation-summary" },
       { name: "Container Planning", path: "/user/container-planning" },
       { name: "Assignment Results", path: "/user/assignment-results" },
-      { name: "Repositioning Summary", path: "/user/repositioning-summary" },
+      // { name: "Repositioning Summary", path: "/user/repositioning-summary" },
     ],
   },
   {
