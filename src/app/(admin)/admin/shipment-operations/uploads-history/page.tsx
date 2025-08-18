@@ -419,7 +419,7 @@ function UploadsHistoryPage() {
             View and manage all shipment file uploads and their processing results. Shows last 10 upload records per user from the past 3 months.
           </p>
         </div>
-        <div className="flex gap-3">
+        {/* <div className="flex gap-3">
           <Button onClick={exportHistory} size="sm" variant="outline">
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export CSV
@@ -428,7 +428,7 @@ function UploadsHistoryPage() {
             <RefreshIcon className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Summary Cards */}

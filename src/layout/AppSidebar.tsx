@@ -356,7 +356,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  ""
                 ) : (
                   <div className="flex justify-center">
                     <HiOutlineDotsHorizontal className="w-4 h-4" />

@@ -1,285 +1,493 @@
 "use client";
 
 import { withUserAuth } from "@/components/auth/withAuth";
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import toast from "react-hot-toast";
-import React, { useState, useEffect } from "react";
 import Button from "@/components/ui/button/Button";
-import { HiOutlineSearch, HiOutlineFilter, HiOutlineDownload, HiOutlineEye, HiOutlineUser, HiOutlineGlobe, HiOutlineChevronLeft, HiOutlinePlus } from "react-icons/hi";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  createColumnHelper,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  SortingState,
+} from "@tanstack/react-table";
+import Input from "@/components/form/input/InputField";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
+import { FormModal } from "@/components/ui/modal/FormModal";
+import { useFormModal } from "@/hooks/useFormModal";
+import { useMessage } from "@/components/ui/MessageBox";
+import Pagination from "@/components/tables/Pagination";
 
 interface Customer {
   id: string;
-  customerCode: string;
-  customerName: string;
+  code: string;
+  name: string;
   country: string;
   region: string;
   contactPerson: string;
   email: string;
   phone: string;
-  status: string;
-  lastUpdated: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-function UserCustomers() {
-  const { user } = useAuth();
+const columnHelper = createColumnHelper<Customer>();
+
+// Mock data for customers
+const mockCustomers: Customer[] = [
+  {
+    id: "1",
+    code: "BON",
+    name: "BON PRIX",
+    country: "Germany",
+    region: "Europe",
+    contactPerson: "Hans Mueller",
+    email: "hans.mueller@bonprix.de",
+    phone: "+49 40 12345678",
+    isActive: true,
+    createdAt: "2024-01-01",
+    updatedAt: "2024-01-01"
+  },
+  {
+    id: "2",
+    code: "OTTO",
+    name: "OTTO GME",
+    country: "Germany",
+    region: "Europe",
+    contactPerson: "Anna Schmidt",
+    email: "anna.schmidt@otto.de",
+    phone: "+49 40 87654321",
+    isActive: true,
+    createdAt: "2024-01-01",
+    updatedAt: "2024-01-01"
+  },
+  {
+    id: "3",
+    code: "ABC",
+    name: "ABC Corp",
+    country: "United States",
+    region: "North America",
+    contactPerson: "John Smith",
+    email: "john.smith@abccorp.com",
+    phone: "+1 555 1234567",
+    isActive: true,
+    createdAt: "2024-01-01",
+    updatedAt: "2024-01-01"
+  }
+];
+
+function CustomersPage() {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [data, setData] = useState<Customer[]>([]);
+  const searchParams = useSearchParams();
+  const action = searchParams?.get('action') || '';
+  const { showSuccess, showError } = useMessage();
+  
+  // Customers data
+  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
 
-  // Sample data - in real app this would come from API
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const {
+    isOpen: isModalOpen,
+    isLoading: isModalLoading,
+    editingItem,
+    openModal,
+    closeModal,
+    setLoading: setModalLoading,
+  } = useFormModal<Customer>();
+
+  // Auto-open modal if action=add
   useEffect(() => {
-    const sampleData: Customer[] = [
-      {
-        id: "1",
-        customerCode: "BON",
-        customerName: "BON PRIX",
-        country: "Germany",
-        region: "Europe",
-        contactPerson: "Hans Mueller",
-        email: "hans.mueller@bonprix.de",
-        phone: "+49 40 12345678",
-        status: "Active",
-        lastUpdated: "2024-01-15"
-      },
-      {
-        id: "2",
-        customerCode: "OTTO",
-        customerName: "OTTO GME",
-        country: "Germany",
-        region: "Europe",
-        contactPerson: "Anna Schmidt",
-        email: "anna.schmidt@otto.de",
-        phone: "+49 40 87654321",
-        status: "Active",
-        lastUpdated: "2024-01-14"
-      },
-      {
-        id: "3",
-        customerCode: "ABC",
-        customerName: "ABC Corp",
-        country: "United States",
-        region: "North America",
-        contactPerson: "John Smith",
-        email: "john.smith@abccorp.com",
-        phone: "+1 555 1234567",
-        status: "Active",
-        lastUpdated: "2024-01-13"
-      },
-      {
-        id: "4",
-        customerCode: "XYZ",
-        customerName: "XYZ Logistics",
-        country: "Singapore",
-        region: "Southeast Asia",
-        contactPerson: "Lee Chen",
-        email: "lee.chen@xyzlogistics.sg",
-        phone: "+65 6789 0123",
-        status: "Inactive",
-        lastUpdated: "2024-01-12"
-      }
-    ];
-    setData(sampleData);
-  }, []);
+    if (action === 'add') {
+      openModal(undefined);
+    }
+  }, [action, openModal]);
 
-  const filteredData = data.filter(item => {
-    const matchesSearch = 
-      item.customerCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.country.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterStatus === "all" || item.status === filterStatus;
-    
-    return matchesSearch && matchesFilter;
+  const columns = useMemo(() => [
+    columnHelper.accessor("code", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Customer Code
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("name", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Customer Name
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => <span className="font-medium">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("country", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Country
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => info.getValue() 
+    }),
+    columnHelper.accessor("region", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Region
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => (
+        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("contactPerson", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Contact Person
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => <span className="text-sm">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("email", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Email
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => (
+        <span className="text-sm text-blue-600 dark:text-blue-400">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("isActive", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Status
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => (
+        <span className={`px-2 py-1 text-xs rounded-full ${
+          info.getValue()
+            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+            : "bg-red-100 text-red-700 dark:bg-green-900 dark:text-red-300"
+        }`}>
+          {info.getValue() ? "Active" : "Inactive"}
+        </span>
+      ),
+    }),
+    columnHelper.display({
+      id: "actions",
+      header: "Actions",
+      cell: (info) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => openModal(info.row.original)}
+            className="p-1"
+          >
+            <PencilIcon className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDelete(info.row.original.id)}
+            className="p-1 text-red-600 hover:text-red-700"
+          >
+            <TrashBinIcon className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    }),
+  ], [openModal]);
+
+  const filteredData = useMemo(() => {
+    return customers.filter(item => {
+      const matchesSearch =
+        item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.region.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.contactPerson.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.email.toLowerCase().includes(globalFilter.toLowerCase());
+
+      return matchesSearch;
+    });
+  }, [customers, globalFilter]);
+
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
   });
 
-  const handleExport = () => {
-    toast.success("Customer data exported successfully");
+  const handleAddNew = () => {
+    openModal(undefined);
   };
 
-  const handleViewDetails = (id: string) => {
-    toast.success(`Viewing details for customer ${id}`);
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this customer?')) {
+      try {
+        const updatedCustomers = customers.filter(item => item.id !== id);
+        setCustomers(updatedCustomers);
+        showSuccess('Customer deleted successfully');
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+        showError('Failed to delete customer');
+      }
+    }
+  };
+
+  const handleSubmit = async (formData: any) => {
+    try {
+      setModalLoading(true);
+      
+      if (editingItem) {
+        // Update existing customer
+        const updatedCustomers = customers.map(item => 
+          item.id === (editingItem as Customer).id 
+            ? { ...item, ...formData, updatedAt: new Date().toISOString() }
+            : item
+        );
+        setCustomers(updatedCustomers);
+        showSuccess('Customer updated successfully');
+      } else {
+        // Create new customer
+        const newCustomer: Customer = {
+          ...formData,
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setCustomers([...customers, newCustomer]);
+        showSuccess('Customer created successfully');
+      }
+      
+      closeModal();
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      showError('Failed to save customer');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const exportData = () => {
+    const headers = ["Customer Code", "Customer Name", "Country", "Region", "Contact Person", "Email", "Status", "Created"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredData.map(row => [
+        row.code,
+        row.name,
+        row.country,
+        row.region,
+        row.contactPerson,
+        row.email,
+        row.isActive ? "Active" : "Inactive",
+        new Date(row.createdAt).toLocaleDateString()
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "customers.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+    showSuccess("Export completed successfully");
   };
 
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="mb-6">
+        <div className="flex items-center gap-4 mb-4">
           <Button
             variant="outline"
             size="sm"
             onClick={() => router.back()}
             className="flex items-center gap-2"
           >
-            <HiOutlineChevronLeft className="w-4 h-4" />
+            <ChevronLeftIcon className="w-4 h-4" />
             Back
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Customer Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Manage customer information and configurations
-            </p>
-          </div>
         </div>
-        <div className="flex gap-3">
-          <Button onClick={handleExport} size="sm" variant="outline">
-            <HiOutlineDownload className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={() => {}} size="sm">
-            <HiOutlinePlus className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
-        </div>
+        
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Customer Records Management
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Manage customer information and contact details
+        </p>
       </div>
 
-      {/* Summary Stats */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {data.length}
-          </div>
-          <div className="text-sm text-blue-600 dark:text-blue-400">Total Customers</div>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total Customers</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{customers.length}</div>
         </div>
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Active Customers</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {data.filter(item => item.status === 'Active').length}
+            {customers.filter(c => c.isActive).length}
           </div>
-          <div className="text-sm text-green-600 dark:text-green-400">Active Customers</div>
         </div>
-        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(data.map(item => item.country)).size}
+            {new Set(customers.map(c => c.country)).size}
           </div>
-          <div className="text-sm text-purple-600 dark:text-purple-400">Countries</div>
         </div>
-        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Regions</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(data.map(item => item.region)).size}
+            {new Set(customers.map(c => c.region)).size}
           </div>
-          <div className="text-sm text-orange-600 dark:text-orange-400">Regions</div>
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
-          <HiOutlineSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-          <input
-            type="text"
-            placeholder="Search customers, codes, contacts..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+      {/* Filters */}
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <Input
+            placeholder="Search customers by code, name, country, region, contact person, or email..."
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-md"
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-        >
-          <option value="all">All Status</option>
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
+
+        <div className="flex gap-3">
+          <Button onClick={handleAddNew} size="sm">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add Customer
+          </Button>
+          <Button onClick={exportData} size="sm" variant="outline">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      {/* Table */}
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Customer Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Customer Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Country
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Region
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Contact Person
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Email
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Phone
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Last Updated
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredData.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    <div className="flex items-center gap-2">
-                      <HiOutlineUser className="w-4 h-4 text-gray-400" />
-                      {item.customerCode}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {item.customerName}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    <div className="flex items-center gap-2">
-                      <HiOutlineGlobe className="w-4 h-4 text-gray-400" />
-                      {item.country}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {item.region}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {item.contactPerson}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {item.email}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {item.phone}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      item.status === 'Active' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    {item.lastUpdated}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                    <Button
-                      onClick={() => handleViewDetails(item.id)}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                     >
-                      <HiOutlineEye className="w-4 h-4 mr-1" />
-                      View
-                    </Button>
-                  </td>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <tr
+                  key={row.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -287,18 +495,160 @@ function UserCustomers() {
         </div>
       </div>
 
-      {/* Empty State */}
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
       {filteredData.length === 0 && (
-        <div className="text-center py-12">
-          <HiOutlineSearch className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No customers found</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Try adjusting your search or filter criteria.
-          </p>
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No customers found matching your search criteria.
         </div>
       )}
+
+      {/* Form Modal */}
+      <FormModal
+        isOpen={isModalOpen}
+        onSubmit={handleSubmit}
+        onClose={closeModal}
+        title={editingItem ? "Edit Customer" : "Add New Customer"}
+        isLoading={isModalLoading}
+        size="lg"
+        showFooter={false}
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Customer Code
+              </label>
+                             <Input
+                 placeholder="e.g., BON, OTTO"
+                 value={(editingItem as Customer)?.code || ""}
+                 onChange={(e) => {
+                   // Handle code change
+                 }}
+                 disabled={isModalLoading}
+               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Customer Name
+              </label>
+                             <Input
+                 placeholder="Customer name"
+                 value={(editingItem as Customer)?.name || ""}
+                 onChange={(e) => {
+                   // Handle name change
+                 }}
+                 disabled={isModalLoading}
+               />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Country
+              </label>
+              <Input
+                placeholder="Country"
+                value={editingItem?.country || ""}
+                onChange={(e) => {
+                  // Handle country change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Region
+              </label>
+              <Input
+                placeholder="Region"
+                value={editingItem?.region || ""}
+                onChange={(e) => {
+                  // Handle region change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Contact Person
+              </label>
+              <Input
+                placeholder="Contact person name"
+                value={editingItem?.contactPerson || ""}
+                onChange={(e) => {
+                  // Handle contact person change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email
+              </label>
+              <Input
+                type="email"
+                placeholder="Email address"
+                value={editingItem?.email || ""}
+                onChange={(e) => {
+                  // Handle email change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Phone
+            </label>
+            <Input
+              placeholder="Phone number"
+              value={editingItem?.phone || ""}
+              onChange={(e) => {
+                // Handle phone change
+              }}
+              disabled={isModalLoading}
+            />
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={closeModal}
+              disabled={isModalLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isModalLoading}
+            >
+              {isModalLoading ? "Saving..." : editingItem ? "Update Customer" : "Add Customer"}
+            </Button>
+          </div>
+        </div>
+      </FormModal>
     </div>
   );
 }
 
-export default withUserAuth(UserCustomers);
+export default withUserAuth(CustomersPage);
