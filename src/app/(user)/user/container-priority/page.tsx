@@ -5,7 +5,7 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon, PlusIcon, HorizontaLDots } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon, HorizontaLDots, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { toast } from "react-hot-toast";
 import React, { useState, useEffect } from "react";
 import {
@@ -15,6 +15,7 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
 import {
@@ -36,6 +37,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import Pagination from "@/components/tables/Pagination";
 
 interface ContainerPriority {
   id: string;
@@ -148,7 +150,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("containerType", {
-    header: "Container Type",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Container Type
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-medium text-gray-900 dark:text-white">
         {info.getValue()}
@@ -156,7 +172,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("priority", {
-    header: "Priority",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Priority
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full">
         {info.getValue()}
@@ -164,13 +194,27 @@ const columns = [
     ),
   }),
   columnHelper.accessor("status", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
           info.getValue() === 'active'
             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+            : "bg-red-100 text-red-800 dark:bg-green-900 dark:text-red-200"
         }`}
       >
         {info.getValue()}
@@ -178,7 +222,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("specifications.maxCBM", {
-    header: "Max CBM",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Max CBM
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue().toFixed(1)}
@@ -186,7 +244,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("specifications.maxWeight", {
-    header: "Max Weight",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Max Weight
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue()} kg
@@ -194,7 +266,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("description", {
-    header: "Description",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Description
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
         {info.getValue()}
@@ -228,14 +314,7 @@ const columns = [
 ];
 
 // Sortable row component
-function SortableRow({ 
-  children, 
-  id, 
-  ...props 
-}: { 
-  children: React.ReactNode; 
-  id: string; 
-} & React.HTMLAttributes<HTMLTableRowElement>) {
+function SortableRow({ children, id }: { children: React.ReactNode; id: string }) {
   const {
     attributes,
     listeners,
@@ -252,12 +331,7 @@ function SortableRow({
   };
 
   return (
-    <tr ref={setNodeRef} style={style} {...props}>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div {...attributes} {...listeners}>
-          <HorizontaLDots className="w-4 h-4 text-gray-400 cursor-grab active:cursor-grabbing" />
-        </div>
-      </td>
+    <tr ref={setNodeRef} style={style} {...attributes} {...listeners}>
       {children}
     </tr>
   );
@@ -275,7 +349,7 @@ function ContainerPriorityPage() {
     openModal,
     closeModal,
     setLoading,
-  } = useFormModal();
+  } = useFormModal<ContainerPriority>();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -284,12 +358,13 @@ function ContainerPriorityPage() {
     })
   );
 
-  const table = useReactTable<ContainerPriority>({
+  const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
       sorting,
@@ -301,11 +376,11 @@ function ContainerPriorityPage() {
         openModal(row);
       },
       deleteRow: async (id: string) => {
-        if (confirm("Are you sure you want to delete this container priority?")) {
+        if (confirm("Are you sure you want to delete this priority?")) {
           try {
             const updatedData = data.filter(item => item.id !== id);
             setData(updatedData);
-            toast.success("Container priority deleted successfully");
+            toast.success("Priority deleted successfully");
           } catch (error) {
             console.error('Delete error:', error);
             toast.error('Delete failed');
@@ -325,14 +400,12 @@ function ContainerPriorityPage() {
 
         const newItems = arrayMove(items, oldIndex, newIndex);
         
-        // Update priority numbers based on new order
-        const updatedItems = newItems.map((item, index) => ({
+        // Update priorities based on new order
+        return newItems.map((item, index) => ({
           ...item,
           priority: index + 1,
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         }));
-
-        return updatedItems;
       });
       
       toast.success("Priority order updated successfully");
@@ -340,35 +413,34 @@ function ContainerPriorityPage() {
   };
 
   const handleSubmit = async (formData: ContainerPriorityFormData) => {
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      
       if (editingItem) {
-        // Update existing priority
+        // Update existing item
         const updatedData = data.map(item => 
-          item.id === editingItem.id 
+          item.id === (editingItem as ContainerPriority).id 
             ? { ...item, ...formData, updatedAt: new Date().toISOString() }
             : item
         );
         setData(updatedData);
-        toast.success('Container priority updated successfully');
+        toast.success("Priority updated successfully");
       } else {
-        // Create new priority
+        // Add new item
         const newPriority: ContainerPriority = {
-          id: Date.now().toString(),
           ...formData,
-          priority: data.length + 1, // Add to end of list
+          id: Date.now().toString(),
           createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
         setData([...data, newPriority]);
-        toast.success('Container priority created successfully');
+        toast.success("Priority added successfully");
       }
       
       closeModal();
     } catch (error) {
-      console.error('Error saving container priority:', error);
-      toast.error('Failed to save container priority');
+      console.error('Submit error:', error);
+      toast.error("An error occurred");
     } finally {
       setLoading(false);
     }
@@ -384,17 +456,17 @@ function ContainerPriorityPage() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Priority Configuration
+          Container Priority Configuration
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage container priorities with drag-and-drop reordering
+          Manage container priorities and their specifications. Drag and drop to reorder priorities.
         </p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Search priorities by container type or description..."
+            placeholder="Search priorities by container type, description, or status..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             className="max-w-sm"
@@ -406,13 +478,14 @@ function ContainerPriorityPage() {
         </Button>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
-        <div className="overflow-x-auto">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
+      {/* Table */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
+          <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -434,13 +507,10 @@ function ContainerPriorityPage() {
                 ))}
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                <SortableContext
-                  items={filteredData.map(row => row.original.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {filteredData.map((row) => (
+                <SortableContext items={data.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                  {table.getRowModel().rows.map((row) => (
                     <SortableRow key={row.id} id={row.original.id}>
-                      {row.getVisibleCells().slice(1).map((cell) => (
+                      {row.getVisibleCells().map((cell) => (
                         <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
@@ -450,8 +520,25 @@ function ContainerPriorityPage() {
                 </SortableContext>
               </tbody>
             </table>
-          </DndContext>
+          </div>
         </div>
+      </DndContext>
+
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       </div>
 
       {filteredData.length === 0 && (
@@ -463,234 +550,107 @@ function ContainerPriorityPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
-        title={editingItem ? "Edit Container Priority" : "Add New Container Priority"}
+        title={editingItem ? "Edit Priority" : "Add New Priority"}
         isLoading={isModalLoading}
         size="lg"
         showFooter={false}
       >
-        <ContainerPriorityForm
-          initialData={editingItem}
-          onSubmit={handleSubmit}
-          onCancel={closeModal}
-          isLoading={isModalLoading}
-        />
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Container Type
+              </label>
+              <Input
+                placeholder="e.g., 40HQ, 20GP"
+                value={editingItem?.containerType || ""}
+                onChange={(e) => {
+                  // Handle container type change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Priority
+              </label>
+              <Input
+                type="number"
+                placeholder="Priority number"
+                value={editingItem?.priority || ""}
+                onChange={(e) => {
+                  // Handle priority change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Description
+            </label>
+            <Input
+              placeholder="Description of the priority configuration"
+              value={editingItem?.description || ""}
+              onChange={(e) => {
+                // Handle description change
+              }}
+              disabled={isModalLoading}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Max CBM
+              </label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="Maximum CBM"
+                value={editingItem?.specifications.maxCBM || ""}
+                onChange={(e) => {
+                  // Handle max CBM change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Max Weight (kg)
+              </label>
+              <Input
+                type="number"
+                placeholder="Maximum weight in kg"
+                value={editingItem?.specifications.maxWeight || ""}
+                onChange={(e) => {
+                  // Handle max weight change
+                }}
+                disabled={isModalLoading}
+              />
+            </div>
+          </div>
+
+                     <div className="flex items-center justify-end space-x-3 pt-4">
+             <Button
+               variant="outline"
+               onClick={closeModal}
+               disabled={isModalLoading}
+             >
+               Cancel
+             </Button>
+             <Button
+               disabled={isModalLoading}
+             >
+               {isModalLoading ? "Saving..." : editingItem ? "Update Priority" : "Add Priority"}
+             </Button>
+           </div>
+        </div>
       </FormModal>
     </div>
-  );
-}
-
-function ContainerPriorityForm({
-  initialData,
-  onSubmit,
-  onCancel,
-  isLoading,
-}: {
-  initialData?: ContainerPriority;
-  onSubmit: (data: ContainerPriorityFormData) => void;
-  onCancel: () => void;
-  isLoading: boolean;
-}) {
-  const [formData, setFormData] = useState<ContainerPriorityFormData>({
-    containerType: "",
-    priority: 1,
-    status: "active",
-    description: "",
-    specifications: {
-      length: 0,
-      width: 0,
-      height: 0,
-      maxCBM: 0,
-      maxWeight: 0,
-    },
-  });
-
-  useEffect(() => {
-    if (initialData) {
-      setFormData({
-        containerType: initialData.containerType,
-        priority: initialData.priority,
-        status: initialData.status,
-        description: initialData.description,
-        specifications: { ...initialData.specifications },
-      });
-    }
-  }, [initialData]);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  const containerTypes = [
-    "20GP", "40GP", "40HC", "40FT", "40HQ", "LCL",
-    "20GP_GroupMix", "40GP_GroupMix", "40HC_GroupMix", "40FT_GroupMix", "40HQ_GroupMix"
-  ];
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Container Type *
-          </label>
-          <select
-            value={formData.containerType}
-            onChange={(e) => setFormData({ ...formData, containerType: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-            required
-          >
-            <option value="">Select Container Type</option>
-            {containerTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Priority *
-          </label>
-          <Input
-            type="number"
-            min="1"
-            max="10"
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 1 })}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Status
-          </label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as "active" | "inactive" })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Max CBM *
-          </label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={formData.specifications.maxCBM}
-            onChange={(e) => setFormData({
-              ...formData,
-              specifications: {
-                ...formData.specifications,
-                maxCBM: parseFloat(e.target.value) || 0
-              }
-            })}
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Length (ft)
-          </label>
-          <Input
-            type="number"
-            min="0"
-            value={formData.specifications.length}
-            onChange={(e) => setFormData({
-              ...formData,
-              specifications: {
-                ...formData.specifications,
-                length: parseFloat(e.target.value) || 0
-              }
-            })}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Width (ft)
-          </label>
-          <Input
-            type="number"
-            min="0"
-            value={formData.specifications.width}
-            onChange={(e) => setFormData({
-              ...formData,
-              specifications: {
-                ...formData.specifications,
-                width: parseFloat(e.target.value) || 0
-              }
-            })}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Height (ft)
-          </label>
-          <Input
-            type="number"
-            min="0"
-            value={formData.specifications.height}
-            onChange={(e) => setFormData({
-              ...formData,
-              specifications: {
-                ...formData.specifications,
-                height: parseFloat(e.target.value) || 0
-              }
-            })}
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Max Weight (kg) *
-        </label>
-        <Input
-          type="number"
-          min="0"
-          value={formData.specifications.maxWeight}
-          onChange={(e) => setFormData({
-            ...formData,
-            specifications: {
-              ...formData.specifications,
-              maxWeight: parseFloat(e.target.value) || 0
-            }
-          })}
-          required
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Description
-        </label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-          rows={3}
-          placeholder="Enter description for this container priority..."
-        />
-      </div>
-
-      <div className="flex justify-end gap-3 pt-4">
-        <Button variant="outline" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button disabled={isLoading}>
-          {isLoading ? "Saving..." : (initialData ? "Update Priority" : "Create Priority")}
-        </Button>
-      </div>
-    </form>
   );
 }
 

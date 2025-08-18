@@ -3,7 +3,7 @@
 import { withUserAuth } from "@/components/auth/withAuth";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,31 +11,26 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
-  ColumnDef,
+  
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
-import { ContainerThresholdForm, type ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
+import { ContainerThresholdForm, ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { z } from "zod";
+import { PencilIcon, TrashBinIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
+import Pagination from "@/components/tables/Pagination";
 
-const thresholdSchema = z.object({
-  containerType: z.string().min(1, "Container type is required"),
-  minCBM: z.number().min(0, "Min CBM must be 0 or greater"),
-  maxCBM: z.number().min(1, "Max CBM must be greater than 0"),
-  pol: z.string().optional(),
-  isDefault: z.boolean(),
-  isActive: z.boolean().default(true),
-  description: z.string().optional(),
-}).refine((data) => data.maxCBM > data.minCBM, {
-  message: "Max CBM must be greater than Min CBM",
-  path: ["maxCBM"],
-});
-
-type ContainerThreshold = z.infer<typeof thresholdSchema> & {
+type ContainerThreshold = {
   id: string;
+  containerType: string;
+  minCBM: number;
+  maxCBM: number;
+  pol: string;
+  isDefault: boolean;
+  isActive: boolean;
+  description: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -161,7 +156,21 @@ const mockThresholds: ContainerThreshold[] = [
 
 const columns = [
   columnHelper.accessor("containerType", {
-    header: "Container Type",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Container Type
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-medium text-gray-900 dark:text-white">
         {info.getValue()}
@@ -169,7 +178,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("pol", {
-    header: "POL",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        POL
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-600 dark:text-gray-400">
         {info.getValue() || "Default (All POLs)"}
@@ -177,7 +200,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("minCBM", {
-    header: "Min CBM",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Min CBM
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue().toFixed(1)}
@@ -185,7 +222,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("maxCBM", {
-    header: "Max CBM",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Max CBM
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue().toFixed(1)}
@@ -193,7 +244,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("isDefault", {
-    header: "Default",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Default
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -207,13 +272,27 @@ const columns = [
     ),
   }),
   columnHelper.accessor("isActive", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
           info.getValue()
             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+            : "bg-red-100 text-red-800 dark:bg-green-900 dark:text-red-200"
         }`}
       >
         {info.getValue() ? "Active" : "Inactive"}
@@ -221,7 +300,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("createdAt", {
-    header: "Created",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Created
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-500 dark:text-gray-400">
         {new Date(info.getValue()).toLocaleDateString()}
@@ -266,7 +359,7 @@ function ContainerThresholdsPage() {
     openModal,
     closeModal,
     setLoading,
-  } = useFormModal();
+  } = useFormModal<ContainerThreshold>();
 
   const table = useReactTable({
     data,
@@ -274,6 +367,7 @@ function ContainerThresholdsPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
       sorting,
@@ -306,7 +400,7 @@ function ContainerThresholdsPage() {
       if (editingItem) {
         // Update existing item
         const updatedData = data.map(item => 
-          item.id === editingItem.id 
+          item.id === (editingItem as ContainerThreshold).id 
             ? { ...item, ...formData, updatedAt: new Date().toISOString() }
             : item
         );
@@ -345,7 +439,7 @@ function ContainerThresholdsPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Threshold Configuration
         </h1>
-        <p className="text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400">
           Manage minimum and maximum CBM values for each container type
         </p>
       </div>
@@ -365,6 +459,7 @@ function ContainerThresholdsPage() {
         </Button>
       </div>
 
+      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -388,7 +483,7 @@ function ContainerThresholdsPage() {
               ))}
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredData.map((row) => (
+              {table.getRowModel().rows.map((row) => (
                 <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
@@ -402,6 +497,23 @@ function ContainerThresholdsPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No thresholds found matching your search criteria.
@@ -411,6 +523,7 @@ function ContainerThresholdsPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Threshold" : "Add New Threshold"}
         isLoading={isModalLoading}
@@ -418,7 +531,15 @@ function ContainerThresholdsPage() {
         showFooter={false}
       >
         <ContainerThresholdForm
-          initialData={editingItem}
+          initialData={editingItem ? {
+            containerType: editingItem.containerType,
+            minCBM: editingItem.minCBM,
+            maxCBM: editingItem.maxCBM,
+            pol: editingItem.pol || "",
+            isDefault: editingItem.isDefault,
+            isActive: editingItem.isActive,
+            description: editingItem.description
+          } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}

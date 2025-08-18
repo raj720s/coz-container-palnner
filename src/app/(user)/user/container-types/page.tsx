@@ -11,15 +11,18 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
+  TableMeta,
   ColumnDef,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { ContainerTypeForm, type ContainerTypeFormData } from "@/components/forms/ContainerTypeForm";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { z } from "zod";
+import Pagination from "@/components/tables/Pagination";
 
 const containerTypeSchema = z.object({
   name: z.string().min(1, "Container name is required"),
@@ -34,39 +37,103 @@ type ContainerType = z.infer<typeof containerTypeSchema> & {
   createdAt: string;
 };
 
-interface TableMeta {
-  editRow: (row: ContainerType) => void;
-  deleteRow: (id: string) => void;
-}
-
 const columnHelper = createColumnHelper<ContainerType>();
-
 
 const columns = [
   columnHelper.accessor("name", {
-    header: "Container Name",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Container Name
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue(),
   }),
   columnHelper.accessor("code", {
-    header: "Code",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Code
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue(),
   }),
   columnHelper.accessor("description", {
-    header: "Description",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Description
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue() || "-",
   }),
   columnHelper.accessor("capacity", {
-    header: "Capacity (CBM)",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Capacity (CBM)
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => info.getValue(),
   }),
   columnHelper.accessor("isActive", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
           info.getValue()
             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+            : "bg-red-100 text-red-800 dark:bg-green-900 dark:text-red-200"
         }`}
       >
         {info.getValue() ? "Active" : "Inactive"}
@@ -74,7 +141,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("createdAt", {
-    header: "Created",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Created
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => new Date(info.getValue()).toLocaleDateString(),
   }),
   columnHelper.display({
@@ -83,14 +164,16 @@ const columns = [
     cell: (info) => (
       <div className="flex space-x-2">
         <button
-          onClick={() => (info.table.options.meta as TableMeta)?.editRow(info.row.original)}
+          // @ts-expect-error
+          onClick={() => (info.table.options.meta as TableMeta<ContainerType>)?.editRow(info.row.original)}
           className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
         >
           <PencilIcon className="w-4 h-4" />
         </button>
         <button
-          onClick={() => (info.table.options.meta as TableMeta)?.deleteRow(info.row.original.id)}
-          className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-blue-300"
+          // @ts-expect-error
+          onClick={() => (info.table.options.meta as TableMeta<ContainerType>)?.deleteRow(info.row.original.id)}
+          className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
         >
           <TrashBinIcon className="w-4 h-4" />
         </button>
@@ -99,7 +182,7 @@ const columns = [
   }),
 ];
 
-function UserContainerTypes() {
+function ContainerTypesPage() {
   const [data, setData] = useState<ContainerType[]>([
     {
       id: "1",
@@ -157,23 +240,24 @@ function UserContainerTypes() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
       sorting,
     },
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
-      meta: {
-    editRow: (row: ContainerType) => {
-      openModal(row);
-    },
-    deleteRow: (id: string) => {
-      if (confirm("Are you sure you want to delete this container type?")) {
-        setData(prev => prev.filter(item => item.id !== id));
-        toast.success("Container type deleted successfully");
-      }
-    },
-  } as TableMeta,
+    meta: {
+      editRow: (row: ContainerType) => {
+        openModal(row);
+      },
+      deleteRow: (id: string) => {
+        if (confirm("Are you sure you want to delete this container type?")) {
+          setData(prev => prev.filter(item => item.id !== id));
+          toast.success("Container type deleted successfully");
+        }
+      },
+    } as TableMeta<ContainerType>,
   });
 
   const handleSubmit = async (formData: ContainerTypeFormData) => {
@@ -186,16 +270,16 @@ function UserContainerTypes() {
       if (editingItem) {
         // Update existing item
         setData(prev => prev.map(item =>
-          item.id === editingItem.id
-            ? { ...item, ...formData, id: item.id, createdAt: item.createdAt }
+          item.id === (editingItem as ContainerType).id
+              ? { ...item, ...formData, id: item.id, createdAt: item.createdAt }
             : item
         ));
         toast.success("Container type updated successfully");
       } else {
         // Add new item
         const newItem: ContainerType = {
-          id: Date.now().toString(),
           ...formData,
+          id: Date.now().toString(),
           createdAt: new Date().toISOString(),
         };
         setData(prev => [...prev, newItem]);
@@ -276,6 +360,23 @@ function UserContainerTypes() {
         </div>
       </div>
 
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
+      </div>
+
       {data.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No container types found. Add your first container type to get started.
@@ -285,6 +386,7 @@ function UserContainerTypes() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
+        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Container Type" : "Add New Container Type"}
         isLoading={isModalLoading}
@@ -292,7 +394,7 @@ function UserContainerTypes() {
         showFooter={false}
       >
         <ContainerTypeForm
-          initialData={editingItem}
+          initialData={editingItem as ContainerType | undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
           isLoading={isModalLoading}
@@ -302,4 +404,4 @@ function UserContainerTypes() {
   );
 }
 
-export default withUserAuth(UserContainerTypes);
+export default withUserAuth(ContainerTypesPage);
