@@ -1,6 +1,5 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { createApi } from '@reduxjs/toolkit/query/react';
 import { RootState } from '../index';
-import { BASEURL } from '@/config/variables';
 import superAxios from '@/utils/superAxios';
 import {
   CreateUserRequest,
@@ -21,18 +20,10 @@ import {
   ApiResponse
 } from '@/types/api';
 
-// Custom base query using superAxios
+// Simple base query that directly uses superAxios
 const axiosBaseQuery = () => async (args: any) => {
   try {
-    const { url, method = 'GET', data, params } = args;
-    
-    const result = await superAxios({
-      url,
-      method,
-      data,
-      params,
-    });
-    
+    const result = await superAxios(args);
     return { data: result.data };
   } catch (axiosError: any) {
     return {
@@ -87,7 +78,7 @@ export const apiSlice = createApi({
       query: (userData) => ({
         url: '/user/v1',
         method: 'POST',
-        body: userData,
+        data: userData,
       }),
       invalidatesTags: ['User'],
     }),
@@ -97,7 +88,7 @@ export const apiSlice = createApi({
       query: ({ id, data }) => ({
         url: `/user/v1/${id}`,
         method: 'PUT',
-        body: data,
+        data: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'User', id }, 'User'],
     }),
@@ -116,7 +107,7 @@ export const apiSlice = createApi({
       query: ({ id, data }) => ({
         url: `/user/v1/superuser/modify/${id}`,
         method: 'PUT',
-        body: data,
+        data: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'User', id }],
     }),
@@ -126,7 +117,7 @@ export const apiSlice = createApi({
       query: ({ userIds, status }) => ({
         url: '/user/v1/bulk-status',
         method: 'PUT',
-        body: { user_ids: userIds, status },
+        data: { user_ids: userIds, status },
       }),
       invalidatesTags: ['User'],
     }),
@@ -153,7 +144,7 @@ export const apiSlice = createApi({
       query: (roleData) => ({
         url: '/admin/v1/role',
         method: 'POST',
-        body: roleData,
+        data: roleData,
       }),
       invalidatesTags: ['Role'],
     }),
@@ -163,7 +154,7 @@ export const apiSlice = createApi({
       query: ({ id, data }) => ({
         url: `/admin/v1/role/${id}`,
         method: 'PUT',
-        body: data,
+        data: data,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Role', id }, 'Role'],
     }),
@@ -197,7 +188,7 @@ export const apiSlice = createApi({
       query: ({ roleId, privilegeIds }) => ({
         url: `/admin/v1/role/${roleId}/privileges`,
         method: 'PUT',
-        body: { privilege_ids: privilegeIds },
+        data: { privilege_ids: privilegeIds },
       }),
       invalidatesTags: (result, error, { roleId }) => [{ type: 'Role', id: roleId }],
     }),
@@ -207,7 +198,7 @@ export const apiSlice = createApi({
       query: ({ roleId, privilegeIds }) => ({
         url: `/admin/v1/role/${roleId}/privileges`,
         method: 'DELETE',
-        body: { privilege_ids: privilegeIds },
+        data: { privilege_ids: privilegeIds },
       }),
       invalidatesTags: (result, error, { roleId }) => [{ type: 'Role', id: roleId }],
     }),
@@ -217,7 +208,7 @@ export const apiSlice = createApi({
       query: ({ roleIds, isActive }) => ({
         url: '/admin/v1/role/bulk-status',
         method: 'PUT',
-        body: { role_ids: roleIds, is_active: isActive },
+        data: { role_ids: roleIds, is_active: isActive },
       }),
       invalidatesTags: ['Role'],
     }),
@@ -226,6 +217,27 @@ export const apiSlice = createApi({
     getRoleStatistics: builder.query<ApiResponse, void>({
       query: () => '/admin/v1/role/statistics',
       providesTags: ['Role'],
+    }),
+    
+    // === USER PROFILE ENDPOINTS ===
+    
+    // Get current user profile
+    getUserProfile: builder.query<UserDetailResponse, void>({
+      query: () => ({
+        url: '/user/v1/profile',
+        method: 'GET',
+      }),
+      providesTags: ['User'],
+    }),
+    
+    // Update current user profile
+    updateUserProfile: builder.mutation<UserDetailResponse, Partial<CreateUserRequest>>({
+      query: (profileData) => ({
+        url: '/user/v1/profile',
+        method: 'PUT',
+        data: profileData,
+      }),
+      invalidatesTags: ['User'],
     }),
   }),
 });
@@ -268,4 +280,8 @@ export const {
   useRemovePrivilegesFromRoleMutation,
   useBulkUpdateRoleStatusMutation,
   useGetRoleStatisticsQuery,
+  
+  // User profile hooks
+  useGetUserProfileQuery,
+  useUpdateUserProfileMutation,
 } = apiSlice;

@@ -88,6 +88,22 @@ const authSlice = createSlice({
       }
     },
     
+    // Update user profile from API response
+    updateProfileFromAPI: (state, action: PayloadAction<Partial<User>>) => {
+      if (state.user) {
+        // Map API response fields to local user state
+        const apiData = action.payload;
+        state.user = {
+          ...state.user,
+          first_name: apiData.first_name || state.user.first_name,
+          last_name: apiData.last_name || state.user.last_name,
+          email: apiData.email || state.user.email,
+          organisation_name: apiData.organisation_name || state.user.organisation_name,
+          role_id: apiData.role_id || state.user.role_id,
+        };
+      }
+    },
+    
     // Update token
     updateToken: (state, action: PayloadAction<{ token: string; refreshToken?: string }>) => {
       state.token = action.payload.token;
@@ -110,6 +126,7 @@ export const {
   loginFailure,
   logout,
   updateProfile,
+  updateProfileFromAPI,
   updateToken,
   clearError,
 } = authSlice.actions;

@@ -110,6 +110,12 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    icon: <HiOutlineUserGroup className="w-5 h-5" />,
+    name: "Profile",
+    path: "/admin/profile",
+    adminOnly: true,
+  },
+  {
     icon: <HiOutlineCube className="w-5 h-5" />,
     name: "History",
     path: "/admin/shipment-operations/uploads-history", // Admin parent link
@@ -128,6 +134,12 @@ const navItems: NavItem[] = [
       { name: "Uploads History", path: "/user/shipment-operations/uploads-history" },
       // { name: "Shipment History", path: "/user/shipment-operations/shipment-history" },
     ],
+  },
+  {
+    icon: <HiOutlineUserGroup className="w-5 h-5" />,
+    name: "Profile",
+    path: "/user/profile",
+    userOnly: false, // Available for both admin and user
   },
 ];
 
