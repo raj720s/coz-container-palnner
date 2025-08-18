@@ -111,11 +111,11 @@ function UserCustomers() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push("/user/port-customer-master")}
+            onClick={() => router.back()}
             className="flex items-center gap-2"
           >
             <HiOutlineChevronLeft className="w-4 h-4" />
-            Back to Master
+            Back
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">

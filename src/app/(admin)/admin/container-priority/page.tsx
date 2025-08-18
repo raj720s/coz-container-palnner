@@ -5,7 +5,7 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon, PlusIcon, HorizontaLDots } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon, HorizontaLDots, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { toast } from "react-hot-toast";
 import React, { useState, useEffect } from "react";
 import {
@@ -15,6 +15,7 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
 import {
@@ -36,6 +37,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import Pagination from "@/components/tables/Pagination";
 
 interface ContainerPriority {
   id: string;
@@ -148,7 +150,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("containerType", {
-    header: "Container Type",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Container Type
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-medium text-gray-900 dark:text-white">
         {info.getValue()}
@@ -156,7 +172,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("priority", {
-    header: "Priority",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Priority
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full">
         {info.getValue()}
@@ -164,7 +194,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("status", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -178,7 +222,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("specifications.maxCBM", {
-    header: "Max CBM",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Max CBM
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue().toFixed(1)}
@@ -186,7 +244,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("specifications.maxWeight", {
-    header: "Max Weight",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Max Weight
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm">
         {info.getValue()} kg
@@ -194,7 +266,21 @@ const columns = [
     ),
   }),
   columnHelper.accessor("description", {
-    header: "Description",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Description
+        {column.getIsSorted() === "asc" ? (
+          <ChevronUpIcon className="w-4 h-4" />
+        ) : column.getIsSorted() === "desc" ? (
+          <ChevronDownIcon className="w-4 h-4" />
+        ) : (
+          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+        )}
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
         {info.getValue()}
@@ -291,6 +377,7 @@ function ContainerPriorityPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
       globalFilter,
       sorting,
@@ -407,6 +494,7 @@ function ContainerPriorityPage() {
         </Button>
       </div>
 
+      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
         <div className="overflow-x-auto">
           <DndContext
@@ -436,10 +524,10 @@ function ContainerPriorityPage() {
               </thead>
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 <SortableContext
-                  items={filteredData.map(row => row.original.id)}
+                  items={table.getRowModel().rows.map(row => row.original.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {filteredData.map((row) => (
+                  {table.getRowModel().rows.map((row) => (
                     <SortableRow key={row.id} id={row.original.id}>
                       {row.getVisibleCells().slice(1).map((cell) => (
                         <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
@@ -453,6 +541,23 @@ function ContainerPriorityPage() {
             </table>
           </DndContext>
         </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       </div>
 
       {filteredData.length === 0 && (

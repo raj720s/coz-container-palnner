@@ -39,6 +39,7 @@ export const FormModal = <T = unknown>({
   return (
     <Modal isOpen={isOpen} onClose={onClose} className={sizeClasses[size]}>
       <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl">
+        {/* <div className="relative bg-black  dark:bg-gray-900 rounded-lg shadow-xl"> */}
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">

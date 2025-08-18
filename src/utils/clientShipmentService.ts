@@ -98,8 +98,11 @@ function validateFileStructure(data: string[][], fileName: string, fileSize: num
     return result;
   }
 
-  // Expected headers from demo sheet
-  const expectedHeaders = ["SHIPMENT", "CUSTOMER", "SUPPLIER", "VOLUME", "Qty", "RCV/PUG", "POL", "Destsite"];
+  // Expected headers from demo sheet - make some optional
+  const requiredHeaders = ["SHIPMENT", "CUSTOMER", "VOLUME", "Qty", "POL", "Destsite"];
+  const optionalHeaders = ["SUPPLIER", "RCV/PUG"];
+  const expectedHeaders = [...requiredHeaders, ...optionalHeaders];
+  
   const actualHeaders = data[0] || [];
   
   // Handle potential typo in header (CUSTOME vs CUSTOMER)
@@ -120,18 +123,33 @@ function validateFileStructure(data: string[][], fileName: string, fileSize: num
 
   result.headers = normalizedHeaders;
   
-  // Check for missing required headers
-  const missingHeaders = expectedHeaders.filter(expected => 
+  // Check for missing required headers only
+  const missingRequiredHeaders = requiredHeaders.filter(expected => 
     !normalizedHeaders.includes(expected)
   );
   
-  if (missingHeaders.length > 0) {
+  if (missingRequiredHeaders.length > 0) {
     result.errors.push({
       rowNumber: 1,
       field: "headers",
-      errorMessage: `Missing required headers: ${missingHeaders.join(', ')}`,
+      errorMessage: `Missing required headers: ${missingRequiredHeaders.join(', ')}`,
       value: normalizedHeaders.join(', '),
       severity: "error"
+    });
+  }
+  
+  // Check for missing optional headers (warnings only)
+  const missingOptionalHeaders = optionalHeaders.filter(expected => 
+    !normalizedHeaders.includes(expected)
+  );
+  
+  if (missingOptionalHeaders.length > 0) {
+    result.warnings.push({
+      rowNumber: 1,
+      field: "headers",
+      errorMessage: `Missing optional headers: ${missingOptionalHeaders.join(', ')}`,
+      value: normalizedHeaders.join(', '),
+      severity: "warning"
     });
   }
 
@@ -200,7 +218,7 @@ function validateShipmentData(data: string[], headers: string[], rowNumber: numb
   const validPODs = podPorts.map(port => port.name);
   
   // Add destination sites from demo data
-  const validDestinations = [...validPODs, "HALDENSLEBEN", "Haldensleben", "PEINE", "ROTTENDORF", "APFELSTÄDT", "WITTENBERGE", "LANGENSELBOLD"];
+  const validDestinations = [...validPODs, "HALDENSLEBEN", "Haldensleben", "PEINE", "ROTTENDORF", "APFELSTÄDT", "APFELSTÃDT", "APFELSTADT", "WITTENBERGE", "LANGENSELBOLD"];
 
   // 1. Validate SHIPMENT (mandatory)
   if (!rowData['SHIPMENT'] || !rowData['SHIPMENT'].trim()) {
@@ -224,14 +242,14 @@ function validateShipmentData(data: string[], headers: string[], rowNumber: numb
     });
   }
 
-  // 3. Validate SUPPLIER (mandatory)
-  if (!rowData['SUPPLIER'] || !rowData['SUPPLIER'].trim()) {
+  // 3. Validate SUPPLIER (optional)
+  if (rowData['SUPPLIER'] && !rowData['SUPPLIER'].trim()) {
     errors.push({
       rowNumber,
       field: "SUPPLIER",
-      errorMessage: "Supplier is required",
+      errorMessage: "Supplier cannot be empty if provided",
       value: rowData['SUPPLIER'] || "",
-      severity: "error"
+      severity: "warning"
     });
   }
 
@@ -279,16 +297,8 @@ function validateShipmentData(data: string[], headers: string[], rowNumber: numb
     }
   }
 
-  // 6. Validate RCV/PUG (mandatory, date format DD/MM/YYYY)
-  if (!rowData['RCV/PUG'] || !rowData['RCV/PUG'].trim()) {
-    errors.push({
-      rowNumber,
-      field: "RCV/PUG",
-      errorMessage: "RCV/PUG date is required",
-      value: rowData['RCV/PUG'] || "",
-      severity: "error"
-    });
-  } else {
+  // 6. Validate RCV/PUG (optional, date format DD/MM/YYYY if provided)
+  if (rowData['RCV/PUG'] && rowData['RCV/PUG'].trim()) {
     const dateValue = rowData['RCV/PUG'].trim();
     const dateRegex = /^\d{1,2}\/\d{1,2}\/\d{4}$/;
     
@@ -296,9 +306,9 @@ function validateShipmentData(data: string[], headers: string[], rowNumber: numb
       errors.push({
         rowNumber,
         field: "RCV/PUG",
-        errorMessage: "RCV/PUG must be in DD/MM/YYYY format",
+        errorMessage: "RCV/PUG must be in DD/MM/YYYY format if provided",
         value: dateValue,
-        severity: "error"
+        severity: "warning"
       });
     } else {
       // Validate actual date
@@ -311,7 +321,7 @@ function validateShipmentData(data: string[], headers: string[], rowNumber: numb
           field: "RCV/PUG",
           errorMessage: "RCV/PUG is not a valid date",
           value: dateValue,
-          severity: "error"
+          severity: "warning"
         });
       }
     }
@@ -345,14 +355,30 @@ function validateShipmentData(data: string[], headers: string[], rowNumber: numb
       value: rowData['Destsite'] || "",
       severity: "error"
     });
-  } else if (!validDestinations.includes(rowData['Destsite'].trim())) {
-    errors.push({
-      rowNumber,
-      field: "Destsite",
-      errorMessage: `Destination "${rowData['Destsite']}" is not valid. Valid destinations: ${validDestinations.join(', ')}`,
-      value: rowData['Destsite'],
-      severity: "error"
-    });
+  } else {
+    const destValue = rowData['Destsite'].trim();
+    
+    // Check if destination exists in valid destinations
+    const isValidDestination = validDestinations.includes(destValue);
+    
+    // Also check for common encoding variations
+    const normalizedDestinations = validDestinations.map(dest => {
+      // Handle common UTF-8 encoding issues
+      if (dest === "APFELSTÄDT") return ["APFELSTÄDT", "APFELSTÃDT", "APFELSTADT"];
+      if (dest === "APFELSTADT") return ["APFELSTÄDT", "APFELSTÃDT", "APFELSTADT"];
+      if (dest === "HALDENSLEBEN") return ["HALDENSLEBEN", "Haldensleben"];
+      return [dest];
+    }).flat();
+    
+    if (!isValidDestination && !normalizedDestinations.includes(destValue)) {
+      errors.push({
+        rowNumber,
+        field: "Destsite",
+        errorMessage: `Destination "${destValue}" is not valid. Valid destinations: ${validDestinations.join(', ')}`,
+        value: destValue,
+        severity: "error"
+      });
+    }
   }
 
   return errors;
@@ -615,7 +641,9 @@ export async function processExcelFile(
       validRows: validationResult.validData.length,
       invalidRows: fileValidation.totalRows - validationResult.validData.length,
       fileContent: btoa(String.fromCharCode(...new Uint8Array(arrayBuffer))), // Convert to base64
-      shipmentIds: Array.from(shipmentIds)
+      shipmentIds: Array.from(shipmentIds),
+      errors: validationResult.errors,
+      warnings: validationResult.warnings
     });
 
     // Check for cross-file duplicates

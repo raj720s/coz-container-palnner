@@ -159,6 +159,40 @@
       },
       "createdAt": "2024-01-15T10:00:00Z",
       "updatedAt": "2024-01-15T10:00:00Z"
+    },
+    {
+      "id": "7",
+      "code": "DEGER",
+      "name": "German Destinations",
+      "country": "Germany",
+      "region": "Europe",
+      "isActive": true,
+      "coordinates": {
+        "latitude": 51.3397,
+        "longitude": 12.3731
+      },
+      "portDetails": {
+        "timezone": "Europe/Berlin",
+        "operatingHours": "24/7",
+        "maxDraft": 15.0,
+        "capacity": "TEU/year: 5,000,000",
+        "facilities": ["Container Terminal", "Intermodal Terminal", "Distribution Center"]
+      },
+      "shippingLines": ["Hapag-Lloyd", "MSC", "Maersk", "CMA CGM", "COSCO"],
+      "destinationDetails": {
+        "mainMarkets": ["Germany", "Central Europe"],
+        "railConnections": ["DB Cargo", "ÖBB", "ČD Cargo"],
+        "averageDeliveryDays": {
+          "HALDENSLEBEN": 1,
+          "PEINE": 1,
+          "ROTTENDORF": 2,
+          "APFELSTÄDT": 2,
+          "WITTENBERGE": 1,
+          "LANGENSELBOLD": 2
+        }
+      },
+      "createdAt": "2024-01-15T10:00:00Z",
+      "updatedAt": "2024-01-15T10:00:00Z"
     }
   ],
   "metadata": {
