@@ -1,0 +1,180 @@
+{
+  "modules": {
+    "10": {
+      "name": "Role Management",
+      "description": "Manage system roles and role configurations",
+      "icon": "UserCircleIcon",
+      "color": "blue",
+      "routes": [
+        "/admin/role-management",
+        "/user/role-management"
+      ],
+      "privileges": [
+        "CREATE_ROLE",
+        "VIEW_ROLE",
+        "VIEW_ROLE_LIST",
+        "UPDATE_ROLE",
+        "DELETE_ROLE"
+      ]
+    },
+    "20": {
+      "name": "Privilege Management",
+      "description": "Manage system privileges and permissions",
+      "icon": "CheckCircleIcon",
+      "color": "green",
+      "routes": [
+        "/admin/privilege-management"
+      ],
+      "privileges": [
+        "VIEW_PRIVILEGE_LIST"
+      ]
+    },
+    "30": {
+      "name": "Permission Management",
+      "description": "Manage role-permission assignments",
+      "icon": "AlertIcon",
+      "color": "purple",
+      "routes": [
+        "/admin/role-permission-management"
+      ],
+      "privileges": [
+        "CREATE_ROLE_PERMISSION",
+        "VIEW_ROLE_PERMISSION_LIST"
+      ]
+    },
+    "60": {
+      "name": "User Management",
+      "description": "Manage users, user profiles, and user operations",
+      "icon": "UserCircleIcon",
+      "color": "indigo",
+      "routes": [
+        "/admin/user-management",
+        "/user/profile",
+        "/admin/profile"
+      ],
+      "privileges": [
+        "CREATE_USER",
+        "VIEW_USER",
+        "VIEW_USER_LIST",
+        "VIEW_USER_SHORT_INFO_LIST",
+        "UPDATE_USER",
+        "UPDATE_USER_PASSWORD",
+        "UPDATE_USER_STATUS",
+        "DELETE_USER"
+      ]
+    },
+    "70": {
+      "name": "Container Management",
+      "description": "Manage container types, thresholds, and planning",
+      "icon": "AlertIcon",
+      "color": "yellow",
+      "routes": [
+        "/admin/container-types",
+        "/admin/container-thresholds",
+        "/admin/container-priority",
+        "/admin/container-planning",
+        "/user/container-types",
+        "/user/container-thresholds",
+        "/user/container-priority",
+        "/user/container-planning"
+      ],
+      "privileges": []
+    },
+    "80": {
+      "name": "Port & Customer Management",
+      "description": "Manage ports, customers, and port-customer relationships",
+      "icon": "UserCircleIcon",
+      "color": "teal",
+      "routes": [
+        "/admin/port-customer-master",
+        "/admin/port-customer-master/customers",
+        "/admin/port-customer-master/pol-ports",
+        "/admin/port-customer-master/pod-ports",
+        "/user/port-customer-master",
+        "/user/port-customer-master/customers",
+        "/user/port-customer-master/pol-ports",
+        "/user/port-customer-master/pod-ports"
+      ],
+      "privileges": []
+    },
+    "90": {
+      "name": "Shipment Operations",
+      "description": "Manage shipment uploads, processing, and operations",
+      "icon": "AlertIcon",
+      "color": "red",
+      "routes": [
+        "/admin/shipment-upload",
+        "/admin/shipment-operations/input-file",
+        "/admin/shipment-operations/output-file",
+        "/admin/shipment-operations/shipment-history",
+        "/admin/shipment-operations/uploads-history",
+        "/user/shipment-upload",
+        "/user/shipment-operations/shipment-history",
+        "/user/shipment-operations/uploads-history",
+        "/user/input-file",
+        "/user/output-file"
+      ],
+      "privileges": []
+    },
+    "100": {
+      "name": "Analytics & Reports",
+      "description": "Assignment results, validation summaries, and repositioning",
+      "icon": "CheckCircleIcon",
+      "color": "pink",
+      "routes": [
+        "/admin/assignment-results",
+        "/admin/validation-summary",
+        "/admin/repositioning-summary",
+        "/admin/test-validation",
+        "/user/assignment-results",
+        "/user/validation-summary",
+        "/user/test-validation"
+      ],
+      "privileges": []
+    },
+    "110": {
+      "name": "System Administration",
+      "description": "System settings, data backup, and administrative tasks",
+      "icon": "AlertIcon",
+      "color": "gray",
+      "routes": [
+        "/admin/system-settings",
+        "/admin/data-backup"
+      ],
+      "privileges": []
+    },
+    "120": {
+      "name": "Dashboard",
+      "description": "Main dashboard and overview pages",
+      "icon": "CheckCircleIcon",
+      "color": "blue",
+      "routes": [
+        "/admin/dashboard",
+        "/user/dashboard"
+      ],
+      "privileges": []
+    }
+  },
+  "rolePermissions": {
+    "admin": {
+      "description": "Full system access with all privileges",
+      "modules": ["10", "20", "30", "60", "70", "80", "90", "100", "110", "120"],
+      "privileges": "*"
+    },
+    "manager": {
+      "description": "Management level access with specific privileges",
+      "modules": ["10", "60", "70", "80", "90", "100", "120"],
+      "privileges": [
+        "VIEW_ROLE_LIST",
+        "VIEW_USER_LIST",
+        "VIEW_USER",
+        "UPDATE_USER_STATUS"
+      ]
+    },
+    "user": {
+      "description": "Basic user access to operational features",
+      "modules": ["70", "80", "90", "100", "120"],
+      "privileges": []
+    }
+  }
+}

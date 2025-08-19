@@ -162,13 +162,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Container Type
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -184,13 +180,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         POL
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -206,13 +198,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Min CBM
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -228,13 +216,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Max CBM
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -278,13 +262,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Status
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -306,13 +286,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Created
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (

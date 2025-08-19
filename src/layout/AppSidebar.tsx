@@ -7,6 +7,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/slices/authSlice';
+import { useRBAC } from '@/hooks/useRBAC';
 import { 
   HiOutlineHome, 
   HiOutlineCog, 
@@ -107,16 +108,17 @@ const navItems: NavItem[] = [
     adminOnly: true,
     subItems: [
       { name: "User Management", path: "/admin/user-management" },
+      { name: "Role Management", path: "/admin/role-management" },
       // { name: "System Settings", path: "/admin/system-settings" },
       // { name: "Data Backup", path: "/admin/data-backup" },
     ],
   },
-  {
-    icon: <HiOutlineUserGroup className="w-5 h-5" />,
-    name: "Profile",
-    path: "/admin/profile",
-    adminOnly: true,
-  },
+  // {
+  //   icon: <HiOutlineUserGroup className="w-5 h-5" />,
+  //   name: "Admin Profile",
+  //   path: "/admin/profile",
+  //   adminOnly: true,
+  // },
   {
     icon: <HiOutlineCube className="w-5 h-5" />,
     name: "History",
@@ -137,12 +139,12 @@ const navItems: NavItem[] = [
       // { name: "Shipment History", path: "/user/shipment-operations/shipment-history" },
     ],
   },
-  {
-    icon: <HiOutlineUserGroup className="w-5 h-5" />,
-    name: "Profile",
-    path: "/user/profile",
-    userOnly: false, // Available for both admin and user
-  },
+  // {
+  //   icon: <HiOutlineUserGroup className="w-5 h-5" />,
+  //   name: "User Profile",
+  //   path: "/user/profile",
+  //   userOnly: false, // Available for both admin and user
+  // },
 ];
 
 const AppSidebar: React.FC = () => {
@@ -150,49 +152,60 @@ const AppSidebar: React.FC = () => {
   const { user: contextUser } = useAuth();
   const reduxUser = useSelector(selectUser);
   const pathname = usePathname();
+  const { filterMenu, canAccessRoute, userRole, isAdmin } = useRBAC();
   
   // Use Redux user if available, fallback to context user
   const user = reduxUser || contextUser;
   
-  // Helper function to check if user is admin
+  // Helper function to check if user is admin (legacy support)
   const isUserAdmin = (user: any): boolean => {
     if (reduxUser?.is_superuser !== undefined) {
       return reduxUser.is_superuser;
     }
-    return user?.role === 'admin';
+    return user?.role === 'admin' || isAdmin();
   };
 
   // Memoize the isActive function
   const isActive = useCallback((path: string) => path === pathname, [pathname]);
 
-  // Memoize filtered nav items to prevent infinite loops
+  // Memoize filtered nav items using RBAC
   const filteredNavItems = useMemo(() => {
     if (!user) return navItems;
     
-    return navItems.map(item => {
+    // Transform nav items to include RBAC path filtering
+    const transformedItems = navItems.map(item => {
       // For Dashboard, set the path based on user role
       if (item.name === "Dashboard") {
-        const dashboardPath = isUserAdmin(user) ? '/admin/dashboard' : '/user/dashboard';
+        const dashboardPath = userRole === 1 ? '/admin/dashboard' : '/user/dashboard';
         return { ...item, path: dashboardPath };
       }
       
       return item;
     }).filter(item => {
+      // Legacy role filtering for compatibility
       if (item.adminOnly && !isUserAdmin(user)) return false;
       if (item.userOnly && isUserAdmin(user)) return false;
       
+      // RBAC route access check
+      if (!canAccessRoute(item.path)) return false;
+      
       if (item.subItems) {
         const filteredSubItems = item.subItems.filter(subItem => {
+          // Legacy role filtering
           if (subItem.adminOnly && !isUserAdmin(user)) return false;
           if (subItem.userOnly && isUserAdmin(user)) return false;
-          return true;
+          
+          // RBAC route access check
+          return canAccessRoute(subItem.path);
         });
         return filteredSubItems.length > 0;
       }
       
       return true;
     });
-  }, [user]);
+
+    return transformedItems;
+  }, [user, userRole, isAdmin, canAccessRoute]);
 
   // Track which submenus are open
   const [openSubmenus, setOpenSubmenus] = useState<Set<number>>(new Set());

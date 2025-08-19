@@ -37,7 +37,7 @@ export const FormModal = <T = unknown>({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className={sizeClasses[size]}>
+    <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size as keyof typeof sizeClasses]}`}>
       <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl">
         {/* <div className="relative bg-black  dark:bg-gray-900 rounded-lg shadow-xl"> */}
         {/* Header */}

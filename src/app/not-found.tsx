@@ -1,7 +1,13 @@
+import type { Metadata } from "next";
 import GridShape from "@/components/common/GridShape";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
+
+export const metadata: Metadata = {
+  title: "Page Not Found | COZ",
+  description: "The page you are looking for does not exist",
+};
 
 export default function NotFound() {
   return (

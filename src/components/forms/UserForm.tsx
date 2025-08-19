@@ -7,53 +7,35 @@ import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
-import { User, DEFAULT_ROLE_ACCESS } from "@/types/user";
-import { AccessControlForm } from "./AccessControlForm";
+import { CreateUserRequest } from "@/types/api";
+import toast from "react-hot-toast";
 
 const userSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  first_name: z.string().min(2, "First name must be at least 2 characters"),
+  last_name: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  role: z.number().min(1, "Please select a role").max(2, "Please select a role"),
-  status: z.enum(["active", "inactive", "pending"], { required_error: "Please select a status" }),
-  organisation_name: z.string().optional(),
+  role: z.number().min(0, "Please select a role").max(2, "Please select a role"),
+  status: z.string(),
+  organisation_name: z.string().min(1, "Organisation name is required"),
   password: z.string().optional(),
   confirmPassword: z.string().optional(),
-  accessControl: z.array(z.string()).optional(),
 }).superRefine((data, ctx) => {
-  // If no initial data (creating new user), password is required
-  if (!data.password) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Password is required for new users",
-      path: ["password"],
-    });
-  }
-  
-  // If password is provided, it must be at least 6 characters
-  if (data.password && data.password.length < 6) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Password must be at least 6 characters",
-      path: ["password"],
-    });
-  }
-  
-  // If password is provided, confirm password must match
-  if (data.password && data.password !== data.confirmPassword) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Passwords do not match",
-      path: ["confirmPassword"],
-    });
-  }
+  // Only validate password for new users (when editingItem is not provided)
+  // This will be handled in the component logic, not in schema validation
 });
 
 type UserFormData = z.infer<typeof userSchema>;
 
 interface UserFormProps {
-  initialData?: User;
-  onSubmit: (data: UserFormData) => void;
+  initialData?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: number;
+    status: string;
+    organisation_name: string;
+  };
+  onSubmit: (data: CreateUserRequest) => void;
   isLoading?: boolean;
   onCancel?: () => void;
 }
@@ -64,14 +46,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   isLoading = false,
   onCancel,
 }) => {
-  const [activeTab, setActiveTab] = useState<"details" | "access">("details");
-  const [accessControlData, setAccessControlData] = useState<{
-    role: number;
-    accessControl: string[];
-  }>({
-    role: initialData?.role || 2,
-    accessControl: initialData?.accessControl || DEFAULT_ROLE_ACCESS.user,
-  });
+  // No more access control state needed
 
   const {
     register,
@@ -83,15 +58,14 @@ export const UserForm: React.FC<UserFormProps> = ({
   } = useForm<UserFormData>({
     resolver: zodResolver(userSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      first_name: "",
+      last_name: "",
       email: "",
       role: 2,
-      status: "active",
+      status: "true",
       organisation_name: "",
       password: "",
       confirmPassword: "",
-      accessControl: DEFAULT_ROLE_ACCESS.user,
     },
   });
 
@@ -99,273 +73,207 @@ export const UserForm: React.FC<UserFormProps> = ({
   const role = watch("role");
   const status = watch("status");
 
+  // Set initial values when editing
   useEffect(() => {
     if (initialData) {
       reset({
-        firstName: initialData.firstName,
-        lastName: initialData.lastName,
+        first_name: initialData.firstName,
+        last_name: initialData.lastName,
         email: initialData.email,
         role: initialData.role,
-        status: initialData.status,
-        organisation_name: initialData.organisation_name || "",
+        status: initialData.status === "active" ? "true" : "false",
+        organisation_name: initialData.organisation_name,
         password: "",
         confirmPassword: "",
-        accessControl: initialData.accessControl || DEFAULT_ROLE_ACCESS[initialData.role as keyof typeof DEFAULT_ROLE_ACCESS],
-      });
-      setAccessControlData({
-        role: initialData.role,
-        accessControl: initialData.accessControl || DEFAULT_ROLE_ACCESS[initialData.role as keyof typeof DEFAULT_ROLE_ACCESS],
-      });
-    } else {
-      // Reset form when creating new user
-      reset({
-        firstName: "",
-        lastName: "",
-        email: "",
-        role: 2,
-        status: "active",
-        organisation_name: "",
-        password: "",
-        confirmPassword: "",
-        accessControl: DEFAULT_ROLE_ACCESS.user,
-      });
-      setAccessControlData({
-        role: 2,
-        accessControl: DEFAULT_ROLE_ACCESS.user,
       });
     }
   }, [initialData, reset]);
 
-  // Update access control when role changes
-  useEffect(() => {
-    setAccessControlData(prev => ({
-      ...prev,
-      role,
-      accessControl: DEFAULT_ROLE_ACCESS[role as keyof typeof DEFAULT_ROLE_ACCESS],
-    }));
-    setValue("accessControl", DEFAULT_ROLE_ACCESS[role as keyof typeof DEFAULT_ROLE_ACCESS]);
-  }, [role, setValue]);
+  const handleFormSubmit = (formData: UserFormData) => {
+    console.log("Form submitted with data:", formData); // Debug log
+    
+    // Validate password for new users
+    if (!isEditing) {
+      if (!formData.password || formData.password.length < 6) {
+        toast.error("Password must be at least 6 characters");
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast.error("Passwords do not match");
+        return;
+      }
+    }
 
-  const handleFormSubmit = (data: UserFormData) => {
-    // Merge access control data with form data
-    const finalData = {
-      ...data,
-      accessControl: accessControlData.accessControl,
+    // Transform form data to match API requirements
+    const apiData: CreateUserRequest = {
+      first_name: formData.first_name,
+      last_name: formData.last_name,
+      email: formData.email,
+      role: formData.role,
+      status: formData.status === "true",
+      organisation_name: formData.organisation_name,
     };
-    onSubmit(finalData);
+    
+    console.log("Transformed API data:", apiData); // Debug log
+    console.log("Calling onSubmit with:", apiData); // Debug log
+    onSubmit(apiData);
   };
 
-  const handleAccessControlSubmit = (data: { accessControl: string[] }) => {
-    setAccessControlData(prev => ({
-      ...prev,
-      accessControl: data.accessControl,
-    }));
-    setValue("accessControl", data.accessControl);
-    setActiveTab("details");
-  };
-
-  const roleOptions = [
-    { value: 2, label: "User" },
-    { value: 1, label: "Admin" },
-  ];
-
-  const statusOptions = [
-    { value: "active", label: "Active" },
-    { value: "inactive", label: "Inactive" },
-    { value: "pending", label: "Pending" },
-  ];
-
-  const organisationOptions = [
-    { value: "Operations", label: "Operations" },
-    { value: "Logistics", label: "Logistics" },
-    { value: "Sales", label: "Sales" },
-    { value: "IT", label: "IT" },
-    { value: "Finance", label: "Finance" },
-    { value: "Marketing", label: "Marketing" },
-  ];
+  // Access control removed - will be managed separately in Role Management
 
   return (
     <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            type="button"
-            onClick={() => setActiveTab("details")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "details"
-                ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-            }`}
-          >
-            User Details
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("access")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "access"
-                ? "border-brand-500 text-brand-600 dark:text-brand-400"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-            }`}
-          >
-            Access Control
-          </button>
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === "details" ? (
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="firstName" required>
-                First Name
-              </Label>
-              <Input
-                id="firstName"
-                placeholder="Enter first name"
-                {...register("firstName")}
-                error={errors.firstName?.message}
-              />
+      {/* Form Content */}
+      <form 
+        onSubmit={(e) => {
+          console.log("Form submit event triggered"); // Debug log
+          e.preventDefault(); // Prevent default to see what's happening
+          console.log("Form validation errors:", errors); // Debug log
+          handleSubmit(handleFormSubmit)(e);
+        }} 
+        className="space-y-6"
+      >
+        <div className="space-y-4">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="first_name">First Name *</Label>
+                <Input
+                  id="first_name"
+                  {...register("first_name")}
+                  placeholder="Enter first name"
+                  error={errors.first_name?.message}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="last_name">Last Name *</Label>
+                <Input
+                  id="last_name"
+                  {...register("last_name")}
+                  placeholder="Enter last name"
+                  error={errors.last_name?.message}
+                  disabled={isLoading}
+                />
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="email" required>
-                Email Address
-              </Label>
+              <Label htmlFor="email">Email Address *</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter email address"
                 {...register("email")}
+                placeholder="Enter email address"
                 error={errors.email?.message}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <Label htmlFor="role" required>
-                Role
-              </Label>
-              <Select
-                options={roleOptions}
-                value={role}
-                onChange={(value) => setValue("role", value as 1 | 2)}
-                placeholder="Select role"
-                error={errors.role?.message}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="status" required>
-                Status
-              </Label>
-              <Select
-                options={statusOptions}
-                value={status}
-                onChange={(value) => setValue("status", value as "active" | "inactive" | "pending")}
-                placeholder="Select status"
-                error={errors.status?.message}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="organisation_name">
-              Organisation Name
-            </Label>
-            <Select
-              options={organisationOptions}
-              value={watch("organisation_name") || ""}
-              onChange={(value) => setValue("organisation_name", value)}
-              placeholder="Select organisation name"
-              error={errors.organisation_name?.message}
-            />
-          </div>
-
-          {!isEditing && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="password" required>
-                  Password
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter password"
-                  {...register("password")}
-                  error={errors.password?.message}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="confirmPassword" required>
-                  Confirm Password
-                </Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="Confirm password"
-                  {...register("confirmPassword")}
-                  error={errors.confirmPassword?.message}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Access Control Summary */}
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 dark:text-white mb-2">Access Control Summary</h4>
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              <p>Role: {role}</p>
-              <p>Allowed Routes: {accessControlData.accessControl.length}</p>
-              <button
-                type="button"
-                onClick={() => setActiveTab("access")}
-                className="text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 text-sm font-medium"
-              >
-                Manage Access Control →
-              </button>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-            {onCancel && (
-              <Button
-                variant="outline"
-                onClick={onCancel}
                 disabled={isLoading}
-              >
-                Cancel
-              </Button>
-            )}
-            <Button
-              onClick={handleSubmit(handleFormSubmit)}
-              disabled={isLoading}
-              className="min-w-[100px]"
-            >
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="organisation_name">Organisation *</Label>
+                <Input
+                  id="organisation_name"
+                  {...register("organisation_name")}
+                  placeholder="Enter organisation name"
+                  error={errors.organisation_name?.message}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <Label htmlFor="role">Role *</Label>
+                <select
+                  {...register("role", { valueAsNumber: true })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isLoading}
+                >
+                  <option value="">Select Role</option>
+                  <option value={0}>User</option>
+                  <option value={1}>Admin</option>
+                  <option value={2}>Manager</option>
+                </select>
+                {errors.role && (
+                  <p className="mt-1.5 text-xs text-red-500">{errors.role.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="status">Status</Label>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    {...register("status")}
+                    value="true"
+                    className="mr-2"
+                    disabled={isLoading}
+                  />
+                  Active
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    {...register("status")}
+                    value="false"
+                    className="mr-2"
+                    disabled={isLoading}
+                  />
+                  Inactive
+                </label>
+              </div>
+            </div>
+
+            {/* Password Fields - Only show for new users */}
+            {!isEditing && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    {...register("password")}
+                    placeholder="Enter password"
+                    error={errors.password?.message}
+                    disabled={isLoading}
+                  />
                 </div>
-              ) : (
-                isEditing ? "Update User" : "Create User"
-              )}
-            </Button>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    {...register("confirmPassword")}
+                    placeholder="Confirm password"
+                    error={errors.confirmPassword?.message}
+                    disabled={isLoading}
+                  />
+                </div>
+              </div>
+            )}
           </div>
-        </form>
-      ) : (
-        <AccessControlForm
-          initialData={accessControlData}
-          onSubmit={handleAccessControlSubmit}
-          onCancel={() => setActiveTab("details")}
-          isLoading={isLoading}
-        />
-      )}
+
+        {/* Form Actions */}
+        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          {onCancel && (
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            disabled={isLoading}
+          >
+            {isLoading ? "Saving..." : isEditing ? "Update User" : "Create User"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
-}; 
+};
+
+export type { UserFormData }; 

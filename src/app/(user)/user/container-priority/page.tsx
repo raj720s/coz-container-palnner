@@ -5,7 +5,7 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon, PlusIcon, HorizontaLDots, ChevronUpIcon, ChevronDownIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon, HorizontaLDots } from "@/icons";
 import { toast } from "react-hot-toast";
 import React, { useState, useEffect } from "react";
 import {
@@ -156,13 +156,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Container Type
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -178,13 +174,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Priority
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -200,13 +192,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Status
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -228,13 +216,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Max CBM
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
@@ -272,13 +256,9 @@ const columns = [
         className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
       >
         Description
-        {column.getIsSorted() === "asc" ? (
-          <ChevronUpIcon className="w-4 h-4" />
-        ) : column.getIsSorted() === "desc" ? (
-          <ChevronDownIcon className="w-4 h-4" />
-        ) : (
-          <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-        )}
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
       </button>
     ),
     cell: (info) => (
