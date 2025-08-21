@@ -48,7 +48,7 @@ const columns = [
       >
         Container Name
         <span className="text-xs">
-          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↑"}
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
         </span>
       </button>
     ),
@@ -62,7 +62,7 @@ const columns = [
       >
         Code
         <span className="text-xs">
-          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↑"}
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
         </span>
       </button>
     ),
@@ -76,7 +76,7 @@ const columns = [
       >
         Description
         <span className="text-xs">
-          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↑"}
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
         </span>
       </button>
     ),
@@ -90,7 +90,7 @@ const columns = [
       >
         Capacity (CBM)
         <span className="text-xs">
-          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↑"}
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
         </span>
       </button>
     ),
@@ -104,7 +104,7 @@ const columns = [
       >
         Status
         <span className="text-xs">
-          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↑"}
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
         </span>
       </button>
     ),
@@ -128,7 +128,7 @@ const columns = [
       >
         Created
         <span className="text-xs">
-          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↑"}
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
         </span>
       </button>
     ),
@@ -370,12 +370,11 @@ function ContainerTypesPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
-        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Container Type" : "Add New Container Type"}
-        isLoading={isModalLoading}
         size="lg"
-        showFooter={false}
+        showHeader={true}
+        showFooter={true}
       >
         <ContainerTypeForm
           initialData={editingItem as ContainerType | undefined}

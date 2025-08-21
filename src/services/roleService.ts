@@ -50,6 +50,38 @@ export interface RoleListParams {
   module_id?: number;
 }
 
+// New comprehensive role list types for POST /api/admin/v1/role/list
+export interface RoleListRequest {
+  role_name?: string;
+  role_description?: string;
+  include_privilege_data?: boolean;
+  order_by?: string;
+  created_by?: number;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  created_by_name?: string;
+  modified_by?: number;
+  modified_by_name?: string;
+  export?: boolean;
+  module_id?: number;
+  order_type?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface RoleListResponseV2 {
+  id: number;
+  role_name: string;
+  role_description: string;
+  privilege_names: string;
+  modified_on: string;
+  modified_by: number;
+  created_on: string;
+  created_by: number;
+}
+
 export interface PrivilegeItem {
   id: number;
   privilege_name: string;
@@ -80,6 +112,11 @@ export interface RoleUserResponse {
     last_name: string;
     email: string;
   }>;
+}
+
+export interface RoleAssignmentResponse {
+  role_id: string;
+  user_ids: number[];
 }
 
 class RoleService extends BaseService {
@@ -120,7 +157,17 @@ class RoleService extends BaseService {
    * @returns Promise<{ success: boolean }>
    */
   async deleteRole(id: string): Promise<{ success: boolean }> {
-    return this.delete<{ success: boolean }>(this.buildEndpoint('role', id));
+    console.log('🚀 RoleService.deleteRole called with:', { id });
+    console.log('🌐 Making DELETE request to endpoint: /admin/v1/role/{id}');
+    
+    try {
+      const result = await this.delete<{ success: boolean }>(`/admin/v1/role/${id}`);
+      console.log('✅ RoleService.deleteRole success:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ RoleService.deleteRole error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -131,6 +178,17 @@ class RoleService extends BaseService {
   async getRoles(params: RoleListParams = {}): Promise<RoleListResponse> {
     const cleanParams = this.buildParams(params);
     return this.post<RoleListResponse>(this.buildEndpoint('role', 'list'), cleanParams);
+  }
+
+  /**
+   * Get list of roles with comprehensive filtering and pagination using POST
+   * @param params - Request body parameters for filtering and pagination
+   * @returns Promise<RoleListResponseV2[]>
+   */
+  async getRolesV2(params: RoleListRequest = {}): Promise<RoleListResponseV2[]> {
+    const cleanParams = this.buildParams(params);
+    const response = await this.post<{ results: RoleListResponseV2[] }>(this.buildEndpoint('role', 'list'), cleanParams);
+    return response.results || [];
   }
 
   /**
@@ -163,6 +221,33 @@ class RoleService extends BaseService {
    */
   async getRoleUsers(roleId: string): Promise<RoleUserResponse> {
     return this.get<RoleUserResponse>(this.buildEndpoint('role', 'user'), { role_id: roleId });
+  }
+
+  /**
+   * Assign users to a specific role
+   * @param roleId - Role ID
+   * @param userIds - Array of user IDs to assign
+   * @returns Promise<RoleAssignmentResponse>
+   */
+  async assignUsersToRole(roleId: string, userIds: number[]): Promise<RoleAssignmentResponse> {
+    console.log('🚀 RoleService.assignUsersToRole called with:', { roleId, userIds });
+    console.log('🌐 Making POST request to endpoint: /admin/v1/role/user');
+    
+    const requestBody = {
+      role_id: roleId,
+      user_ids: userIds
+    };
+    
+    console.log('📦 Request body:', requestBody);
+    
+    try {
+      const result = await this.post<RoleAssignmentResponse>('/admin/v1/role/user', requestBody);
+      console.log('✅ RoleService.assignUsersToRole success:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ RoleService.assignUsersToRole error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -218,6 +303,8 @@ class RoleService extends BaseService {
       privilege_names: originalRole.privilege_names
     });
   }
+
+
 }
 
 // Export singleton instance

@@ -20,6 +20,7 @@ import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import userReducer from './slices/userSlice';
 import roleReducer from './slices/roleSlice';
+import polReducer from './slices/polSlice';
 
 // Persist config for auth
 const authPersistConfig = {
@@ -46,6 +47,7 @@ export const store = configureStore({
     ui: persistReducer(uiPersistConfig, uiReducer),
     users: userReducer,
     roles: roleReducer,
+    pols: polReducer,
   },
   
   middleware: (getDefaultMiddleware) =>

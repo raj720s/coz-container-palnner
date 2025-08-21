@@ -1,91 +1,235 @@
 "use client";
 
-import React, { useState } from "react";
-import { AVAILABLE_ROUTES } from "@/types/user";
-import { getUserAccessibleRoutes } from "@/utils/accessControl";
-import { ShieldIcon, EyeIcon } from "@/icons";
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store';
+import { fetchRolesV2, selectRolesV2, selectRolesLoading, selectRolesError } from '@/store/slices/roleSlice';
+import { useGetRolesQuery } from '@/store/api/apiSlice';
+import { roleService } from '@/services';
+import { RoleListRequest, RoleListResponseV2 } from '@/types/api';
 
-interface AccessControlDisplayProps {
-  accessControl: string[];
-  compact?: boolean;
-}
+const AccessControlDisplay: React.FC = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  
+  // Local state for filters
+  const [filters, setFilters] = useState<RoleListRequest>({
+    page: 1,
+    page_size: 10,
+    role_name: '',
+    order_by: 'created_on',
+    order_type: 'desc'
+  });
+  
+  const { data: rolesRTK, isLoading: loadingRTK, error: errorRTK, refetch: refetchRTK } = useGetRolesQuery(filters);
+  
+  // Redux state
+  const rolesV2 = useSelector(selectRolesV2);
+  const loading = useSelector(selectRolesLoading);
+  const error = useSelector(selectRolesError);
 
-export const AccessControlDisplay: React.FC<AccessControlDisplayProps> = ({
-  accessControl,
-  compact = true,
-}) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const { adminRoutes, userRoutes } = getUserAccessibleRoutes(accessControl);
+  // Example 1: Using Redux slice with async thunk
+  const handleFetchRolesRedux = () => {
+    dispatch(fetchRolesV2(filters));
+  };
 
-  if (compact) {
-    return (
-      <div className="flex items-center gap-2">
-        <ShieldIcon className="w-4 h-4 text-gray-500" />
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {accessControl.length} routes
-        </span>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
-        >
-          {isExpanded ? "Hide" : "Show"}
-        </button>
-      </div>
-    );
-  }
+  // Example 2: Using RTK Query
+  const handleFetchRolesRTK = () => {
+    refetchRTK();
+  };
+
+  // Example 3: Using service directly
+  const handleFetchRolesService = async () => {
+    try {
+      const result = await roleService.getRolesV2(filters);
+      console.log('Service result:', result);
+    } catch (error) {
+      console.error('Service error:', error);
+    }
+  };
+
+  // Example 4: Advanced filtering
+  const handleAdvancedFilter = () => {
+    const advancedFilters: RoleListRequest = {
+      ...filters,
+      include_privilege_data: true,
+      created_on_start_date: '2024-01-01T00:00:00.000Z',
+      created_on_end_date: new Date().toISOString(),
+      export: false,
+      module_id: 1
+    };
+    
+    dispatch(fetchRolesV2(advancedFilters));
+  };
+
+  // Example 5: Pagination
+  const handlePageChange = (page: number) => {
+    const newFilters = { ...filters, page };
+    setFilters(newFilters);
+    dispatch(fetchRolesV2(newFilters));
+  };
+
+  // Example 6: Search by role name
+  const handleSearchByName = (roleName: string) => {
+    const newFilters = { ...filters, role_name: roleName, page: 1 };
+    setFilters(newFilters);
+    dispatch(fetchRolesV2(newFilters));
+  };
+
+  // Example 7: Export functionality
+  const handleExport = async () => {
+    const exportFilters: RoleListRequest = {
+      ...filters,
+      export: true,
+      page_size: 1000 // Get all roles for export
+    };
+    
+    try {
+      const result = await roleService.getRolesV2(exportFilters);
+      console.log('Export data:', result);
+      // Here you would typically trigger download or send to export service
+    } catch (error) {
+      console.error('Export error:', error);
+    }
+  };
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ShieldIcon className="w-4 h-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-900 dark:text-white">
-            Access Control ({accessControl.length} routes)
-          </span>
+    <div className="p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold mb-6">Role Management API Examples</h2>
+      
+      {/* Filter Controls */}
+      <div className="mb-6 space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="text"
+            placeholder="Role Name"
+            value={filters.role_name}
+            onChange={(e) => setFilters({ ...filters, role_name: e.target.value })}
+            className="border rounded px-3 py-2"
+          />
+          <select
+            value={filters.order_type}
+            onChange={(e) => setFilters({ ...filters, order_type: e.target.value })}
+            className="border rounded px-3 py-2"
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
         </div>
+        
+        <div className="flex gap-2">
+          <button
+            onClick={handleFetchRolesRedux}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Fetch Roles (Redux)
+          </button>
+          
+          <button
+            onClick={handleFetchRolesRTK}
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+          >
+            Fetch Roles (RTK Query)
+          </button>
+          
+          <button
+            onClick={handleFetchRolesService}
+            className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+          >
+            Fetch Roles (Service)
+          </button>
+          
+          <button
+            onClick={handleAdvancedFilter}
+            className="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600"
+          >
+            Advanced Filter
+          </button>
+          
+          <button
+            onClick={handleExport}
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            Export
+          </button>
+        </div>
+      </div>
+
+      {/* Pagination Controls */}
+      <div className="mb-4 flex items-center gap-2">
+        <span>Page:</span>
         <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300"
+          onClick={() => handlePageChange(Math.max(1, (filters.page || 1) - 1))}
+          disabled={(filters.page || 1) <= 1}
+          className="px-3 py-1 border rounded disabled:opacity-50"
         >
-          {isExpanded ? "Hide Details" : "Show Details"}
+          Previous
+        </button>
+        <span className="px-3 py-1 bg-gray-100 rounded">{filters.page || 1}</span>
+        <button
+          onClick={() => handlePageChange((filters.page || 1) + 1)}
+          className="px-3 py-1 border rounded"
+        >
+          Next
         </button>
       </div>
 
-      {isExpanded && (
-        <div className="space-y-3">
-          {adminRoutes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Admin Routes ({adminRoutes.length})
-              </h4>
-              <div className="grid grid-cols-1 gap-1">
-                {adminRoutes.map((route) => (
-                  <div key={route} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                    <EyeIcon className="w-3 h-3" />
-                    {AVAILABLE_ROUTES[route as keyof typeof AVAILABLE_ROUTES]}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {userRoutes.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                User Routes ({userRoutes.length})
-              </h4>
-              <div className="grid grid-cols-1 gap-1">
-                {userRoutes.map((route) => (
-                  <div key={route} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                    <EyeIcon className="w-3 h-3" />
-                    {AVAILABLE_ROUTES[route as keyof typeof AVAILABLE_ROUTES]}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      {/* Results Display */}
+      {loading && <div className="text-center py-4">Loading...</div>}
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          Error: {error}
         </div>
       )}
+      
+      {rolesV2.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Roles ({rolesV2.length})</h3>
+          <div className="grid gap-4">
+            {rolesV2.map((role) => (
+              <div key={role.id} className="border rounded p-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-semibold">{role.role_name}</h4>
+                    <p className="text-gray-600">{role.role_description}</p>
+                    <p className="text-sm text-gray-500">
+                      Privileges: {role.privilege_names}
+                    </p>
+                  </div>
+                  <div className="text-right text-sm text-gray-500">
+                    <p>Created: {new Date(role.created_on).toLocaleDateString()}</p>
+                    <p>Modified: {new Date(role.modified_on).toLocaleDateString()}</p>
+                    <p>Created by: {role.created_by}</p>
+                    <p>Modified by: {role.modified_by}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {!loading && !error && rolesV2.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No roles found. Try adjusting your filters or create a new role.
+        </div>
+      )}
+
+      {/* API Information */}
+      <div className="mt-8 p-4 bg-gray-50 rounded">
+        <h3 className="font-semibold mb-2">API Endpoint Information</h3>
+        <p className="text-sm text-gray-600">
+          <strong>Endpoint:</strong> POST /api/admin/v1/role/list
+        </p>
+        <p className="text-sm text-gray-600">
+          <strong>Method:</strong> POST with JSON body
+        </p>
+        <p className="text-sm text-gray-600">
+          <strong>Features:</strong> Pagination, filtering, sorting, export capability
+        </p>
+      </div>
     </div>
   );
-}; 
+};
+
+export default AccessControlDisplay; 

@@ -1,32 +1,25 @@
 "use client";
-import React from "react";
+import React, { cloneElement, isValidElement } from "react";
 import { Modal } from "./index";
-import Button from "@/components/ui/button/Button";
 import { CloseIcon } from "@/icons";
 
-interface FormModalProps<T = unknown> {
+interface FormModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
-  onSubmit?: (data?: T) => void;
-  submitText?: string;
-  cancelText?: string;
-  isLoading?: boolean;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  showHeader?: boolean;
   showFooter?: boolean;
 }
 
-export const FormModal = <T = unknown>({
+export const FormModal: React.FC<FormModalProps> = ({
   isOpen,
   onClose,
   title,
   children,
-  onSubmit,
-  submitText = "Save",
-  cancelText = "Cancel",
-  isLoading = false,
   size = "md",
+  showHeader = true,
   showFooter = true,
 }) => {
   const sizeClasses = {
@@ -34,56 +27,101 @@ export const FormModal = <T = unknown>({
     md: "max-w-lg",
     lg: "max-w-2xl",
     xl: "max-w-4xl",
+    "2xl": "max-w-6xl",
   };
+
+  // Function to extract form actions from children
+  const extractFormActions = (children: React.ReactNode): React.ReactNode[] => {
+    const actions: React.ReactNode[] = [];
+    
+    const findActions = (child: React.ReactNode): void => {
+      if (isValidElement(child)) {
+        // Look for elements with data-form-action attribute
+        if ((child.props as any)['data-form-action']) {
+          actions.push(child);
+          return;
+        }
+        
+        // Recursively search children
+        if ((child.props as any).children) {
+          if (Array.isArray((child.props as any).children)) {
+            (child.props as any).children.forEach(findActions);
+          } else {
+            findActions((child.props as any).children);
+          }
+        }
+      }
+    };
+
+    if (Array.isArray(children)) {
+      children.forEach(findActions);
+    } else {
+      findActions(children);
+    }
+
+    return actions;
+  };
+
+  // Function to remove form actions from children
+  const removeFormActions = (children: React.ReactNode): React.ReactNode => {
+    const removeActions = (child: React.ReactNode): React.ReactNode => {
+      if (isValidElement(child)) {
+        // Skip elements with data-form-action attribute
+        if ((child.props as any)['data-form-action']) {
+          return null;
+        }
+        
+        // Recursively process children
+        if ((child.props as any).children) {
+          const newChildren = Array.isArray((child.props as any).children)
+            ? (child.props as any).children.map(removeActions).filter(Boolean)
+            : removeActions((child.props as any).children);
+          
+          return cloneElement(child, {}, newChildren);
+        }
+      }
+      
+      return child;
+    };
+
+    if (Array.isArray(children)) {
+      return children.map(removeActions).filter(Boolean);
+    } else {
+      return removeActions(children);
+    }
+  };
+
+  const formActions = showFooter ? extractFormActions(children) : [];
+  const childrenWithoutActions = removeFormActions(children);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size as keyof typeof sizeClasses]}`}>
       <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl">
-        {/* <div className="relative bg-black  dark:bg-gray-900 rounded-lg shadow-xl"> */}
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {title}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-          >
-            <CloseIcon className="w-5 h-5" />
-          </button>
-        </div>
+        {showHeader && (
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              {title}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              aria-label="Close modal"
+            >
+              <CloseIcon className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="p-6">
-          {children}
+          {childrenWithoutActions}
         </div>
 
-        {/* Footer */}
-        {showFooter && (
+        {/* Footer - Render form actions from children */}
+        {showFooter && formActions.length > 0 && (
           <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
-            >
-              {cancelText}
-            </Button>
-            {onSubmit && (
-              <Button
-                onClick={onSubmit}
-                disabled={isLoading}
-                className="min-w-[100px]"
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
-                  </div>
-                ) : (
-                  submitText
-                )}
-              </Button>
-            )}
+            {formActions}
           </div>
         )}
       </div>

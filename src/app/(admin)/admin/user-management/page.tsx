@@ -2,26 +2,29 @@
 
 import { withAnyPrivilegeRBAC } from "@/components/auth/withRBACAuth";
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 
-import { FormModal } from "@/components/ui/modal/FormModal";
 import { UserForm, type UserFormData } from "@/components/forms/UserForm";
-import { useFormModal } from "@/hooks/useFormModal";
+import { FormModal } from "@/components/ui/modal/FormModal";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon } from "@/icons";
+import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon, InformationCircleIcon } from "@/icons";
 import { User } from "@/types/user";
 import { AccessControlDisplay } from "@/components/user/AccessControlDisplay";
 import Pagination from "@/components/tables/Pagination";
 import { userService } from "@/services/userService";
-import { CreateUserRequest, UserDetailResponse, UserListResponse } from "@/types/api";
+import { UserListResponseV2 } from "@/types/api";
+import { roleService } from "@/services/roleService";
+import { useRoles } from "@/hooks/useRoles";
+import moduleDefinitions from "@/config/modules.json";
 
 const columnHelper = createColumnHelper<User>();
 
 function AdminUserManagementPage() {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterLoading, setFilterLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
@@ -30,54 +33,29 @@ function AdminUserManagementPage() {
     pageSize: 10,
   });
 
-  const {
-    isOpen: isModalOpen,
-    isLoading: isModalLoading,
-    editingItem,
-    openModal,
-    closeModal,
-    setLoading: setModalLoading,
-  } = useFormModal<User>();
+  console.log('Component state:', { data, loading, filterLoading, globalFilter, roleFilter, statusFilter, pagination });
 
-  // Fetch users on component mount
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<User | null>(null);
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const response: UserListResponse = await userService.getUsers({
-        page: pagination.pageIndex + 1,
-        limit: pagination.pageSize,
-        search: globalFilter || undefined,
-        role: roleFilter || undefined,
-        status: statusFilter || undefined,
-      });
-      
-      // Transform API response to match our User type
-      const transformedUsers: User[] = response.data.map(apiUser => ({
-        id: apiUser.id.toString(),
-        firstName: apiUser.first_name,
-        lastName: apiUser.last_name,
-        email: apiUser.email,
-        role: (apiUser.role_id === 0 ? 2 : apiUser.role_id) as 1 | 2, // Map 0 to 2 (user), keep 1 as admin
-        status: apiUser.is_active ? "active" : "inactive",
-        lastLogin: apiUser.updated_on || apiUser.created_on,
-        createdAt: apiUser.created_on,
-        organisation_name: apiUser.organisation_name || "",
-        permissions: apiUser.role_details ? [apiUser.role_details.name] : [],
-        accessControl: getDefaultAccessControl(apiUser.role_id),
-      }));
-      
-      setData(transformedUsers);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast.error('Failed to fetch users');
-    } finally {
-      setLoading(false);
-    }
+  const openModal = (user?: User) => {
+    setEditingItem(user || null);
+    setIsModalOpen(true);
   };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingItem(null);
+  };
+
+  // Privileges modal state
+  const [isPrivilegesModalOpen, setIsPrivilegesModalOpen] = useState(false);
+  const [selectedUserPrivileges, setSelectedUserPrivileges] = useState<string[]>([]);
+  const [selectedUserName, setSelectedUserName] = useState("");
+  const [isLoadingPrivileges, setIsLoadingPrivileges] = useState(false);
+
+  // Get roles from Redux
+  const { roles } = useRoles();
 
   const getDefaultAccessControl = (roleId: number): string[] => {
     if (roleId === 1) {
@@ -113,51 +91,118 @@ function AdminUserManagementPage() {
     }
   };
 
-  const handleCreateUser = async (userData: CreateUserRequest) => {
+  // Helper function to get module info
+  const getModuleInfo = (moduleId: string) => {
+    return moduleDefinitions[moduleId as keyof typeof moduleDefinitions] || {
+      name: 'Unknown Module',
+      description: 'Module information not available',
+      color: 'gray'
+    };
+  };
+
+  // Function to open privileges modal for a user
+  const openPrivilegesModal = async (user: User) => {
+    console.log('🔍 Opening privileges modal for user:', user);
+    console.log('📊 User role:', user.role);
+    
+    setIsLoadingPrivileges(true);
+    
     try {
-      setModalLoading(true);
+      // Find the role for this user
+      const userRole = roles.find(role => role.id === user.role.toString());
+      console.log('📊 Found user role:', userRole);
       
-      // Call the user service to create user
-      const response = await userService.createUser(userData);
+      if (userRole) {
+        // Fetch privileges for this specific role
+        const rolePrivileges = await roleService.getPrivilegesByRole(parseInt(userRole.id));
+        console.log('📊 Role privileges response:', rolePrivileges);
+        console.log('📊 Role privileges results:', rolePrivileges.results);
+        
+        // Extract privilege names from the response
+        const privilegeNames = rolePrivileges.results?.map(p => p.privilege_name) || [];
+        console.log('📊 Extracted privilege names:', privilegeNames);
+        console.log('📊 Privilege names length:', privilegeNames.length);
+        
+        setSelectedUserPrivileges(privilegeNames);
+      } else {
+        console.log('⚠️ No role found for user, setting empty privileges');
+        setSelectedUserPrivileges([]);
+      }
       
-      toast.success('User created successfully');
-      
-      // Refresh the user list
-      await fetchUsers();
-      
-      // Close the modal
-      closeModal();
+      setSelectedUserName(`${user.firstName} ${user.lastName}`);
+      setIsPrivilegesModalOpen(true);
     } catch (error) {
-      console.error('Error creating user:', error);
-      toast.error('Failed to create user');
+      console.error('❌ Error fetching user privileges:', error);
+      toast.error('Failed to fetch user privileges');
+      // Fallback to empty privileges
+      setSelectedUserPrivileges([]);
+      setSelectedUserName(`${user.firstName} ${user.lastName}`);
+      setIsPrivilegesModalOpen(true);
     } finally {
-      setModalLoading(false);
+      setIsLoadingPrivileges(false);
     }
   };
 
-  const handleEditUser = async (userData: CreateUserRequest) => {
-    if (!editingItem) return;
-    
-    try {
-      setModalLoading(true);
-      
-      // Call the user service to update user
-      const response = await userService.updateUser(parseInt(editingItem.id), userData);
-      
-      toast.success('User updated successfully');
-      
-      // Refresh the user list
-      await fetchUsers();
-      
-      // Close the modal
-      closeModal();
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('Failed to update user');
-    } finally {
-      setModalLoading(false);
-    }
+  const closePrivilegesModal = () => {
+    setIsPrivilegesModalOpen(false);
+    setSelectedUserPrivileges([]);
+    setSelectedUserName("");
   };
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      setFilterLoading(true);
+      
+      // Build the request body for the new POST endpoint
+      const requestBody = {
+        page: pagination.pageIndex + 1,
+        page_size: pagination.pageSize,
+        first_name: globalFilter || undefined,
+        last_name: globalFilter || undefined,
+        email: globalFilter || undefined,
+        organisation_name: globalFilter || undefined,
+        role_name: roleFilter === 1 ? 'admin' : roleFilter === 2 ? 'user' : roleFilter === 3 ? 'manager' : undefined,
+        status: statusFilter !== null ? (statusFilter ? 1 : 0) : undefined,
+        export: false,
+      };
+      
+      const response = await userService.getUsers(requestBody);
+      
+      console.log('API Response:', response);
+      console.log('Response results:', response.results);
+      
+      // Transform API response to match our User type
+      const transformedUsers: User[] = response.results.map((apiUser: any) => ({
+        id: apiUser.id.toString(),
+        firstName: apiUser.first_name,
+        lastName: apiUser.last_name,
+        email: apiUser.email,
+        role: apiUser.is_superuser ? 1 : 2, // Map superuser to admin (1), others to user (2)
+        status: apiUser.status ? "active" : "inactive",
+        lastLogin: apiUser.last_login || apiUser.created_on,
+        createdAt: apiUser.created_on,
+        organisation_name: apiUser.organisation_name || "",
+        permissions: apiUser.role_data?.[0]?.role_name ? [apiUser.role_data[0].role_name] : [],
+        accessControl: getDefaultAccessControl(apiUser.is_superuser ? 1 : 2),
+      }));
+      
+      console.log('Transformed users:', transformedUsers);
+      setData(transformedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
+    } finally {
+      setLoading(false);
+      setFilterLoading(false);
+    }
+  }, [pagination.pageIndex, pagination.pageSize, globalFilter, roleFilter, statusFilter]);
+
+  // Fetch users on component mount and when filters change
+  useEffect(() => {
+    console.log('useEffect triggered with:', { pagination, globalFilter, roleFilter, statusFilter });
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleDeleteUser = async (userId: string) => {
     if (!window.confirm('Are you sure you want to delete this user?')) {
@@ -178,31 +223,20 @@ function AdminUserManagementPage() {
     }
   };
 
-  const handleSubmit = async (userData: CreateUserRequest) => {
-    if (editingItem) {
-      await handleEditUser(userData);
-    } else {
-      await handleCreateUser(userData);
-    }
+  const handleClearFilters = () => {
+    setGlobalFilter("");
+    setRoleFilter(null);
+    setStatusFilter(null);
+    setPagination(prev => ({ ...prev, pageIndex: 0 }));
   };
 
   // Filter data based on search and filters
   const filteredData = useMemo(() => {
-    return data.filter(item => {
-      const matchesSearch = globalFilter === "" || 
-        item.firstName.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.lastName.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.email.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        (item.organisation_name || "").toLowerCase().includes(globalFilter.toLowerCase());
-      
-      const matchesRole = roleFilter === null || item.role === roleFilter;
-      const matchesStatus = statusFilter === null || 
-        (statusFilter === true && item.status === "active") ||
-        (statusFilter === false && item.status === "inactive");
-      
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [data, globalFilter, roleFilter, statusFilter]);
+    // Since we're now filtering on the server side, we can just return the data
+    // The API will handle the filtering based on the request body
+    console.log('Filtered data:', data);
+    return data;
+  }, [data]);
 
   // Define columns inside the component to access the handler functions
   const columns = useMemo(() => [
@@ -313,7 +347,16 @@ function AdminUserManagementPage() {
     columnHelper.accessor("accessControl", {
       header: "Access Control",
       cell: (info) => (
-        <AccessControlDisplay accessControl={info.getValue()} />
+        <div className="flex items-center gap-2">
+          <AccessControlDisplay accessControl={info.getValue()} />
+          <button
+            onClick={() => openPrivilegesModal(info.row.original)}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer group flex items-center gap-1"
+          >
+            <InformationCircleIcon className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-xs">View Privileges</span>
+          </button>
+        </div>
       ),
     }),
     columnHelper.display({
@@ -357,6 +400,9 @@ function AdminUserManagementPage() {
     onPaginationChange: setPagination,
   });
 
+  console.log('Table data:', filteredData);
+  console.log('Table rows:', table.getRowModel().rows);
+
   // Calculate stats
   const stats = useMemo(() => {
     const total = data.length;
@@ -385,6 +431,25 @@ function AdminUserManagementPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
+            <p className="text-sm text-gray-500">Debug: Loading state active</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Add a check for when data is loaded but empty
+  if (!loading && data.length === 0) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-gray-500 text-6xl mb-4">📭</div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">No Users Found</h2>
+            <p className="text-gray-600 mb-4">No users were loaded from the API.</p>
+            <Button onClick={() => fetchUsers()} className="bg-blue-600 hover:bg-blue-700">
+              Retry
+            </Button>
           </div>
         </div>
       </div>
@@ -465,12 +530,21 @@ function AdminUserManagementPage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Search Users
             </label>
-            <Input
-              placeholder="Search by name, email, or organization..."
-              value={globalFilter}
-              onChange={(e) => setGlobalFilter(e.target.value)}
-              className="w-full"
-            />
+            <div className="flex">
+              <Input
+                placeholder="Search by name, email, or organization..."
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="w-full rounded-r-none"
+              />
+              <Button 
+                onClick={() => fetchUsers()} 
+                size="sm" 
+                className="rounded-l-none px-4"
+              >
+                Search
+              </Button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -502,6 +576,9 @@ function AdminUserManagementPage() {
             </select>
           </div>
           <div className="flex items-end space-x-2">
+            <Button onClick={handleClearFilters} size="sm" variant="outline">
+              Clear Filters
+            </Button>
             <Button onClick={handleExport} size="sm" variant="outline">
               <DownloadIcon className="w-4 h-4 mr-2" />
               Export
@@ -510,12 +587,33 @@ function AdminUserManagementPage() {
               <PlusIcon className="w-4 h-4 mr-2" />
               Add User
             </Button>
+            {filterLoading && (
+              <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                Loading...
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
+        {filterLoading && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 dark:text-gray-400">Applying filters...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Debug info */}
+        <div className="p-4 bg-gray-100 dark:bg-gray-700 text-sm">
+          <p>Debug: Data length: {data.length}, Filtered data length: {filteredData.length}</p>
+          <p>Loading: {loading.toString()}, Filter Loading: {filterLoading.toString()}</p>
+        </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
@@ -538,15 +636,23 @@ function AdminUserManagementPage() {
               ))}
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    {loading ? 'Loading...' : 'No users found'}
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -556,17 +662,17 @@ function AdminUserManagementPage() {
       {filteredData.length > 0 && (
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-gray-700 dark:text-gray-300">
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+            Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
             {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
+              (pagination.pageIndex + 1) * pagination.pageSize,
+              filteredData.length
             )}{" "}
-            of {table.getFilteredRowModel().rows.length} results
+            of {filteredData.length} results
           </div>
           <Pagination
-            currentPage={table.getState().pagination.pageIndex + 1}
-            totalPages={table.getPageCount()}
-            onPageChange={(page) => table.setPageIndex(page - 1)}
+            currentPage={pagination.pageIndex + 1}
+            totalPages={Math.ceil(filteredData.length / pagination.pageSize)}
+            onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
           />
         </div>
       )}
@@ -579,26 +685,111 @@ function AdminUserManagementPage() {
         </div>
       )}
 
-      {/* Form Modal */}
+      {/* FormModal Wrapper for User Form */}
       <FormModal
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingItem ? "Edit User" : "Add New User"}
-        isLoading={isModalLoading}
         size="lg"
-        showFooter={false}
-        onSubmit={() => {}} // Dummy onSubmit since we're handling form submission in UserForm
+        showHeader={true}
+        showFooter={true}
       >
         <UserForm
           initialData={editingItem || undefined}
-          onSubmit={handleSubmit}
+          onSuccess={() => {
+            closeModal();
+            fetchUsers(); // Refresh the user list
+          }}
           onCancel={closeModal}
-          isLoading={isModalLoading}
+          isEditing={!!editingItem}
         />
-      </FormModal>
-    </div>
-  );
-}
+              </FormModal>
+
+        {/* Privileges Modal */}
+        <FormModal
+          isOpen={isPrivilegesModalOpen}
+          onClose={closePrivilegesModal}
+          title={`Privileges for ${selectedUserName}`}
+          size="2xl"
+          showHeader={true}
+          showFooter={false}
+        >
+          <div className="space-y-4">
+            {isLoadingPrivileges ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Loading privileges...</p>
+              </div>
+            ) : (
+              <div key="privileges-content">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  This user has <span className="font-medium text-blue-600">{selectedUserPrivileges.length}</span> privileges assigned through their role.
+                </div>
+                
+                {selectedUserPrivileges.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Group privileges by module */}
+                    {(() => {
+                      // Group privileges by module using the privileges data
+                      const moduleGroups: Record<string, string[]> = {};
+                      
+                      console.log('🔍 Grouping user privileges:', {
+                        selectedUserPrivileges,
+                        rolesData: roles
+                      });
+                      
+                      // For now, show privileges as ungrouped list since we don't have module data
+                      // In a real implementation, you might want to fetch privilege details with module info
+                      
+                      return (
+                        <div key="ungrouped" className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                            <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                              All Privileges ({selectedUserPrivileges.length})
+                            </h4>
+                          </div>
+                          <div className="p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {selectedUserPrivileges.map((privilege) => (
+                                <div
+                                  key={`ungrouped-${privilege}`}
+                                  className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
+                                >
+                                  <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                  <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                    {privilege}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <InformationCircleIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                    <p>No privileges assigned to this user.</p>
+                    <p className="text-sm mt-1">Privileges are inherited from the user's role.</p>
+                  </div>
+                )}
+                
+                <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Button
+                    variant="outline"
+                    onClick={closePrivilegesModal}
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </FormModal>
+      </div>
+    );
+  }
 
 export default withAnyPrivilegeRBAC(AdminUserManagementPage, [
   "VIEW_USER_LIST", 

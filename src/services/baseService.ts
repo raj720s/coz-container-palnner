@@ -120,6 +120,7 @@ export abstract class BaseService {
     
     // Handle axios request errors
     if (error.request && !error.response) {
+      console.log(error.request);
       return new Error('Network error: No response received');
     }
     

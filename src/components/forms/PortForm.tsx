@@ -13,9 +13,10 @@ const portSchema = z.object({
   code: z.string().min(1, "Port code is required"),
   name: z.string().min(1, "Port name is required"),
   country: z.string().min(1, "Country is required"),
-  region: z.string().min(1, "Region is required"),
+  city: z.string().min(1, "City is required"),
+  timezone: z.string().min(1, "Timezone is required"),
   type: z.enum(["POL", "POD"], { required_error: "Port type is required" }),
-  isActive: z.boolean(),
+  is_active: z.boolean(),
 });
 
 export type PortFormData = z.infer<typeof portSchema>;
@@ -48,13 +49,14 @@ export const PortForm: React.FC<PortFormProps> = ({
       code: "",
       name: "",
       country: "",
-      region: "",
+      city: "",
+      timezone: "",
       type: portType || "POL",
-      isActive: true,
+      is_active: true,
     },
   });
 
-  const isActive = watch("isActive");
+  const isActive = watch("is_active");
   const isEditing = !!initialData;
   const currentPortType = watch("type");
 
@@ -66,9 +68,10 @@ export const PortForm: React.FC<PortFormProps> = ({
         code: "",
         name: "",
         country: "",
-        region: "",
+        city: "",
+        timezone: "",
         type: portType || "POL",
-        isActive: true,
+        is_active: true,
       });
     }
   }, [initialData, reset, portType]);
@@ -82,14 +85,33 @@ export const PortForm: React.FC<PortFormProps> = ({
     { value: "POD", label: "Port of Discharge" },
   ];
 
-  const regionOptions = [
-    { value: "Asia Pacific", label: "Asia Pacific" },
-    { value: "Europe", label: "Europe" },
-    { value: "North America", label: "North America" },
-    { value: "South America", label: "South America" },
-    { value: "Africa", label: "Africa" },
-    { value: "Middle East", label: "Middle East" },
-    { value: "Oceania", label: "Oceania" },
+  const timezoneOptions = [
+    { value: "UTC", label: "UTC" },
+    { value: "UTC+01:00", label: "UTC+01:00 (CET)" },
+    { value: "UTC+02:00", label: "UTC+02:00 (EET)" },
+    { value: "UTC+03:00", label: "UTC+03:00 (MSK)" },
+    { value: "UTC+04:00", label: "UTC+04:00 (GST)" },
+    { value: "UTC+05:00", label: "UTC+05:00" },
+    { value: "UTC+05:30", label: "UTC+05:30 (IST)" },
+    { value: "UTC+06:00", label: "UTC+06:00" },
+    { value: "UTC+07:00", label: "UTC+07:00 (ICT)" },
+    { value: "UTC+08:00", label: "UTC+08:00 (CST)" },
+    { value: "UTC+09:00", label: "UTC+09:00 (JST)" },
+    { value: "UTC+10:00", label: "UTC+10:00 (AEST)" },
+    { value: "UTC+11:00", label: "UTC+11:00" },
+    { value: "UTC+12:00", label: "UTC+12:00 (NZST)" },
+    { value: "UTC-01:00", label: "UTC-01:00" },
+    { value: "UTC-02:00", label: "UTC-02:00" },
+    { value: "UTC-03:00", label: "UTC-03:00" },
+    { value: "UTC-04:00", label: "UTC-04:00 (AST)" },
+    { value: "UTC-05:00", label: "UTC-05:00 (EST)" },
+    { value: "UTC-06:00", label: "UTC-06:00 (CST)" },
+    { value: "UTC-07:00", label: "UTC-07:00 (MST)" },
+    { value: "UTC-08:00", label: "UTC-08:00 (PST)" },
+    { value: "UTC-09:00", label: "UTC-09:00" },
+    { value: "UTC-10:00", label: "UTC-10:00" },
+    { value: "UTC-11:00", label: "UTC-11:00" },
+    { value: "UTC-12:00", label: "UTC-12:00" },
   ];
 
   const countryOptions = [
@@ -204,21 +226,29 @@ export const PortForm: React.FC<PortFormProps> = ({
           )}
         </div>
         <div>
-          <Label>Region *</Label>
-          <Select
-            options={regionOptions}
-            placeholder="Select region"
-            value={watch("region")}
-            onChange={(value) => setValue("region", value)}
-            className={errors.region ? "border-red-500" : ""}
+          <Label>City *</Label>
+          <Input
+            placeholder="e.g., Shanghai, Los Angeles, Rotterdam"
+            {...register("city")}
+            error={errors.city?.message}
           />
-          {errors.region && (
-            <p className="mt-1.5 text-xs text-red-500">{errors.region.message}</p>
-          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <Label>Timezone *</Label>
+          <Select
+            options={timezoneOptions}
+            placeholder="Select timezone"
+            value={watch("timezone")}
+            onChange={(value) => setValue("timezone", value)}
+            className={errors.timezone ? "border-red-500" : ""}
+          />
+          {errors.timezone && (
+            <p className="mt-1.5 text-xs text-red-500">{errors.timezone.message}</p>
+          )}
+        </div>
         <div>
           <Label>Port Type *</Label>
           <Select
@@ -233,18 +263,19 @@ export const PortForm: React.FC<PortFormProps> = ({
             <p className="mt-1.5 text-xs text-red-500">{errors.type.message}</p>
           )}
         </div>
-        <div className="flex items-center gap-3 pt-6">
-          <Checkbox
-            {...register("isActive")}
-            checked={isActive}
-            onChange={(e) => setValue("isActive", e.target.checked)}
-          />
-          <Label className="text-sm">Active</Label>
-        </div>
       </div>
 
-      {errors.isActive && (
-        <p className="text-xs text-red-500">{errors.isActive.message}</p>
+      <div className="flex items-center gap-3 pt-6">
+        <Checkbox
+          {...register("is_active")}
+          checked={isActive}
+          onChange={(e) => setValue("is_active", e.target.checked)}
+        />
+        <Label className="text-sm">Active</Label>
+      </div>
+
+      {errors.is_active && (
+        <p className="text-xs text-red-500">{errors.is_active.message}</p>
       )}
 
       {/* Form Actions */}

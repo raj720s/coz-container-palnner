@@ -10,6 +10,7 @@ export interface User {
   role_id: number;
   is_superuser: boolean;
   is_active?: boolean;
+  status?: boolean;
   created_on?: string;
   updated_on?: string;
   phone_number?: string | null;
@@ -103,8 +104,11 @@ const authSlice = createSlice({
           last_name: apiData.last_name || state.user.last_name,
           email: apiData.email || state.user.email,
           organisation_name: apiData.organisation_name || state.user.organisation_name,
+          role: apiData.role || state.user.role,
           role_id: apiData.role_id || state.user.role_id,
           is_superuser: apiData.is_superuser !== undefined ? apiData.is_superuser : state.user.is_superuser,
+          status: apiData.status !== undefined ? apiData.status : state.user.status,
+          created_on: apiData.created_on || state.user.created_on,
           phone_number: apiData.phone_number !== undefined ? apiData.phone_number : state.user.phone_number,
           country_code: apiData.country_code !== undefined ? apiData.country_code : state.user.country_code,
           country: apiData.country !== undefined ? apiData.country : state.user.country,

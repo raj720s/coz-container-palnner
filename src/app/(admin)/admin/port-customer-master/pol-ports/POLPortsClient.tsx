@@ -16,44 +16,81 @@ import {
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
+import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
-import { dataService, type POLPort } from "@/utils/dataService";
 import { withRouteAuth } from "@/components/auth/withAuth";
 import Pagination from "@/components/tables/Pagination";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import {
+  fetchPOLs,
+  createPOL,
+  updatePOL,
+  deletePOL,
+  exportPOLs,
+  selectPOLs,
+  selectPOLsLoading,
+  selectPOLsError,
+  selectPOLsTotal,
+  clearError,
+} from "@/store/slices/polSlice";
+import {
+  useGetPOLsQuery,
+  useCreatePOLMutation,
+  useUpdatePOLMutation,
+  useDeletePOLMutation,
+} from "@/store/api/apiSlice";
+import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
 
-const columnHelper = createColumnHelper<POLPort>();
+const columnHelper = createColumnHelper<POLResponse>();
 
 function POLPortsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
+  const dispatch = useDispatch<AppDispatch>();
   
-  // POL Ports data
-  const [polPorts, setPolPorts] = useState<POLPort[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  // Load POL ports from data service on component mount
-  useEffect(() => {
-    loadPOLPorts();
-  }, []);
-
-  const loadPOLPorts = async () => {
-    try {
-      setLoading(true);
-      const data = await dataService.getPOLPorts();
-      setPolPorts(data);
-    } catch (error) {
-      console.error('Error loading POL ports:', error);
-      toast.error('Failed to load POL ports');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Local state for filtering and pagination
+  const [filters, setFilters] = useState<POLListRequest>({
+    page: 1,
+    page_size: 10,
+    order_by: "created_on",
+    order_type: "desc"
+  });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
+
+  // Redux state
+  const pols = useSelector(selectPOLs);
+  const loading = useSelector(selectPOLsLoading);
+  const error = useSelector(selectPOLsError);
+  const total = useSelector(selectPOLsTotal);
+
+  // RTK Query hooks (alternative approach)
+  // const { data: polsRTK, isLoading: loadingRTK, error: errorRTK } = useGetPOLsQuery(filters);
+  const [createPOLMutation] = useCreatePOLMutation();
+  const [updatePOLMutation] = useUpdatePOLMutation();
+  const [deletePOLMutation] = useDeletePOLMutation();
+
+  // Load POL ports on component mount and when filters change
+  useEffect(() => {
+    dispatch(fetchPOLs(filters));
+  }, [dispatch, filters]);
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        dispatch(clearError());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, dispatch]);
 
   const {
     isOpen: isModalOpen,
@@ -62,14 +99,18 @@ function POLPortsPage() {
     openModal,
     closeModal,
     setLoading: setModalLoading,
-  } = useFormModal<POLPort>();
+  } = useFormModal<POLResponse>();
 
   // Auto-open modal if action=add
   useEffect(() => {
     if (action === 'add') {
       openModal(undefined);
+      // Clear the URL parameter
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('action');
+      router.replace(`?${newSearchParams.toString()}`);
     }
-  }, [action, openModal]);
+  }, [action, openModal, router, searchParams]);
 
   const columns = useMemo(() => [
     columnHelper.accessor("code", { 
@@ -126,13 +167,13 @@ function POLPortsPage() {
       ),
       cell: (info) => info.getValue() 
     }),
-    columnHelper.accessor("region", { 
+    columnHelper.accessor("city", { 
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Region
+          City
           {column.getIsSorted() === "asc" ? (
             <ChevronUpIcon className="w-4 h-4" />
           ) : column.getIsSorted() === "desc" ? (
@@ -148,7 +189,15 @@ function POLPortsPage() {
         </span>
       )
     }),
-    columnHelper.accessor("isActive", {
+    columnHelper.accessor("timezone", { 
+      header: "Timezone",
+      cell: (info) => (
+        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("is_active", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -174,7 +223,7 @@ function POLPortsPage() {
         </span>
       ),
     }),
-    columnHelper.accessor("createdAt", {
+    columnHelper.accessor("created_on", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -192,7 +241,7 @@ function POLPortsPage() {
       ),
       cell: (info) => (
         <span className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue()).toLocaleDateString()}
+          {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
         </span>
       ),
     }),
@@ -212,7 +261,7 @@ function POLPortsPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleDelete(info.row.original.id)}
+            onClick={() => handleDeleteClick(info.row.original)}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -223,16 +272,16 @@ function POLPortsPage() {
   ], [openModal]);
 
   const filteredData = useMemo(() => {
-    return polPorts.filter(item => {
+    return pols.filter(item => {
       const matchesSearch =
         item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.region.toLowerCase().includes(globalFilter.toLowerCase());
+        item.city.toLowerCase().includes(globalFilter.toLowerCase());
 
       return matchesSearch;
     });
-  }, [polPorts, globalFilter]);
+  }, [pols, globalFilter]);
 
   const table = useReactTable({
     data: filteredData,
@@ -245,22 +294,39 @@ function POLPortsPage() {
       sorting,
     },
     onSortingChange: setSorting,
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
   });
 
   const handleAddNew = () => {
     openModal(undefined);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this POL port?')) {
-      try {
-        await dataService.deletePOLPort(id);
-        await loadPOLPorts();
-        toast.success('POL port deleted successfully');
-      } catch (error) {
-        console.error('Error deleting POL port:', error);
-        toast.error('Failed to delete POL port');
-      }
+  const handleDeleteClick = (pol: POLResponse) => {
+    setDeletingItem(pol);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingItem) return;
+
+    try {
+      setModalLoading(true);
+      await dispatch(deletePOL(deletingItem.id)).unwrap();
+      toast.success('POL port deleted successfully');
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      
+      // Refresh the list
+      dispatch(fetchPOLs(filters));
+    } catch (error: any) {
+      console.error('Error deleting POL port:', error);
+      toast.error(error.message || 'Failed to delete POL port');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -268,27 +334,96 @@ function POLPortsPage() {
     try {
       setModalLoading(true);
       
+      // Convert form data to API format
+      const polData: CreatePOLRequest | UpdatePOLRequest = {
+        name: formData.name,
+        code: formData.code,
+        country: formData.country,
+        city: formData.city,
+        timezone: formData.timezone,
+        is_active: formData.is_active,
+      };
+      
       if (editingItem) {
+        console.log("editingItem", editingItem);
         // Update existing port
-        await dataService.updatePOLPort(editingItem.id, formData);
+        await dispatch(updatePOL({ id: editingItem.id, polData })).unwrap();
         toast.success('POL port updated successfully');
       } else {
         // Create new port
-        await dataService.createPOLPort(formData);
+        await dispatch(createPOL(polData as CreatePOLRequest)).unwrap();
         toast.success('POL port created successfully');
       }
       
-      await loadPOLPorts();
+      // Refresh the list
+      dispatch(fetchPOLs(filters));
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving POL port:', error);
-      toast.error('Failed to save POL port');
+      toast.error(error.message || 'Failed to save POL port');
     } finally {
       setModalLoading(false);
     }
   };
 
-  if (loading) {
+  const handleExport = async () => {
+    try {
+      const exportData = await dispatch(exportPOLs({
+        ...filters,
+        export: true,
+        page_size: 1000
+      })).unwrap();
+      
+      // Create CSV content
+      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status', 'Created On'];
+      const csvRows = [
+        headers.join(','),
+        ...exportData.map(pol => [
+          pol.code,
+          pol.name,
+          pol.country,
+          pol.city,
+          pol.timezone,
+          pol.is_active ? 'Active' : 'Inactive',
+          pol.created_on ? new Date(pol.created_on).toLocaleDateString() : 'N/A'
+        ].join(','))
+      ];
+      
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `pol_ports_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('POL ports exported successfully');
+    } catch (error: any) {
+      console.error('Error exporting POL ports:', error);
+      toast.error('Failed to export POL ports');
+    }
+  };
+
+  const handleFilterChange = (newFilters: Partial<POLListRequest>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  const handlePageChange = (page: number) => {
+    handleFilterChange({ page });
+  };
+
+  const handleSearch = (searchTerm: string) => {
+    setGlobalFilter(searchTerm);
+    handleFilterChange({ 
+      name: searchTerm,
+      page: 1 
+    });
+  };
+
+  if (loading && pols.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -311,44 +446,64 @@ function POLPortsPage() {
         </p>
       </div>
 
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Total POL Ports</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{polPorts.length}</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Active Ports</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {polPorts.filter(p => p.isActive).length}
+            {pols.filter(p => p.is_active).length}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(polPorts.map(p => p.country)).size}
+            {new Set(pols.map(p => p.country)).size}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Regions</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Cities</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(polPorts.map(p => p.region)).size}
+            {new Set(pols.map(p => p.city)).size}
           </div>
         </div>
       </div>
 
       {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
-      <div className="flex-1">
-        <Input
-          placeholder="Search ports by code, name, country, or region..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
+        <div className="flex-1">
+          <Input
+            placeholder="Search ports by code, name, country, or city..."
+            value={globalFilter}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="max-w-md"
+          />
+        </div>
 
         <div className="flex gap-3">
+          <Button onClick={handleExport} size="sm" variant="outline">
+            <DownloadIcon className="w-4 h-4 mr-2" />
+            Export
+          </Button>
           <Button onClick={handleAddNew} size="sm">
             <PlusIcon className="w-4 h-4 mr-2" />
             Add POL Port
@@ -414,7 +569,7 @@ function POLPortsPage() {
         />
       </div>
 
-      {filteredData.length === 0 && (
+      {filteredData.length === 0 && !loading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No POL ports found matching your search criteria.
         </div>
@@ -423,24 +578,39 @@ function POLPortsPage() {
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
-        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit POL Port" : "Add New POL Port"}
-        isLoading={isModalLoading}
       >
         <PortForm
           initialData={editingItem ? {
             code: editingItem.code,
             name: editingItem.name,
             country: editingItem.country,
-            region: editingItem.region,
+            city: editingItem.city,
+            timezone: editingItem.timezone,
             type: "POL" as const,
-            isActive: editingItem.isActive
+            is_active: editingItem.is_active
           } : undefined}
           onSubmit={handleSubmit}
           portType="POL"
+          isLoading={isModalLoading}
         />
       </FormModal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeletingItem(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete POL Port"
+        message={`Are you sure you want to delete the POL port "${deletingItem?.name}" (${deletingItem?.code})? This action cannot be undone.`}
+        itemName={deletingItem?.name}
+        isLoading={isModalLoading}
+        variant="danger"
+      />
     </div>
   );
 }

@@ -348,7 +348,7 @@ const AppSidebar: React.FC = () => {
 
     // If no submenu item matches, keep existing open submenus
     // (don't close them automatically)
-  }, [pathname, isActive, filteredNavItems]);
+  }, [pathname, isActive,]);
 
   return (
     <aside

@@ -6,6 +6,7 @@ import { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import { FormModal } from "@/components/ui/modal/FormModal";
+import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon, EyeIcon, InformationCircleIcon } from "@/icons";
@@ -13,6 +14,7 @@ import Pagination from "@/components/tables/Pagination";
 import { roleService } from "@/services/roleService";
 import { RoleResponse, CreateRoleRequest, UpdateRoleRequest, PrivilegeResponse } from "@/services/roleService";
 import { RoleForm } from "@/components/forms/RoleForm";
+import { useRoles } from "@/hooks/useRoles";
 import moduleDefinitions from "@/config/modules.json";
 
 const columnHelper = createColumnHelper<RoleResponse>();
@@ -29,9 +31,10 @@ const getModuleInfo = (moduleId: string) => {
 };
 
 function AdminRoleManagementPage() {
-  const [data, setData] = useState<RoleResponse[]>([]);
+  // Use the useRoles hook to get roles from Redux state
+  const { roles, loading, error, refreshRoles } = useRoles();
+  
   const [privileges, setPrivileges] = useState<PrivilegeResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -51,42 +54,26 @@ function AdminRoleManagementPage() {
   const [isPrivilegesModalOpen, setIsPrivilegesModalOpen] = useState(false);
   const [selectedRolePrivileges, setSelectedRolePrivileges] = useState<string[]>([]);
   const [selectedRoleName, setSelectedRoleName] = useState("");
+  const [isLoadingPrivileges, setIsLoadingPrivileges] = useState(false);
 
-  // Fetch roles and privileges on component mount
+  // Delete modal state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState<RoleResponse | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Fetch privileges on component mount
   useEffect(() => {
-    fetchRoles();
     fetchPrivileges();
   }, []);
 
   // Refetch roles when filters change
   useEffect(() => {
     if (!loading) {
-      fetchRoles();
+      // Filter roles locally since they're already in Redux state
+      // The useRoles hook handles fetching from API
     }
-  }, [globalFilter, pagination.pageIndex, pagination.pageSize]);
-
-  const fetchRoles = async () => {
-    try {
-      setLoading(true);
-      
-      const response = await roleService.getRoles({
-        page: pagination.pageIndex + 1,
-        page_size: pagination.pageSize,
-        role_name: globalFilter || undefined,
-        include_privilege_data: true,
-        order_by: 'created_on',
-        order_type: 'desc'
-      });
-      
-      console.log('Roles API response:', response); // Debug log
-      setData(response.results);
-    } catch (error) {
-      console.error('Error fetching roles:', error);
-      toast.error('Failed to fetch roles');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [globalFilter, pagination.pageIndex, pagination.pageSize, loading]);
 
   const fetchPrivileges = async () => {
     try {
@@ -96,7 +83,15 @@ function AdminRoleManagementPage() {
         order_by: 'privilege_name',
         order_type: 'asc'
       });
-      console.log('Privileges API response:', response); // Debug log
+      console.log('🔍 Privileges API response:', response);
+      console.log('📊 Response structure:', {
+        count: response.count,
+        resultsType: typeof response.results,
+        resultsIsArray: Array.isArray(response.results),
+        resultsLength: response.results?.length,
+        firstItem: response.results?.[0],
+        sampleResults: response.results?.slice(0, 3)
+      });
       setPrivileges(response);
     } catch (error) {
       console.error('Error fetching privileges:', error);
@@ -113,7 +108,7 @@ function AdminRoleManagementPage() {
       toast.success('Role created successfully');
       
       // Refresh the role list
-      await fetchRoles();
+      refreshRoles();
       
       // Close the modal
       closeModal();
@@ -136,7 +131,7 @@ function AdminRoleManagementPage() {
       toast.success('Role updated successfully');
       
       // Refresh the role list
-      await fetchRoles();
+      refreshRoles();
       
       // Close the modal
       closeModal();
@@ -149,20 +144,60 @@ function AdminRoleManagementPage() {
   };
 
   const handleDeleteRole = async (roleId: string) => {
-    if (!window.confirm('Are you sure you want to delete this role?')) {
-      return;
+    // Find the role by ID to show in the delete modal
+    const role = roles.find(r => r.id === roleId);
+    if (role) {
+      openDeleteModal(role);
     }
-    
+  };
+
+  const confirmDeleteRole = async () => {
+    if (!roleToDelete) return;
+
     try {
-      await roleService.deleteRole(roleId);
+      setIsDeleting(true);
+      console.log('🚀 Deleting role:', roleToDelete);
       
-      toast.success('Role deleted successfully');
+      const result = await roleService.deleteRole(roleToDelete.id);
+      console.log('✅ Delete result:', result);
       
-      // Refresh the role list
-      await fetchRoles();
-    } catch (error) {
-      console.error('Error deleting role:', error);
-      toast.error('Failed to delete role');
+      if (result.success) {
+        toast.success(`Role "${roleToDelete.role_name}" deleted successfully`);
+        setDeleteError(null); // Clear any errors on success
+        closeDeleteModal();
+        // Refresh the roles list
+        await refreshRoles();
+      } else {
+        // Handle service response error - result only has success boolean
+        const errorMessage = 'Failed to delete role';
+        setDeleteError(errorMessage);
+        toast.error(errorMessage);
+        console.error('❌ Service error response:', result);
+      }
+    } catch (error: any) {
+      console.error('❌ Error deleting role:', error);
+      
+      // Extract error message from different error types
+      let errorMessage = 'Failed to delete role';
+      
+      if (error.response?.data?.message) {
+        // API error response
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        // API error response with error field
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        // JavaScript error
+        errorMessage = error.message;
+      } else if (error.statusText) {
+        // HTTP status text
+        errorMessage = error.statusText;
+      }
+      
+      setDeleteError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -176,10 +211,43 @@ function AdminRoleManagementPage() {
     }
   };
 
-  const openPrivilegesModal = (role: RoleResponse) => {
-    setSelectedRolePrivileges(role.privilege_names || []);
-    setSelectedRoleName(role.role_name);
-    setIsPrivilegesModalOpen(true);
+  const openPrivilegesModal = async (role: RoleResponse) => {
+    console.log('🔍 Opening privileges modal for role:', role);
+    console.log('📊 Role ID:', role.id);
+    
+    setIsLoadingPrivileges(true);
+    
+    try {
+      // Fetch privileges for this specific role
+      const rolePrivileges = await roleService.getPrivilegesByRole(parseInt(role.id));
+      console.log('📊 Role privileges response:', rolePrivileges);
+      console.log('📊 Role privileges results:', rolePrivileges.results);
+      
+      // Extract privilege names from the response
+      const privilegeNames = rolePrivileges.results?.map(p => p.privilege_name) || [];
+      console.log('📊 Extracted privilege names:', privilegeNames);
+      console.log('📊 Privilege names length:', privilegeNames.length);
+      
+      // If no privileges found for this role, try to show available privileges
+      if (privilegeNames.length === 0) {
+        console.log('⚠️ No privileges found for this role, showing available privileges');
+        // For now, show empty privileges - in a real app, you might want to show
+        // all available privileges that could be assigned to this role
+      }
+      
+      setSelectedRolePrivileges(privilegeNames);
+      setSelectedRoleName(role.role_name);
+      setIsPrivilegesModalOpen(true);
+    } catch (error) {
+      console.error('❌ Error fetching role privileges:', error);
+      toast.error('Failed to fetch role privileges');
+      // Fallback to empty privileges
+      setSelectedRolePrivileges([]);
+      setSelectedRoleName(role.role_name);
+      setIsPrivilegesModalOpen(true);
+    } finally {
+      setIsLoadingPrivileges(false);
+    }
   };
 
   const closePrivilegesModal = () => {
@@ -188,16 +256,29 @@ function AdminRoleManagementPage() {
     setSelectedRoleName("");
   };
 
+  // Delete role functions
+  const openDeleteModal = (role: RoleResponse) => {
+    setRoleToDelete(role);
+    setIsDeleteModalOpen(true);
+    setDeleteError(null); // Clear any previous errors
+  };
+
+  const closeDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setRoleToDelete(null);
+    setDeleteError(null); // Clear errors when closing
+  };
+
   // Filter data based on search
   const filteredData = useMemo(() => {
-    return data.filter(item => {
+    return roles.filter(item => {
       const matchesSearch = globalFilter === "" || 
         item.role_name.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.role_description.toLowerCase().includes(globalFilter.toLowerCase());
       
       return matchesSearch;
     });
-  }, [data, globalFilter]);
+  }, [roles, globalFilter]);
 
   // Define columns
   const columns = useMemo(() => [
@@ -237,7 +318,7 @@ function AdminRoleManagementPage() {
         </div>
       ),
     }),
-    columnHelper.accessor("privilege_names", {
+    columnHelper.accessor("id", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -255,7 +336,7 @@ function AdminRoleManagementPage() {
           className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer group"
         >
           <div className="flex items-center gap-2">
-            <span className="font-medium">{info.getValue()?.length || 0}</span>
+            <span className="font-medium">View</span>
             <span>privileges</span>
             <InformationCircleIcon className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
           </div>
@@ -360,7 +441,7 @@ function AdminRoleManagementPage() {
         </div>
       ),
     }),
-  ], [openModal, handleDeleteRole]);
+  ], [openModal, handleDeleteRole, openPrivilegesModal]);
 
   const table = useReactTable({
     data: filteredData,
@@ -379,8 +460,8 @@ function AdminRoleManagementPage() {
 
   // Calculate stats
   const stats = useMemo(() => {
-    const total = data.length;
-    const active = data.filter(role => role.is_active).length;
+    const total = roles.length;
+    const active = roles.filter(role => role.is_active).length;
     
     // Calculate total privileges - handle different response structures
     let totalPrivileges = 0;
@@ -397,7 +478,7 @@ function AdminRoleManagementPage() {
     }
 
     return { total, active, totalPrivileges };
-  }, [data, privileges]);
+  }, [roles, privileges]);
 
   const handleAddNew = () => {
     openModal();
@@ -420,6 +501,23 @@ function AdminRoleManagementPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600 dark:text-gray-400">Loading roles...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Roles</h2>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={refreshRoles} className="bg-blue-600 hover:bg-blue-700">
+              Try Again
+            </Button>
           </div>
         </div>
       </div>
@@ -561,10 +659,9 @@ function AdminRoleManagementPage() {
          isOpen={isModalOpen}
          onClose={closeModal}
          title={editingItem ? "Edit Role" : "Add New Role"}
-         isLoading={isModalLoading}
          size="lg"
-         showFooter={false}
-         onSubmit={() => {}} // Dummy onSubmit since we're handling form submission in RoleForm
+         showHeader={true}
+         showFooter={true}
        >
          <RoleForm
            initialData={editingItem || undefined}
@@ -581,13 +678,20 @@ function AdminRoleManagementPage() {
           onClose={closePrivilegesModal}
           title={`Privileges for ${selectedRoleName}`}
           size="2xl"
+          showHeader={true}
           showFooter={false}
-          onSubmit={() => {}}
         >
           <div className="space-y-4">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              This role has <span className="font-medium text-blue-600">{selectedRolePrivileges.length}</span> privileges assigned across different modules.
-            </div>
+            {isLoadingPrivileges ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Loading privileges...</p>
+              </div>
+            ) : (
+              <div key="privileges-content">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  This role has <span className="font-medium text-blue-600">{selectedRolePrivileges.length}</span> privileges assigned across different modules.
+                </div>
             
             {selectedRolePrivileges.length > 0 ? (
               <div className="space-y-4">
@@ -595,6 +699,12 @@ function AdminRoleManagementPage() {
                 {(() => {
                   // Group privileges by module using the privileges data
                   const moduleGroups: Record<string, string[]> = {};
+                  
+                  console.log('🔍 Grouping privileges:', {
+                    selectedRolePrivileges,
+                    privilegesData: privileges,
+                    privilegesResults: privileges?.results
+                  });
                   
                   if (privileges && privileges.results) {
                     privileges.results.forEach((privilegeItem) => {
@@ -608,7 +718,39 @@ function AdminRoleManagementPage() {
                     });
                   }
                   
-                                     return Object.entries(moduleGroups).map(([moduleId, modulePrivileges]) => {
+                  console.log('📊 Module groups created:', moduleGroups);
+                  
+                  // If no privileges are grouped (maybe privileges data structure is different), 
+                  // show them as ungrouped list
+                  if (Object.keys(moduleGroups).length === 0 && selectedRolePrivileges.length > 0) {
+                    console.log('⚠️ No modules groups found, displaying privileges as ungrouped list');
+                    return (
+                      <div key="ungrouped" className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                          <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                            All Privileges ({selectedRolePrivileges.length})
+                          </h4>
+                        </div>
+                        <div className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {selectedRolePrivileges.map((privilege) => (
+                              <div
+                                key={`ungrouped-${privilege}`}
+                                className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
+                              >
+                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                                <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                  {privilege}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return Object.entries(moduleGroups).map(([moduleId, modulePrivileges]) => {
                      const moduleInfo = getModuleInfo(moduleId);
                      return (
                      <div key={moduleId} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
@@ -626,9 +768,9 @@ function AdminRoleManagementPage() {
                        </div>
                       <div className="p-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {modulePrivileges.map((privilege, index) => (
+                          {modulePrivileges.map((privilege) => (
                             <div
-                              key={index}
+                              key={`${moduleId}-${privilege}`}
                               className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
                             >
                               <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
@@ -637,8 +779,8 @@ function AdminRoleManagementPage() {
                               </span>
                             </div>
                           ))}
-                                                 </div>
-                       </div>
+                        </div>
+                      </div>
                      </div>
                    );
                    });
@@ -660,10 +802,25 @@ function AdminRoleManagementPage() {
                 Close
               </Button>
             </div>
+              </div>
+            )}
           </div>
         </FormModal>
-     </div>
-   );
- }
+
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={closeDeleteModal}
+          onConfirm={confirmDeleteRole}
+          title="Delete Role"
+          message="Are you sure you want to delete this role? This action cannot be undone and will remove all associated privileges and user assignments."
+          itemName={roleToDelete?.role_name}
+          isLoading={isDeleting}
+          variant="danger"
+          error={deleteError}
+        />
+      </div>
+    );
+  }
 
 export default withAdminRBAC(AdminRoleManagementPage);

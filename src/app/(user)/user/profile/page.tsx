@@ -1,7 +1,9 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useGetUserProfileQuery, useUpdateUserProfileMutation } from '@/store/api/apiSlice';
-import { useAuth } from '@/context/AuthContext';
+import { useUpdateUserProfileMutation } from '@/store/api/apiSlice';
+import { useSelector } from 'react-redux';
+import { selectUser } from '@/store/slices/authSlice';
+import { useProfileSync } from '@/hooks/useProfileSync';
 import { Button } from '@/components/ui/button/Button';
 import { InputField } from '@/components/form/input/InputField';
 import { Label } from '@/components/form/Label';
@@ -9,7 +11,15 @@ import { Select } from '@/components/form/Select';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  // Get user data from Redux state (already synced by useProfileSync in UserDropdown)
+  const reduxUser = useSelector(selectUser);
+  
+  // Fallback: If Redux state is empty, use useProfileSync to fetch and sync data
+  const { userProfile, isLoading: profileLoading } = useProfileSync();
+  
+  // Use Redux user if available, otherwise fall back to the profile from the hook
+  const userData = reduxUser || userProfile;
+  
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
@@ -19,22 +29,21 @@ export default function ProfilePage() {
     phone_number: '',
   });
 
-  // RTK Query hooks
-  const { data: userProfile, isLoading, error, refetch } = useGetUserProfileQuery();
+  // Only use the update mutation, no need for get query
   const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
 
-  // Initialize form data when profile loads
+  // Initialize form data when user data is available
   useEffect(() => {
-    if (userProfile) {
+    if (userData) {
       setFormData({
-        first_name: userProfile.first_name || '',
-        last_name: userProfile.last_name || '',
-        email: userProfile.email || '',
-        organisation_name: userProfile.organisation_name || '',
-        phone_number: userProfile.phone_number || '',
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        email: userData.email || '',
+        organisation_name: userData.organisation_name || '',
+        phone_number: userData.phone_number || '',
       });
     }
-  }, [userProfile]);
+  }, [userData]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -51,27 +60,29 @@ export default function ProfilePage() {
       await updateProfile(formData).unwrap();
       toast.success('Profile updated successfully!');
       setIsEditing(false);
-      refetch(); // Refresh the profile data
+      // Note: The profile will be automatically synced by useProfileSync
+      // No need to manually refetch
     } catch (error: any) {
       toast.error(error?.data?.message || 'Failed to update profile');
     }
   };
 
   const handleCancel = () => {
-    // Reset form data to original values
-    if (userProfile) {
+    // Reset form data to original values from user data
+    if (userData) {
       setFormData({
-        first_name: userProfile.first_name || '',
-        last_name: userProfile.last_name || '',
-        email: userProfile.email || '',
-        organisation_name: userProfile.organisation_name || '',
-        phone_number: userProfile.phone_number || '',
+        first_name: userData.first_name || '',
+        last_name: userData.last_name || '',
+        email: userData.email || '',
+        organisation_name: userData.organisation_name || '',
+        phone_number: userData.phone_number || '',
       });
     }
     setIsEditing(false);
   };
 
-  if (isLoading) {
+  // Show loading only if no user data is available yet
+  if (!userData && profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -82,14 +93,15 @@ export default function ProfilePage() {
     );
   }
 
-  if (error) {
+  // Show error if no user data is available and not loading
+  if (!userData && !profileLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Error Loading Profile</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Profile Not Available</h2>
           <p className="text-gray-600 mb-4">Unable to load your profile information.</p>
-          <Button onClick={() => refetch()} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={() => window.location.reload()} className="bg-blue-600 hover:bg-blue-700">
             Try Again
           </Button>
         </div>
@@ -197,7 +209,6 @@ export default function ProfilePage() {
           {isEditing && (
             <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
               <Button
-                type="button"
                 onClick={handleCancel}
                 variant="outline"
                 className="border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -205,7 +216,7 @@ export default function ProfilePage() {
                 Cancel
               </Button>
               <Button
-                type="submit"
+                onClick={() => document.querySelector('form')?.requestSubmit()}
                 disabled={isUpdating}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
               >
@@ -228,32 +239,40 @@ export default function ProfilePage() {
             <div>
               <Label className="text-sm font-medium text-gray-500">User ID</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                {userProfile?.id || 'N/A'}
+                {userData?.id || 'N/A'}
               </p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-500">Role</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                {userProfile?.role?.[0]?.role_name || (userProfile?.is_superuser ? "Administrator" : "User")}
+                {(() => {
+                  if (reduxUser?.role) {
+                    return reduxUser.role; // Redux user has string role
+                  }
+                  if (userProfile?.role?.[0]?.role_name) {
+                    return userProfile.role[0].role_name; // API profile has array role
+                  }
+                  return reduxUser?.is_superuser ? "Administrator" : "User";
+                })()}
               </p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-500">Account Status</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  userProfile?.status 
+                  userData?.status !== false
                     ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                     : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                 }`}>
-                  {userProfile?.status ? 'Active' : 'Inactive'}
+                  {userData?.status !== false ? 'Active' : 'Inactive'}
                 </span>
               </p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-500">Member Since</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
-                {userProfile?.created_on 
-                  ? new Date(userProfile.created_on).toLocaleDateString()
+                {userData?.created_on 
+                  ? new Date(userData.created_on).toLocaleDateString()
                   : 'N/A'
                 }
               </p>

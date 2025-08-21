@@ -8,7 +8,8 @@ import {
   UserListParams,
   SuperuserModifyRequest,
   SuperuserModifyResponse,
-  ApiResponse
+  ApiResponse,
+  UserListResponseV2
 } from '@/types/api';
 
 class UserService extends BaseService {
@@ -20,8 +21,19 @@ class UserService extends BaseService {
    * @returns Promise<UserResponse>
    */
   async createUser(userData: CreateUserRequest): Promise<UserResponse> {
+    console.log('🚀 UserService.createUser called with data:', userData);
+    console.log('🌐 Making POST request to endpoint: /user/v1');
+    
     this.validateRequiredFields(userData, ['first_name', 'last_name', 'email', 'organisation_name', 'role']);
-    return this.post<UserResponse>(this.basePath, userData);
+    
+    try {
+      const result = await this.post<UserResponse>('/user/v1', userData);
+      console.log('✅ UserService.createUser success:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ UserService.createUser error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -55,11 +67,38 @@ class UserService extends BaseService {
   /**
    * Get list of users with filtering and pagination
    * @param params - Query parameters for filtering and pagination
-   * @returns Promise<UserListResponse>
+   * @returns Promise<UserListResponseV2>
    */
-  async getUsers(params: UserListParams = {}): Promise<UserListResponse> {
-    const cleanParams = this.buildParams(params);
-    return this.get<UserListResponse>(this.buildEndpoint('list'), cleanParams);
+  async getUsers(params: UserListParams = {}): Promise<UserListResponseV2> {
+    // Convert params to match the new API structure
+    const requestBody = {
+      email: params.email || undefined,
+      is_superuser: params.is_superuser || undefined,
+      first_name: params.first_name || undefined,
+      last_name: params.last_name || undefined,
+      organisation_name: params.organisation_name || undefined,
+      country_code: params.country_code || undefined,
+      phone_number: params.phone_number || undefined,
+      order_by: params.order_by || undefined,
+      order_type: params.order_type || undefined,
+      created_on_start_date: params.created_on_start_date || undefined,
+      created_on_end_date: params.created_on_end_date || undefined,
+      created_by: params.created_by || undefined,
+      created_by_name: params.created_by_name || undefined,
+      modified_on_start_date: params.modified_on_start_date || undefined,
+      modified_on_end_date: params.modified_on_end_date || undefined,
+      last_login_start_date: params.last_login_start_date || undefined,
+      last_login_end_date: params.last_login_end_date || undefined,
+      modified_by: params.modified_by || undefined,
+      modified_by_name: params.modified_by_name || undefined,
+      page: params.page || 1,
+      page_size: params.page_size || 10,
+      status: params.status || undefined,
+      role_name: params.role_name || undefined,
+      export: params.export || false,
+    };
+    
+    return this.post<UserListResponseV2>(this.buildEndpoint('list'), requestBody);
   }
 
   /**

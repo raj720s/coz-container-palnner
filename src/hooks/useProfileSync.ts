@@ -21,8 +21,11 @@ export const useProfileSync = () => {
         last_name: userProfile.last_name,
         email: userProfile.email,
         organisation_name: userProfile.organisation_name,
+        role: userProfile.role?.[0]?.role_name || 'User', // Extract role name from role array
         role_id: userProfile.role?.[0]?.id || 0, // Extract role_id from role array
         is_superuser: userProfile.is_superuser,
+        status: userProfile.status,
+        created_on: userProfile.created_on,
         phone_number: userProfile.phone_number,
         country_code: userProfile.country_code,
         country: userProfile.country,

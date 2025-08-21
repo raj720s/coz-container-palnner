@@ -14,6 +14,13 @@ import {
   RoleResponse,
   RoleListResponse,
   RoleListParams,
+  RoleListRequest,
+  RoleListResponseV2,
+  CreatePOLRequest,
+  UpdatePOLRequest,
+  POLResponse,
+  POLListRequest,
+  POLListResponse,
   Privilege,
   PrivilegeListResponse,
   RoleUserResponse,
@@ -42,7 +49,7 @@ export const apiSlice = createApi({
   baseQuery: axiosBaseQuery(),
   
   // Define tag types for cache invalidation
-  tagTypes: ['User', 'Role', 'Privilege'],
+  tagTypes: ['User', 'Role', 'Privilege', 'POL'],
   
   endpoints: (builder) => ({
     // === USER MANAGEMENT ENDPOINTS ===
@@ -125,11 +132,12 @@ export const apiSlice = createApi({
     
     // === ROLE MANAGEMENT ENDPOINTS ===
     
-    // Get roles list with filtering and pagination
-    getRoles: builder.query<RoleListResponse, RoleListParams>({
+    // Get roles list with filtering and pagination using POST
+    getRoles: builder.query<RoleListResponseV2[], RoleListRequest>({
       query: (params = {}) => ({
         url: '/admin/v1/role/list',
-        params: cleanParams(params),
+        method: 'POST',
+        data: cleanParams(params),
       }),
       providesTags: ['Role'],
     }),
@@ -220,6 +228,83 @@ export const apiSlice = createApi({
       providesTags: ['Role'],
     }),
     
+    // === POL MANAGEMENT ENDPOINTS ===
+    
+    // Get POLs list with filtering and pagination using POST
+    getPOLs: builder.query<POLListResponse, POLListRequest>({
+      query: (params = {}) => ({
+        url: '/master-data/v1/pol/list',
+        method: 'POST',
+        data: cleanParams(params),
+      }),
+      providesTags: ['POL'],
+    }),
+    
+    // Get single POL by ID
+    getPOL: builder.query<POLResponse, number>({
+      query: (id) => `/master-data/v1/pol/${id}`,
+      providesTags: (result, error, id) => [{ type: 'POL', id }],
+    }),
+    
+    // Create new POL
+    createPOL: builder.mutation<POLResponse, CreatePOLRequest>({
+      query: (polData) => ({
+        url: '/master-data/v1/pol',
+        method: 'POST',
+        data: polData,
+      }),
+      invalidatesTags: ['POL'],
+    }),
+    
+    // Update POL
+    updatePOL: builder.mutation<POLResponse, { id: number; data: UpdatePOLRequest }>({
+      query: ({ id, data }) => ({
+        url: `/master-data/v1/pol/${id}`,
+        method: 'PUT',
+        data: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'POL', id }, 'POL'],
+    }),
+    
+    // Delete POL
+    deletePOL: builder.mutation<ApiResponse, number>({
+      query: (id) => ({
+        url: `/master-data/v1/pol/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['POL'],
+    }),
+    
+    // Search POLs
+    searchPOLs: builder.query<POLResponse[], string>({
+      query: (query) => ({
+        url: '/master-data/v1/pol/list',
+        method: 'POST',
+        data: { name: query, page_size: 10 },
+      }),
+      providesTags: ['POL'],
+    }),
+    
+    // Get POLs by country
+    getPOLsByCountry: builder.query<POLListResponse, { country: string; params?: Omit<POLListRequest, 'country'> }>({
+      query: ({ country, params = {} }) => ({
+        url: '/master-data/v1/pol/list',
+        method: 'POST',
+        data: cleanParams({ ...params, country }),
+      }),
+      providesTags: ['POL'],
+    }),
+    
+    // Get POLs by city
+    getPOLsByCity: builder.query<POLListResponse, { city: string; params?: Omit<POLListRequest, 'city'> }>({
+      query: ({ city, params = {} }) => ({
+        url: '/master-data/v1/pol/list',
+        method: 'POST',
+        data: cleanParams({ ...params, city }),
+      }),
+      providesTags: ['POL'],
+    }),
+    
     // === USER PROFILE ENDPOINTS ===
     
     // Get current user profile
@@ -281,6 +366,16 @@ export const {
   useRemovePrivilegesFromRoleMutation,
   useBulkUpdateRoleStatusMutation,
   useGetRoleStatisticsQuery,
+  
+  // POL management hooks
+  useGetPOLsQuery,
+  useGetPOLQuery,
+  useCreatePOLMutation,
+  useUpdatePOLMutation,
+  useDeletePOLMutation,
+  useSearchPOLsQuery,
+  useGetPOLsByCountryQuery,
+  useGetPOLsByCityQuery,
   
   // User profile hooks
   useGetUserProfileQuery,

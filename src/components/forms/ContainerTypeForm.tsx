@@ -127,6 +127,7 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
       <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
         {onCancel && (
           <Button
+            data-form-action="cancel"
             variant="outline"
             onClick={onCancel}
             disabled={isLoading}
@@ -135,6 +136,7 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
           </Button>
         )}
         <Button
+          data-form-action="submit"
           onClick={handleSubmit(handleFormSubmit)}
           disabled={isLoading}
           className="min-w-[100px]"
