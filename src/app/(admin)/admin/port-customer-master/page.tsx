@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -195,4 +195,6 @@ function PortCustomerMasterPage() {
   );
 }
 
-export default withAdminAuth(PortCustomerMasterPage); 
+export default withSimpleRBAC(PortCustomerMasterPage, {
+  privilege: "VIEW_PORT_CUSTOMER_MASTER"
+}); 

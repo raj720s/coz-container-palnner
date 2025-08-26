@@ -1,6 +1,5 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -17,6 +16,7 @@ import {
   AlertIcon,
   TimeIcon
 } from "@/icons";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 
 function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -249,4 +249,4 @@ function AdminDashboard() {
   );
 }
 
-export default withAdminAuth(AdminDashboard); 
+export default withSimpleRBAC(AdminDashboard); 

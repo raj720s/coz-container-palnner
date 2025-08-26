@@ -1,6 +1,5 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
 import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,80 +16,84 @@ import {
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
+import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { useMessage } from "@/components/ui/MessageBox";
+import toast from "react-hot-toast";
+import { withRouteAuth } from "@/components/auth/withAuth";
 import Pagination from "@/components/tables/Pagination";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import {
+  fetchCustomers,
+  createCustomer,
+  updateCustomer,
+  patchCustomer,
+  deleteCustomer,
+  exportCustomers,
+  selectCustomers,
+  selectCustomersLoading,
+  selectCustomersError,
+  selectCustomersTotal,
+  clearError,
+} from "@/store/slices/customerSlice";
+import {
+  useGetCustomersQuery,
+  useCreateCustomerMutation,
+  useUpdateCustomerMutation,
+  usePatchCustomerMutation,
+  useDeleteCustomerMutation,
+} from "@/store/api/apiSlice";
+import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
+import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
 
-interface Customer {
-  id: string;
-  code: string;
-  name: string;
-  country: string;
-  region: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const columnHelper = createColumnHelper<Customer>();
-
-// Mock data for customers
-const mockCustomers: Customer[] = [
-  {
-    id: "1",
-    code: "BON",
-    name: "BON PRIX",
-    country: "Germany",
-    region: "Europe",
-    contactPerson: "Hans Mueller",
-    email: "hans.mueller@bonprix.de",
-    phone: "+49 40 12345678",
-    isActive: true,
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01"
-  },
-  {
-    id: "2",
-    code: "OTTO",
-    name: "OTTO GME",
-    country: "Germany",
-    region: "Europe",
-    contactPerson: "Anna Schmidt",
-    email: "anna.schmidt@otto.de",
-    phone: "+49 40 87654321",
-    isActive: true,
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01"
-  },
-  {
-    id: "3",
-    code: "ABC",
-    name: "ABC Corp",
-    country: "United States",
-    region: "North America",
-    contactPerson: "John Smith",
-    email: "john.smith@abccorp.com",
-    phone: "+1 555 1234567",
-    isActive: true,
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01"
-  }
-];
+const columnHelper = createColumnHelper<CustomerResponse>();
 
 function CustomersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const action = searchParams?.get('action') || '';
-  const { showSuccess, showError } = useMessage();
+  const action = searchParams.get('action');
+  const dispatch = useDispatch<AppDispatch>();
   
-  // Customers data
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  // Local state for filtering and pagination
+  const [filters, setFilters] = useState<CustomerListRequest>({
+    page: 1,
+    page_size: 10,
+    order_by: "created_on",
+    order_type: "desc"
+  });
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<CustomerResponse | null>(null);
+
+  // Redux state
+  const customers = useSelector(selectCustomers);
+  const loading = useSelector(selectCustomersLoading);
+  const error = useSelector(selectCustomersError);
+  const total = useSelector(selectCustomersTotal);
+
+  // RTK Query hooks (alternative approach)
+  // const { data: customersRTK, isLoading: loadingRTK, error: errorRTK } = useGetCustomersQuery(filters);
+  const [createCustomerMutation] = useCreateCustomerMutation();
+  const [updateCustomerMutation] = useUpdateCustomerMutation();
+  const [patchCustomerMutation] = usePatchCustomerMutation();
+  const [deleteCustomerMutation] = useDeleteCustomerMutation();
+
+  // Load customers on component mount and when filters change
+  useEffect(() => {
+    dispatch(fetchCustomers(filters));
+  }, [dispatch, filters]);
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        dispatch(clearError());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, dispatch]);
 
   const {
     isOpen: isModalOpen,
@@ -99,153 +102,146 @@ function CustomersPage() {
     openModal,
     closeModal,
     setLoading: setModalLoading,
-  } = useFormModal<Customer>();
+  } = useFormModal<CustomerResponse>();
 
-  // Auto-open modal if action=add
+  // Sync table sorting with API filters
   useEffect(() => {
-    if (action === 'add') {
-      openModal(undefined);
+    if (sorting.length > 0) {
+      const sortConfig = sorting[0];
+      setFilters(prev => ({
+        ...prev,
+        order_by: sortConfig.id,
+        order_type: sortConfig.desc ? 'desc' : 'asc'
+      }));
     }
-  }, [action, openModal]);
+  }, [sorting]);
 
   const columns = useMemo(() => [
-    columnHelper.accessor("code", { 
+    columnHelper.accessor("customer_code", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Customer Code
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("name", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Customer Name
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => <span className="font-medium">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("country", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Country
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => info.getValue() 
-    }),
-    columnHelper.accessor("region", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Region
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
+        <span className="font-medium text-gray-900 dark:text-white">
           {info.getValue()}
         </span>
-      )
+      ),
     }),
-    columnHelper.accessor("contactPerson", { 
+    columnHelper.accessor("name", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Name
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
+      cell: (info) => (
+        <span className="text-gray-900 dark:text-white">
+          {info.getValue()}
+        </span>
+      ),
+    }),
+    columnHelper.accessor("contact_person", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Contact Person
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
-      cell: (info) => <span className="text-sm">{info.getValue()}</span>
+      cell: (info) => (
+        <span className="text-gray-600 dark:text-gray-400">
+          {info.getValue()}
+        </span>
+      ),
     }),
-    columnHelper.accessor("email", { 
+    columnHelper.accessor("email", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Email
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
-        <span className="text-sm text-blue-600 dark:text-blue-400">
+        <span className="text-gray-600 dark:text-gray-400">
           {info.getValue()}
         </span>
-      )
+      ),
     }),
-    columnHelper.accessor("isActive", {
+    columnHelper.accessor("phone", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Phone
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
+      cell: (info) => (
+        <span className="text-gray-600 dark:text-gray-400">
+          {info.getValue()}
+        </span>
+      ),
+    }),
+    columnHelper.accessor("country", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Country
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
+      cell: (info) => (
+        <span className="text-gray-600 dark:text-gray-400">
+          {info.getValue()}
+        </span>
+      ),
+    }),
+    columnHelper.accessor("is_active", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Status
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          info.getValue()
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-red-100 text-red-700 dark:bg-green-900 dark:text-red-300"
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          info.getValue() 
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
         }`}>
           {info.getValue() ? "Active" : "Inactive"}
         </span>
@@ -255,7 +251,7 @@ function CustomersPage() {
       id: "actions",
       header: "Actions",
       cell: (info) => (
-        <div className="flex gap-2">
+        <div className="flex space-x-2">
           <Button
             size="sm"
             variant="outline"
@@ -267,7 +263,10 @@ function CustomersPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleDelete(info.row.original.id)}
+            onClick={() => {
+              setDeletingItem(info.row.original);
+              setDeleteModalOpen(true);
+            }}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -277,378 +276,206 @@ function CustomersPage() {
     }),
   ], [openModal]);
 
-  const filteredData = useMemo(() => {
-    return customers.filter(item => {
-      const matchesSearch =
-        item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.region.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.contactPerson.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.email.toLowerCase().includes(globalFilter.toLowerCase());
-
-      return matchesSearch;
-    });
-  }, [customers, globalFilter]);
-
-  const table = useReactTable({
-    data: filteredData,
+  const table = useReactTable<CustomerResponse>({
+    data: customers,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     state: {
+      globalFilter,
       sorting,
     },
+    onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
   });
 
-  const handleAddNew = () => {
-    openModal(undefined);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        const updatedCustomers = customers.filter(item => item.id !== id);
-        setCustomers(updatedCustomers);
-        showSuccess('Customer deleted successfully');
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-        showError('Failed to delete customer');
-      }
-    }
-  };
-
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: CustomerFormData) => {
     try {
-      setModalLoading(true);
-      
       if (editingItem) {
         // Update existing customer
-        const updatedCustomers = customers.map(item => 
-          item.id === (editingItem as Customer).id 
-            ? { ...item, ...formData, updatedAt: new Date().toISOString() }
-            : item
-        );
-        setCustomers(updatedCustomers);
-        showSuccess('Customer updated successfully');
+        await dispatch(updateCustomer({ id: editingItem.id, customerData: formData }));
+        toast.success('Customer updated successfully');
       } else {
         // Create new customer
-        const newCustomer: Customer = {
-          ...formData,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setCustomers([...customers, newCustomer]);
-        showSuccess('Customer created successfully');
+        await dispatch(createCustomer(formData));
+        toast.success('Customer created successfully');
       }
       
       closeModal();
     } catch (error) {
       console.error('Error saving customer:', error);
-      showError('Failed to save customer');
-    } finally {
-      setModalLoading(false);
+      toast.error('Failed to save customer');
     }
   };
 
-  const exportData = () => {
-    const headers = ["Customer Code", "Customer Name", "Country", "Region", "Contact Person", "Email", "Status", "Created"];
-    const csvContent = [
-      headers.join(","),
-      ...filteredData.map(row => [
-        row.code,
-        row.name,
-        row.country,
-        row.region,
-        row.contactPerson,
-        row.email,
-        row.isActive ? "Active" : "Inactive",
-        new Date(row.createdAt).toLocaleDateString()
-      ].join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "customers.csv";
-    a.click();
-    window.URL.revokeObjectURL(url);
-    showSuccess("Export completed successfully");
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+    
+    try {
+      await dispatch(deleteCustomer(deletingItem.id));
+      toast.success('Customer deleted successfully');
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Failed to delete customer');
+    }
   };
+
+  const handleExport = async () => {
+    try {
+      await dispatch(exportCustomers({ ...filters, export: true }));
+      toast.success('Export completed successfully');
+    } catch (error) {
+      console.error('Error exporting customers:', error);
+      toast.error('Failed to export customers');
+    }
+  };
+
+  const handleAddNew = () => {
+    openModal();
+  };
+
+  const filteredData = table.getFilteredRowModel().rows;
+  const totalPages = Math.ceil(total / (filters.page_size || 10));
 
   return (
     <div className="p-6">
-      {/* Header */}
       <div className="mb-6">
-        {/* <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-4 mb-4">
           <Button
             variant="outline"
-            size="sm"
             onClick={() => router.back()}
             className="flex items-center gap-2"
           >
             <ChevronLeftIcon className="w-4 h-4" />
             Back
           </Button>
-        </div> */}
-        
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Customer Records Management
-        </h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Customer Management
+          </h1>
+        </div>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage customer information and contact details
+          Manage customer records with comprehensive CRUD operations
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Customers</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{customers.length}</div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Active Customers</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {customers.filter(c => c.isActive).length}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(customers.map(c => c.country)).size}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Regions</div>
-          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(customers.map(c => c.region)).size}
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-6">
-        <div className="flex-1">
+      {/* Filters and Controls */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 flex-1">
           <Input
-            placeholder="Search customers by code, name, country, region, contact person, or email..."
-            value={globalFilter}
+            placeholder="Search customers..."
+            value={globalFilter ?? ""}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="max-w-md"
+            className="max-w-sm"
           />
         </div>
-
-        <div className="flex gap-3">
-          <Button onClick={handleAddNew} size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
-          <Button onClick={exportData} size="sm" variant="outline">
-            <DownloadIcon className="w-4 h-4 mr-2" />
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline" className="flex items-center gap-2">
+            <DownloadIcon className="w-4 h-4" />
             Export
+          </Button>
+          <Button onClick={handleAddNew} className="flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" />
+            Add Customer
           </Button>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
+          <p className="text-red-800 dark:text-red-200">{error}</p>
         </div>
+      )}
+
+      {/* Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            {filteredData.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-gray-700 dark:text-gray-300">
-          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-          {Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
-          )}{" "}
-          of {table.getFilteredRowModel().rows.length} results
-        </div>
-        <Pagination
-          currentPage={table.getState().pagination.pageIndex + 1}
-          totalPages={table.getPageCount()}
-          onPageChange={(page) => table.setPageIndex(page - 1)}
+      {totalPages > 1 && (
+        <div className="mt-6">
+                  <Pagination
+          currentPage={filters.page || 1}
+          totalPages={totalPages}
+          onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
         />
-      </div>
-
-      {filteredData.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No customers found matching your search criteria.
         </div>
       )}
 
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
-        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Customer" : "Add New Customer"}
-        isLoading={isModalLoading}
         size="lg"
         showFooter={false}
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Customer Code
-              </label>
-                             <Input
-                 placeholder="e.g., BON, OTTO"
-                 value={(editingItem as Customer)?.code || ""}
-                 onChange={(e) => {
-                   // Handle code change
-                 }}
-                 disabled={isModalLoading}
-               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Customer Name
-              </label>
-                             <Input
-                 placeholder="Customer name"
-                 value={(editingItem as Customer)?.name || ""}
-                 onChange={(e) => {
-                   // Handle name change
-                 }}
-                 disabled={isModalLoading}
-               />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Country
-              </label>
-              <Input
-                placeholder="Country"
-                value={editingItem?.country || ""}
-                onChange={(e) => {
-                  // Handle country change
-                }}
-                disabled={isModalLoading}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Region
-              </label>
-              <Input
-                placeholder="Region"
-                value={editingItem?.region || ""}
-                onChange={(e) => {
-                  // Handle region change
-                }}
-                disabled={isModalLoading}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Contact Person
-              </label>
-              <Input
-                placeholder="Contact person name"
-                value={editingItem?.contactPerson || ""}
-                onChange={(e) => {
-                  // Handle contact person change
-                }}
-                disabled={isModalLoading}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email
-              </label>
-              <Input
-                type="email"
-                placeholder="Email address"
-                value={editingItem?.email || ""}
-                onChange={(e) => {
-                  // Handle email change
-                }}
-                disabled={isModalLoading}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Phone
-            </label>
-            <Input
-              placeholder="Phone number"
-              value={editingItem?.phone || ""}
-              onChange={(e) => {
-                // Handle phone change
-              }}
-              disabled={isModalLoading}
-            />
-          </div>
-
-          <div className="flex items-center justify-end space-x-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={closeModal}
-              disabled={isModalLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={isModalLoading}
-            >
-              {isModalLoading ? "Saving..." : editingItem ? "Update Customer" : "Add Customer"}
-            </Button>
-          </div>
-        </div>
+        <CustomerForm
+          initialData={editingItem ? {
+            id: editingItem.id.toString(),
+            customer_code: editingItem.customer_code,
+            name: editingItem.name,
+            contact_person: editingItem.contact_person,
+            email: editingItem.email,
+            phone: editingItem.phone,
+            address: editingItem.address,
+            country: editingItem.country,
+            tax_id: editingItem.tax_id,
+            is_active: editingItem.is_active
+          } : undefined}
+          onSubmit={handleSubmit}
+          onCancel={closeModal}
+          isLoading={isModalLoading}
+        />
       </FormModal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Customer"
+        message={`Are you sure you want to delete the customer "${deletingItem?.name}"? This action cannot be undone.`}
+        isLoading={loading}
+      />
     </div>
   );
 }
 
-export default withUserAuth(CustomersPage);
+export default withRouteAuth(CustomersPage, "user/port-customer-master/customers");

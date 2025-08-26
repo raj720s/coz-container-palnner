@@ -162,11 +162,11 @@ export function ExcelViewerModal({ isOpen, onClose, fileContent, fileName }: Exc
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black bg-opacity-50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+            <div className="fixed inset-0 z-[99999] overflow-y-auto bg-black/30 backdrop-blur-sm" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       <div className="flex items-start justify-center min-h-screen pt-28 px-4 pb-20 text-center sm:block sm:p-0">
         {/* Background overlay */}
         <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-gray-500/30 backdrop-blur-sm transition-opacity"
           onClick={handleClose}
         ></div>
 

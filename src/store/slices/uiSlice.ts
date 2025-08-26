@@ -3,8 +3,8 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 export type Theme = 'light' | 'dark' | 'system';
 export type Language = 'en' | 'es' | 'fr' | 'de' | 'zh' | 'ar';
 
-interface UIState {
-  // Theme
+export interface UIState {
+  // Theme  
   theme: Theme;
   isDarkMode: boolean;
   

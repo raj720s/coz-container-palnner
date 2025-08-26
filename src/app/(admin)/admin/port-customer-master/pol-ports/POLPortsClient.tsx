@@ -22,27 +22,9 @@ import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { withRouteAuth } from "@/components/auth/withAuth";
 import Pagination from "@/components/tables/Pagination";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
-import {
-  fetchPOLs,
-  createPOL,
-  updatePOL,
-  deletePOL,
-  exportPOLs,
-  selectPOLs,
-  selectPOLsLoading,
-  selectPOLsError,
-  selectPOLsTotal,
-  clearError,
-} from "@/store/slices/polSlice";
-import {
-  useGetPOLsQuery,
-  useCreatePOLMutation,
-  useUpdatePOLMutation,
-  useDeletePOLMutation,
-} from "@/store/api/apiSlice";
 import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
+import { polService } from "@/services";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 
 const columnHelper = createColumnHelper<POLResponse>();
 
@@ -50,7 +32,12 @@ function POLPortsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
-  const dispatch = useDispatch<AppDispatch>();
+  
+  // Local state for data management
+  const [pols, setPols] = useState<POLResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
   
   // Local state for filtering and pagination
   const [filters, setFilters] = useState<POLListRequest>({
@@ -64,33 +51,6 @@ function POLPortsPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
-
-  // Redux state
-  const pols = useSelector(selectPOLs);
-  const loading = useSelector(selectPOLsLoading);
-  const error = useSelector(selectPOLsError);
-  const total = useSelector(selectPOLsTotal);
-
-  // RTK Query hooks (alternative approach)
-  // const { data: polsRTK, isLoading: loadingRTK, error: errorRTK } = useGetPOLsQuery(filters);
-  const [createPOLMutation] = useCreatePOLMutation();
-  const [updatePOLMutation] = useUpdatePOLMutation();
-  const [deletePOLMutation] = useDeletePOLMutation();
-
-  // Load POL ports on component mount and when filters change
-  useEffect(() => {
-    dispatch(fetchPOLs(filters));
-  }, [dispatch, filters]);
-
-  // Auto-clear errors after 5 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        dispatch(clearError());
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error, dispatch]);
 
   const {
     isOpen: isModalOpen,
@@ -111,6 +71,36 @@ function POLPortsPage() {
       router.replace(`?${newSearchParams.toString()}`);
     }
   }, [action, openModal, router, searchParams]);
+
+  // Load POL ports on component mount and when filters change
+  useEffect(() => {
+    loadPOLs();
+  }, [filters]);
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  const loadPOLs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await polService.getPOLs(filters);
+      setPols(response.results || []);
+      setTotal(response.count || 0);
+    } catch (err: any) {
+      console.error('Error loading POL ports:', err);
+      setError(err.message || 'Failed to load POL ports');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const columns = useMemo(() => [
     columnHelper.accessor("code", { 
@@ -315,13 +305,13 @@ function POLPortsPage() {
 
     try {
       setModalLoading(true);
-      await dispatch(deletePOL(deletingItem.id)).unwrap();
+      await polService.deletePOL(deletingItem.id);
       toast.success('POL port deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
       
       // Refresh the list
-      dispatch(fetchPOLs(filters));
+      loadPOLs();
     } catch (error: any) {
       console.error('Error deleting POL port:', error);
       toast.error(error.message || 'Failed to delete POL port');
@@ -347,16 +337,16 @@ function POLPortsPage() {
       if (editingItem) {
         console.log("editingItem", editingItem);
         // Update existing port
-        await dispatch(updatePOL({ id: editingItem.id, polData })).unwrap();
+        await polService.updatePOL(editingItem.id, polData);
         toast.success('POL port updated successfully');
       } else {
         // Create new port
-        await dispatch(createPOL(polData as CreatePOLRequest)).unwrap();
+        await polService.createPOL(polData as CreatePOLRequest);
         toast.success('POL port created successfully');
       }
       
       // Refresh the list
-      dispatch(fetchPOLs(filters));
+      loadPOLs();
       closeModal();
     } catch (error: any) {
       console.error('Error saving POL port:', error);
@@ -368,11 +358,11 @@ function POLPortsPage() {
 
   const handleExport = async () => {
     try {
-      const exportData = await dispatch(exportPOLs({
+      const exportData = await polService.exportPOLs({
         ...filters,
         export: true,
         page_size: 1000
-      })).unwrap();
+      });
       
       // Create CSV content
       const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status', 'Created On'];
@@ -583,6 +573,7 @@ function POLPortsPage() {
       >
         <PortForm
           initialData={editingItem ? {
+            id: editingItem.id.toString(),
             code: editingItem.code,
             name: editingItem.name,
             country: editingItem.country,
@@ -615,4 +606,6 @@ function POLPortsPage() {
   );
 }
 
-export default withRouteAuth(POLPortsPage, "admin/port-customer-master/pol-ports");
+export default withSimpleRBAC(POLPortsPage, {
+  route: "/admin/port-customer-master/pol-ports"
+});

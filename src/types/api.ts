@@ -257,6 +257,193 @@ export interface POLListResponse {
   results: POLResponse[];
 }
 
+// POD (Port of Destination) Management Types
+export interface CreatePODRequest {
+  name: string;
+  code: string;
+  country: string;
+  city: string;
+  timezone: string;
+  is_active: boolean;
+}
+
+export interface UpdatePODRequest {
+  name?: string;
+  code?: string;
+  country?: string;
+  city?: string;
+  timezone?: string;
+  is_active?: boolean;
+}
+
+export interface PODResponse {
+  id: number;
+  name: string;
+  code: string;
+  country: string;
+  city: string;
+  timezone: string;
+  is_active: boolean;
+  created_on?: string;
+  modified_on?: string;
+  created_by?: number;
+  modified_by?: number;
+}
+
+export interface PODListRequest {
+  name?: string;
+  code?: string;
+  country?: string;
+  city?: string;
+  timezone?: string;
+  order_by?: string;
+  order_type?: string;
+  page?: number;
+  page_size?: number;
+  created_by?: number;
+  modified_by?: number;
+  created_by_name?: string;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_by_name?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  export?: boolean;
+  module_id?: number;
+}
+
+export interface PODListResponse {
+  count: number;
+  results: PODResponse[];
+}
+
+// Customer Management Types
+export interface CreateCustomerRequest {
+  name: string;
+  customer_code: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address: string;
+  country: string;
+  tax_id: string;
+  is_active: boolean;
+}
+
+export interface UpdateCustomerRequest {
+  name?: string;
+  customer_code?: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  country?: string;
+  tax_id?: string;
+  is_active?: boolean;
+}
+
+export interface CustomerResponse {
+  id: number;
+  name: string;
+  customer_code: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  address: string;
+  country: string;
+  tax_id: string;
+  is_active: boolean;
+  created_on?: string;
+  modified_on?: string;
+  created_by?: number;
+  modified_by?: number;
+}
+
+export interface CustomerListRequest {
+  name?: string;
+  code?: string;
+  email?: string;
+  country?: string;
+  city?: string;
+  timezone?: string;
+  order_by?: string;
+  order_type?: string;
+  page?: number;
+  page_size?: number;
+  created_by?: number;
+  modified_by?: number;
+  created_by_name?: string;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_by_name?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  export?: boolean;
+  module_id?: number;
+}
+
+export interface CustomerListResponse {
+  count: number;
+  results: CustomerResponse[];
+}
+
+// Container Types Management Types
+export interface CreateContainerTypeRequest {
+  name: string;
+  code: string;
+  description: string;
+  capacity: string;
+  status: boolean;
+}
+
+export interface UpdateContainerTypeRequest {
+  name?: string;
+  code?: string;
+  description?: string;
+  capacity?: string;
+  status?: boolean;
+}
+
+export interface ContainerTypeResponse {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  capacity: string;
+  status: boolean;
+  created_on?: string;
+  modified_on?: string;
+  created_by?: number;
+  modified_by?: number;
+}
+
+export interface ContainerTypeListRequest {
+  name?: string;
+  code?: string;
+  description?: string;
+  capacity?: string;
+  status?: boolean;
+  order_by?: string;
+  order_type?: string;
+  page?: number;
+  page_size?: number;
+  created_by?: number;
+  modified_by?: number;
+  created_by_name?: string;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_by_name?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  export?: boolean;
+  module_id?: number;
+}
+
+export interface ContainerTypeListResponse {
+  count: number;
+  results: ContainerTypeResponse[];
+}
+
 // Role Assignment Types
 export interface RoleAssignmentRequest {
   role_id: string;
@@ -320,4 +507,114 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   total_pages: number;
+}
+
+// Container Priority Types
+export interface ContainerPriorityResponse {
+  id: number;
+  type: number;
+  priority: number;
+  max_capacity: number;
+  max_weight: number;
+  description: string;
+}
+
+export interface CreateContainerPriorityRequest {
+  type: number;
+  priority: number;
+  max_capacity: number;
+  max_weight: number;
+  description: string;
+}
+
+export interface UpdateContainerPriorityRequest {
+  type: number;
+  priority: number;
+  max_capacity: number;
+  max_weight: number;
+  description: string;
+}
+
+export interface ContainerPriorityListRequest {
+  type?: number;
+  priority?: number;
+  description?: string;
+  max_capacity?: number;
+  max_weight?: number;
+  order_by?: string;
+  order_type?: string;
+  created_on_start_date?: string;
+  created_by?: number;
+  modified_by?: number;
+  created_by_name?: string;
+  created_on_end_date?: string;
+  modified_by_name?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  page: number;
+  page_size: number;
+  export?: boolean;
+  module_id?: number;
+}
+
+export interface ContainerPriorityListResponse {
+  count: number;
+  results: ContainerPriorityResponse[];
+}
+
+// Container Threshold Types
+export interface ContainerThresholdResponse {
+  id: number;
+  container: number;
+  port_of_loading: number;
+  type: string;
+  min_capacity: number;
+  max_capacity: number;
+  status: boolean;
+}
+
+export interface CreateContainerThresholdRequest {
+  container: number;
+  port_of_loading: number;
+  type: string;
+  min_capacity: number;
+  max_capacity: number;
+  status: boolean;
+}
+
+export interface UpdateContainerThresholdRequest {
+  container: number;
+  port_of_loading: number;
+  type: string;
+  min_capacity: number;
+  max_capacity: number;
+  status: boolean;
+}
+
+export interface ContainerThresholdListRequest {
+  container?: number;
+  port_of_loading?: number;
+  type?: string;
+  min_capacity?: number;
+  max_capacity?: number;
+  status?: boolean;
+  order_by?: string;
+  order_type?: string;
+  created_on_start_date?: string;
+  created_by?: number;
+  modified_by?: number;
+  created_by_name?: string;
+  created_on_end_date?: string;
+  modified_by_name?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  page: number;
+  page_size: number;
+  export?: boolean;
+  module_id?: number;
+}
+
+export interface ContainerThresholdListResponse {
+  count: number;
+  results: ContainerThresholdResponse[];
 }

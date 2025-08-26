@@ -18,16 +18,27 @@ export interface RoleResponse {
   role_name: string;
   role_description: string;
   privilege_names: string[];
-  created_at: string;
-  updated_at: string;
+  created_on: string;
+  modified_on: string;
   is_active: boolean;
   created_by?: number;
   modified_by?: number;
 }
 
+// Extended role response with detailed privilege data
+export interface RoleResponseWithPrivileges extends RoleResponse {
+  privileges?: PrivilegeItem[];
+}
+
 export interface RoleListResponse {
   count: number;
   results: RoleResponse[];
+}
+
+// Extended role list response with detailed privilege data
+export interface RoleListResponseWithPrivileges {
+  count: number;
+  results: RoleResponseWithPrivileges[];
 }
 
 export interface RoleListParams {
@@ -173,10 +184,16 @@ class RoleService extends BaseService {
   /**
    * Get list of roles with filtering and pagination
    * @param params - Query parameters for filtering and pagination
-   * @returns Promise<RoleListResponse>
+   * @returns Promise<RoleListResponse | RoleListResponseWithPrivileges>
    */
-  async getRoles(params: RoleListParams = {}): Promise<RoleListResponse> {
+  async getRoles(params: RoleListParams = {}): Promise<RoleListResponse | RoleListResponseWithPrivileges> {
+    console.log('🚀 RoleService.getRoles called with params:', params);
     const cleanParams = this.buildParams(params);
+    
+    if (params.include_privilege_data) {
+      return this.post<RoleListResponseWithPrivileges>(this.buildEndpoint('role', 'list'), cleanParams);
+    }
+    
     return this.post<RoleListResponse>(this.buildEndpoint('role', 'list'), cleanParams);
   }
 

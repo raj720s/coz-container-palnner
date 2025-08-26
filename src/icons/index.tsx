@@ -40,7 +40,8 @@ import {
   FiPackage,
   FiMapPin,
   FiTruck,
-  FiFilter
+  FiFilter,
+  
 } from 'react-icons/fi';
 
 // Icon mappings

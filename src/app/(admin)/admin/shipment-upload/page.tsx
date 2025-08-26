@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -273,4 +273,6 @@ function ShipmentUploadPage() {
   );
 }
 
-export default withAdminAuth(ShipmentUploadPage); 
+export default withSimpleRBAC(ShipmentUploadPage, {
+  route: "/admin/shipment-upload"
+}); 

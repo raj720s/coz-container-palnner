@@ -11,15 +11,17 @@ import { useProfileSync } from '@/hooks/useProfileSync';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/slices/authSlice';
 
+
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const { user: contextUser, logout } = useAuth();
   const router = useRouter();
 
-  // Use profile sync hook to get profile data and sync with auth state
+  
+
+
   const { userProfile, isLoading: profileLoading } = useProfileSync();
   
-  // Get user from Redux state (which has the updated interface)
   const reduxUser = useSelector(selectUser);
 
   function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {

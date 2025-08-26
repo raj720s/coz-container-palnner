@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
 import React, { useState, useMemo } from "react";
@@ -381,4 +381,6 @@ function AssignmentResultsPage() {
   );
 }
 
-export default withAdminAuth(AssignmentResultsPage); 
+export default withSimpleRBAC(AssignmentResultsPage, {
+  route: "/admin/assignment-results"
+}); 

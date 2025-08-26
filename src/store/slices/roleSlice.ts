@@ -1,10 +1,11 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { roleService, RoleListRequest, RoleListResponseV2 } from '@/services/roleService';
-import { RoleResponse, RoleListResponse } from '@/services/roleService';
+import { RoleResponse, RoleListResponse, RoleResponseWithPrivileges } from '@/services/roleService';
 
 interface RoleState {
   roles: RoleResponse[];
   rolesV2: RoleListResponseV2[];
+  rolesWithPrivileges: RoleResponseWithPrivileges[];
   loading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -13,6 +14,7 @@ interface RoleState {
 const initialState: RoleState = {
   roles: [],
   rolesV2: [],
+  rolesWithPrivileges: [],
   loading: false,
   error: null,
   lastFetched: null,
@@ -21,9 +23,9 @@ const initialState: RoleState = {
 // Async thunk to fetch roles (legacy method)
 export const fetchRoles = createAsyncThunk(
   'roles/fetchRoles',
-  async (_, { rejectWithValue }) => {
+  async (params: any = {}, { rejectWithValue }) => {
     try {
-      const response: RoleListResponse = await roleService.getRoles();
+      const response = await roleService.getRoles(params);
       return response.results;
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to fetch roles');
@@ -35,6 +37,7 @@ export const fetchRoles = createAsyncThunk(
 export const fetchRolesV2 = createAsyncThunk(
   'roles/fetchRolesV2',
   async (params: RoleListRequest = {}, { rejectWithValue }) => {
+    console.log('🚀 Fetching roles with params:', params);
     try {
       const response: RoleListResponseV2[] = await roleService.getRolesV2(params);
       return response;
@@ -105,7 +108,30 @@ const roleSlice = createSlice({
       })
       .addCase(fetchRoles.fulfilled, (state, action) => {
         state.loading = false;
-        state.roles = action.payload;
+        
+        // Check if the response includes privilege data
+        if (action.payload && action.payload.length > 0 && 'privileges' in action.payload[0]) {
+          // Store in rolesWithPrivileges if privilege data is included
+          state.rolesWithPrivileges = action.payload as RoleResponseWithPrivileges[];
+          // Also store in regular roles for backward compatibility
+          state.roles = action.payload.map(role => ({
+            id: role.id,
+            role_name: role.role_name,
+            role_description: role.role_description,
+            privilege_names: role.privilege_names,
+            created_on: role.created_on,
+            modified_on: role.modified_on,
+            is_active: role.is_active,
+            created_by: role.created_by,
+            modified_by: role.modified_by
+          }));
+        } else {
+          // Store in regular roles if no privilege data
+          state.roles = action.payload;
+          // Clear rolesWithPrivileges
+          state.rolesWithPrivileges = [];
+        }
+        
         state.lastFetched = Date.now();
         state.error = null;
       })
@@ -189,6 +215,7 @@ export const { clearRoles, clearError } = roleSlice.actions;
 // Selectors
 export const selectRoles = (state: { roles: RoleState }) => state.roles.roles;
 export const selectRolesV2 = (state: { roles: RoleState }) => state.roles.rolesV2;
+export const selectRolesWithPrivileges = (state: { roles: RoleState }) => state.roles.rolesWithPrivileges;
 export const selectRolesLoading = (state: { roles: RoleState }) => state.roles.loading;
 export const selectRolesError = (state: { roles: RoleState }) => state.roles.error;
 export const selectRolesLastFetched = (state: { roles: RoleState }) => state.roles.lastFetched;

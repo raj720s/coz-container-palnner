@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import {
   useReactTable,
@@ -494,4 +494,6 @@ function ValidationSummaryPage() {
   );
 }
 
-export default withAdminAuth(ValidationSummaryPage); 
+export default withSimpleRBAC(ValidationSummaryPage, {
+  route: "/admin/validation-summary"
+}); 

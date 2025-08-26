@@ -5,13 +5,28 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 
 export interface ContainerThresholdFormData {
-  containerType: string;
-  minCBM: number;
-  maxCBM: number;
-  pol: string;
-  isDefault: boolean;
-  isActive: boolean;
-  description: string;
+  container: number;
+  port_of_loading: number;
+  type: string;
+  min_capacity: number;
+  max_capacity: number;
+  status: boolean;
+}
+
+interface ContainerType {
+  id: number;
+  code: string;
+  name: string;
+}
+
+interface Port {
+  id: number;
+  name: string;
+  code: string;
+  country: string;
+  city: string;
+  timezone: string;
+  is_active: boolean;
 }
 
 interface ContainerThresholdFormProps {
@@ -19,6 +34,9 @@ interface ContainerThresholdFormProps {
   onSubmit: (data: ContainerThresholdFormData) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  containerTypes: ContainerType[];
+  portOfLoading: Port[];
+  portOfDischarge: Port[];
 }
 
 export function ContainerThresholdForm({
@@ -26,15 +44,23 @@ export function ContainerThresholdForm({
   onSubmit,
   onCancel,
   isLoading = false,
+  containerTypes = [],
+  portOfLoading = [],
+  portOfDischarge = [],
 }: ContainerThresholdFormProps) {
+
+  console.log(containerTypes);
+  console.log({portOfLoading});
+  console.log(portOfDischarge);
+
+
   const [formData, setFormData] = useState<ContainerThresholdFormData>({
-    containerType: "",
-    minCBM: 0,
-    maxCBM: 0,
-    pol: "",
-    isDefault: false,
-    isActive: true,
-    description: "",
+    container: 0,
+    port_of_loading: 0,
+    type: "",
+    min_capacity: 0,
+    max_capacity: 0,
+    status: true,
   });
 
   useEffect(() => {
@@ -48,45 +74,71 @@ export function ContainerThresholdForm({
     onSubmit(formData);
   };
 
-  const containerTypes = [
-    "20GP", "40GP", "40HC", "40FT", "40HQ", "LCL"
-  ];
+  // Handle container ID change - sync with container type
+  const handleContainerChange = (containerId: number) => {
+    const selectedContainer = containerTypes.find(type => type.id === containerId);
+    setFormData({
+      ...formData,
+      container: containerId,
+      type: selectedContainer ? selectedContainer.code : ""
+    });
+  };
 
-  const polOptions = [
-    "", "Shanghai", "Yantian", "Qingdao", "Ningbo", "Tianjin", "Dalian"
-  ];
+  // Handle container type change - sync with container ID
+  const handleContainerTypeChange = (containerCode: string) => {
+    const selectedContainer = containerTypes.find(type => type.code === containerCode);
+    setFormData({
+      ...formData,
+      container: selectedContainer ? selectedContainer.id : 0,
+      type: containerCode
+    });
+  };
+
+  const handlePortOfLoadingChange = (portOfLoadingId: number) => {
+    setFormData({
+      ...formData,
+      port_of_loading: portOfLoadingId,
+    });
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Container Type *
+            Container ID *
           </label>
+
           <select
-            value={formData.containerType}
-            onChange={(e) => setFormData({ ...formData, containerType: e.target.value })}
+            value={formData.container}
+            onChange={(e) => handleContainerChange(parseInt(e.target.value) || 0)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
             required
           >
-            <option value="">Select Container Type</option>
-            {containerTypes.map(type => (
-              <option key={type} value={type}>{type}</option>
+            <option value="">Select Container</option>
+            {containerTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.code} 
+              </option>
             ))}
           </select>
+         
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            POL (Port of Loading)
+            Port of Loading ID
           </label>
           <select
-            value={formData.pol}
-            onChange={(e) => setFormData({ ...formData, pol: e.target.value })}
+            value={formData.port_of_loading}
+            onChange={(e) => handlePortOfLoadingChange(parseInt(e.target.value) || 0)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            required
           >
-            <option value="">Default (All POLs)</option>
-            {polOptions.filter(pol => pol !== "").map(pol => (
-              <option key={pol} value={pol}>{pol}</option>
+            <option value="">Select Port of Loading</option>
+            {portOfLoading.map((port) => (
+              <option key={port.id} value={port.id}>
+                {port.name}
+              </option>
             ))}
           </select>
         </div>
@@ -95,71 +147,66 @@ export function ContainerThresholdForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Min CBM *
+            Container Type *
+          </label>
+
+          <select
+            value={formData.type}
+            onChange={(e) => handleContainerTypeChange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+            required
+          >
+            <option value="">Select Container Type</option>
+            {containerTypes.map((type) => (
+              <option key={type.id} value={type.code}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Status
+          </label>
+          <select
+            value={formData.status ? "true" : "false"}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value === "true" })}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+          >
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Min Capacity *
           </label>
           <Input
             type="number"
             step="0.1"
             min="0"
-            value={formData.minCBM}
-            onChange={(e) => setFormData({ ...formData, minCBM: parseFloat(e.target.value) || 0 })}
+            value={formData.min_capacity}
+            onChange={(e) => setFormData({ ...formData, min_capacity: parseFloat(e.target.value) || 0 })}
             placeholder="0.0"
             required
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Max CBM *
+            Max Capacity *
           </label>
           <Input
             type="number"
             step="0.1"
             min="0"
-            value={formData.maxCBM}
-            onChange={(e) => setFormData({ ...formData, maxCBM: parseFloat(e.target.value) || 0 })}
+            value={formData.max_capacity}
+            onChange={(e) => setFormData({ ...formData, max_capacity: parseFloat(e.target.value) || 0 })}
             placeholder="0.0"
             required
           />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Description
-        </label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-          rows={3}
-          placeholder="Enter description for this threshold..."
-        />
-      </div>
-
-      <div className="flex gap-4">
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="isDefault"
-            checked={formData.isDefault}
-            onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="isDefault" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-            Default Threshold
-          </label>
-        </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="isActive"
-            checked={formData.isActive}
-            onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-            Active
-          </label>
         </div>
       </div>
 

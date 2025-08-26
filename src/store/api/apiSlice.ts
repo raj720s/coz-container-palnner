@@ -16,11 +16,21 @@ import {
   RoleListParams,
   RoleListRequest,
   RoleListResponseV2,
-  CreatePOLRequest,
-  UpdatePOLRequest,
-  POLResponse,
-  POLListRequest,
-  POLListResponse,
+  // CreatePOLRequest, // Removed
+  // UpdatePOLRequest, // Removed
+  // POLResponse, // Removed
+  // POLListRequest, // Removed
+  // POLListResponse, // Removed
+  CreateCustomerRequest,
+  UpdateCustomerRequest,
+  CustomerResponse,
+  CustomerListRequest,
+  CustomerListResponse,
+  CreateContainerTypeRequest,
+  UpdateContainerTypeRequest,
+  ContainerTypeResponse,
+  ContainerTypeListRequest,
+  ContainerTypeListResponse,
   Privilege,
   PrivilegeListResponse,
   RoleUserResponse,
@@ -49,7 +59,7 @@ export const apiSlice = createApi({
   baseQuery: axiosBaseQuery(),
   
   // Define tag types for cache invalidation
-  tagTypes: ['User', 'Role', 'Privilege', 'POL'],
+  tagTypes: ['User', 'Role', 'Privilege', 'Customer', 'ContainerType'], // 'POL' removed
   
   endpoints: (builder) => ({
     // === USER MANAGEMENT ENDPOINTS ===
@@ -229,82 +239,172 @@ export const apiSlice = createApi({
     }),
     
     // === POL MANAGEMENT ENDPOINTS ===
+    // All POL endpoints removed - now using direct service calls
     
-    // Get POLs list with filtering and pagination using POST
-    getPOLs: builder.query<POLListResponse, POLListRequest>({
+    // === CUSTOMER MANAGEMENT ENDPOINTS ===
+    
+    // Get customers list with filtering and pagination using POST
+    getCustomers: builder.query<CustomerListResponse, CustomerListRequest>({
       query: (params = {}) => ({
-        url: '/master-data/v1/pol/list',
+        url: '/master-data/v1/customer/list',
         method: 'POST',
         data: cleanParams(params),
       }),
-      providesTags: ['POL'],
+      providesTags: ['Customer'],
     }),
     
-    // Get single POL by ID
-    getPOL: builder.query<POLResponse, number>({
-      query: (id) => `/master-data/v1/pol/${id}`,
-      providesTags: (result, error, id) => [{ type: 'POL', id }],
+    // Get single customer by ID
+    getCustomer: builder.query<CustomerResponse, number>({
+      query: (id) => `/master-data/v1/customer/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Customer', id }],
     }),
     
-    // Create new POL
-    createPOL: builder.mutation<POLResponse, CreatePOLRequest>({
-      query: (polData) => ({
-        url: '/master-data/v1/pol',
+    // Create new customer
+    createCustomer: builder.mutation<CustomerResponse, CreateCustomerRequest>({
+      query: (customerData) => ({
+        url: '/master-data/v1/customer',
         method: 'POST',
-        data: polData,
+        data: customerData,
       }),
-      invalidatesTags: ['POL'],
+      invalidatesTags: ['Customer'],
     }),
     
-    // Update POL
-    updatePOL: builder.mutation<POLResponse, { id: number; data: UpdatePOLRequest }>({
+    // Update customer
+    updateCustomer: builder.mutation<CustomerResponse, { id: number; data: UpdateCustomerRequest }>({
       query: ({ id, data }) => ({
-        url: `/master-data/v1/pol/${id}`,
+        url: `/master-data/v1/customer/${id}`,
         method: 'PUT',
         data: data,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'POL', id }, 'POL'],
+      invalidatesTags: (result, error, { id }) => [{ type: 'Customer', id }, 'Customer'],
     }),
     
-    // Delete POL
-    deletePOL: builder.mutation<ApiResponse, number>({
+    // Patch customer
+    patchCustomer: builder.mutation<CustomerResponse, { id: number; data: UpdateCustomerRequest }>({
+      query: ({ id, data }) => ({
+        url: `/master-data/v1/customer/${id}`,
+        method: 'PATCH',
+        data: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Customer', id }, 'Customer'],
+    }),
+    
+    // Delete customer
+    deleteCustomer: builder.mutation<ApiResponse, number>({
       query: (id) => ({
-        url: `/master-data/v1/pol/${id}`,
+        url: `/master-data/v1/customer/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['POL'],
+      invalidatesTags: ['Customer'],
     }),
     
-    // Search POLs
-    searchPOLs: builder.query<POLResponse[], string>({
+    // Search customers
+    searchCustomers: builder.query<CustomerResponse[], string>({
       query: (query) => ({
-        url: '/master-data/v1/pol/list',
+        url: '/master-data/v1/customer/list',
         method: 'POST',
         data: { name: query, page_size: 10 },
       }),
-      providesTags: ['POL'],
+      providesTags: ['Customer'],
     }),
     
-    // Get POLs by country
-    getPOLsByCountry: builder.query<POLListResponse, { country: string; params?: Omit<POLListRequest, 'country'> }>({
+    // Get customers by country
+    getCustomersByCountry: builder.query<CustomerListResponse, { country: string; params?: Omit<CustomerListRequest, 'country'> }>({
       query: ({ country, params = {} }) => ({
-        url: '/master-data/v1/pol/list',
+        url: '/master-data/v1/customer/list',
         method: 'POST',
         data: cleanParams({ ...params, country }),
       }),
-      providesTags: ['POL'],
+      providesTags: ['Customer'],
     }),
     
-    // Get POLs by city
-    getPOLsByCity: builder.query<POLListResponse, { city: string; params?: Omit<POLListRequest, 'city'> }>({
+        // Get customers by city
+    getCustomersByCity: builder.query<CustomerListResponse, { city: string; params?: Omit<CustomerListRequest, 'city'> }>({
       query: ({ city, params = {} }) => ({
-        url: '/master-data/v1/pol/list',
+        url: '/master-data/v1/customer/list',
         method: 'POST',
         data: cleanParams({ ...params, city }),
       }),
-      providesTags: ['POL'],
+      providesTags: ['Customer'],
     }),
-    
+
+    // === CONTAINER TYPE MANAGEMENT ENDPOINTS ===
+
+    // Get container types list with filtering and pagination using POST
+    getContainerTypes: builder.query<ContainerTypeListResponse, ContainerTypeListRequest>({
+      query: (params = {}) => ({
+        url: '/master-data/v1/container/list',
+        method: 'POST',
+        data: cleanParams(params),
+      }),
+      providesTags: ['ContainerType'],
+    }),
+
+    // Get single container type by ID
+    getContainerType: builder.query<ContainerTypeResponse, number>({
+      query: (id) => `/master-data/v1/container/${id}`,
+      providesTags: (result, error, id) => [{ type: 'ContainerType', id }],
+    }),
+
+    // Create new container type
+    createContainerType: builder.mutation<ContainerTypeResponse, CreateContainerTypeRequest>({
+      query: (containerTypeData) => ({
+        url: '/master-data/v1/container',
+        method: 'POST',
+        data: containerTypeData,
+      }),
+      invalidatesTags: ['ContainerType'],
+    }),
+
+    // Update container type
+    updateContainerType: builder.mutation<ContainerTypeResponse, { id: number; data: UpdateContainerTypeRequest }>({
+      query: ({ id, data }) => ({
+        url: `/master-data/v1/container/${id}`,
+        method: 'PUT',
+        data: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'ContainerType', id }, 'ContainerType'],
+    }),
+
+    // Patch container type
+    patchContainerType: builder.mutation<ContainerTypeResponse, { id: number; data: UpdateContainerTypeRequest }>({
+      query: ({ id, data }) => ({
+        url: `/master-data/v1/container/${id}`,
+        method: 'PATCH',
+        data: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'ContainerType', id }, 'ContainerType'],
+    }),
+
+    // Delete container type
+    deleteContainerType: builder.mutation<ApiResponse, number>({
+      query: (id) => ({
+        url: `/master-data/v1/container/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['ContainerType'],
+    }),
+
+    // Search container types
+    searchContainerTypes: builder.query<ContainerTypeResponse[], string>({
+      query: (query) => ({
+        url: '/master-data/v1/container/list',
+        method: 'POST',
+        data: { name: query, page_size: 10 },
+      }),
+      providesTags: ['ContainerType'],
+    }),
+
+    // Get container types by status
+    getContainerTypesByStatus: builder.query<ContainerTypeListResponse, { status: boolean; params?: Omit<ContainerTypeListRequest, 'status'> }>({
+      query: ({ status, params = {} }) => ({
+        url: '/master-data/v1/container/list',
+        method: 'POST',
+        data: cleanParams({ ...params, status }),
+      }),
+      providesTags: ['ContainerType'],
+    }),
+
     // === USER PROFILE ENDPOINTS ===
     
     // Get current user profile
@@ -330,6 +430,7 @@ export const apiSlice = createApi({
 
 // Utility function to clean parameters
 function cleanParams(params: Record<string, any>): Record<string, any> {
+  console.log('🧹 Cleaning params:', params);
   const cleanedParams: Record<string, any> = {};
   
   Object.entries(params).forEach(([key, value]) => {
@@ -338,6 +439,7 @@ function cleanParams(params: Record<string, any>): Record<string, any> {
     }
   });
   
+  console.log('✨ Cleaned params:', cleanedParams);
   return cleanedParams;
 }
 
@@ -367,15 +469,28 @@ export const {
   useBulkUpdateRoleStatusMutation,
   useGetRoleStatisticsQuery,
   
-  // POL management hooks
-  useGetPOLsQuery,
-  useGetPOLQuery,
-  useCreatePOLMutation,
-  useUpdatePOLMutation,
-  useDeletePOLMutation,
-  useSearchPOLsQuery,
-  useGetPOLsByCountryQuery,
-  useGetPOLsByCityQuery,
+  // POL management hooks - removed, now using direct service calls
+  
+  // Customer management hooks
+  useGetCustomersQuery,
+  useGetCustomerQuery,
+  useCreateCustomerMutation,
+  useUpdateCustomerMutation,
+  usePatchCustomerMutation,
+  useDeleteCustomerMutation,
+  useSearchCustomersQuery,
+  useGetCustomersByCountryQuery,
+  useGetCustomersByCityQuery,
+  
+  // Container Type management hooks
+  useGetContainerTypesQuery,
+  useGetContainerTypeQuery,
+  useCreateContainerTypeMutation,
+  useUpdateContainerTypeMutation,
+  usePatchContainerTypeMutation,
+  useDeleteContainerTypeMutation,
+  useSearchContainerTypesQuery,
+  useGetContainerTypesByStatusQuery,
   
   // User profile hooks
   useGetUserProfileQuery,

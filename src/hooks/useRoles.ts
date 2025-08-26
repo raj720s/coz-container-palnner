@@ -4,6 +4,7 @@ import { AppDispatch, RootState } from '@/store';
 import { 
   fetchRoles, 
   selectRoles, 
+  selectRolesWithPrivileges,
   selectRolesLoading, 
   selectRolesError, 
   selectRolesLastFetched 
@@ -19,6 +20,7 @@ export const useRoles = () => {
   
   // Selectors from Redux state
   const roles = useSelector(selectRoles);
+  const rolesWithPrivileges = useSelector(selectRolesWithPrivileges);
   const loading = useSelector(selectRolesLoading);
   const error = useSelector(selectRolesError);
   const lastFetched = useSelector(selectRolesLastFetched);
@@ -33,7 +35,7 @@ export const useRoles = () => {
   // Fetch roles if needed
   useEffect(() => {
     if (shouldFetch) {
-      dispatch(fetchRoles());
+      dispatch(fetchRoles({ include_privilege_data: true }));
     }
   }, [dispatch, shouldFetch]);
 
@@ -74,16 +76,16 @@ export const useRoles = () => {
 
   // Refresh roles (force fetch)
   const refreshRoles = () => {
-    dispatch(fetchRoles());
+    dispatch(fetchRoles({ include_privilege_data: true }));
   };
 
   return {
     // State
     roles,
+    rolesWithPrivileges,
     loading,
     error,
     lastFetched,
-    
     // Computed values
     roleOptions,
     

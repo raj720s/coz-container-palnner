@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
@@ -473,7 +473,7 @@ function AdminDataBackupPage() {
 
       {/* Restore Modal */}
       {showRestoreModal && selectedJob && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Restore Backup
@@ -509,4 +509,6 @@ function AdminDataBackupPage() {
   );
 }
 
-export default withAdminAuth(AdminDataBackupPage); 
+export default withSimpleRBAC(AdminDataBackupPage, {
+  route: "/admin/data-backup"
+}); 

@@ -1,6 +1,5 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
 import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,44 +16,40 @@ import {
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
+import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
-import { dataService, type PODPort } from "@/utils/dataService";
+import { withRouteAuth } from "@/components/auth/withAuth";
 import Pagination from "@/components/tables/Pagination";
+import { PODResponse, PODListRequest, CreatePODRequest, UpdatePODRequest } from "@/types/api";
+import { podService } from "@/services";
 
-const columnHelper = createColumnHelper<PODPort>();
+const columnHelper = createColumnHelper<PODResponse>();
 
-function PODPortsPage() { 
-  
+function PODPortsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   
-  // POD Ports data
-  const [podPorts, setPodPorts] = useState<PODPort[]>([]);
+  // Local state for data management
+  const [pods, setPods] = useState<PODResponse[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Load POD ports from JSON data on component mount
-  useEffect(() => {
-    loadPODPorts();
-  }, []);
-
-  const loadPODPorts = async () => {
-    try {
-      setLoading(true);
-      const data = await dataService.getPODPorts();
-      setPodPorts(data);
-    } catch (error) {
-      console.error('Error loading POD ports:', error);
-      toast.error('Failed to load POD ports');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  
+  // Local state for filtering and pagination
+  const [filters, setFilters] = useState<PODListRequest>({
+    page: 1,
+    page_size: 10,
+    order_by: "created_on",
+    order_type: "desc"
+  });
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<PODResponse | null>(null);
 
   const {
     isOpen: isModalOpen,
@@ -63,137 +58,171 @@ function PODPortsPage() {
     openModal,
     closeModal,
     setLoading: setModalLoading,
-  } = useFormModal<PODPort>();
+  } = useFormModal<PODResponse>();
 
   // Auto-open modal if action=add
   useEffect(() => {
     if (action === 'add') {
       openModal(undefined);
+      // Clear the URL parameter
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('action');
+      router.replace(`?${newSearchParams.toString()}`);
     }
-  }, [action, openModal]);
+  }, [action, openModal, router, searchParams]);
+
+  // Load POD ports on component mount and when filters change
+  useEffect(() => {
+    loadPODs();
+  }, [filters]);
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  const loadPODs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await podService.getPODs(filters);
+      setPods(response.results || []);
+      setTotal(response.count || 0);
+    } catch (err: any) {
+      console.error('Error loading POD ports:', err);
+      setError(err.message || 'Failed to load POD ports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Sync table sorting with API filters
+  useEffect(() => {
+    if (sorting.length > 0) {
+      const sortConfig = sorting[0];
+      setFilters(prev => ({
+        ...prev,
+        order_by: sortConfig.id,
+        order_type: sortConfig.desc ? 'desc' : 'asc'
+      }));
+    }
+  }, [sorting]);
 
   const columns = useMemo(() => [
-    columnHelper.accessor("code", { 
+    columnHelper.accessor("code", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Port Code
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          Code
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
-      cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
+      cell: (info) => (
+        <span className="font-medium text-gray-900 dark:text-white">
+          {info.getValue()}
+        </span>
+      ),
     }),
-    columnHelper.accessor("name", { 
+    columnHelper.accessor("name", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Port Name
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          Name
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
-      cell: (info) => <span className="font-medium">{info.getValue()}</span>
+      cell: (info) => (
+        <span className="text-gray-900 dark:text-white">
+          {info.getValue()}
+        </span>
+      ),
     }),
-    columnHelper.accessor("country", { 
+    columnHelper.accessor("country", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Country
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
-      cell: (info) => info.getValue() 
+      cell: (info) => (
+        <span className="text-gray-600 dark:text-gray-400">
+          {info.getValue()}
+        </span>
+      ),
     }),
-    columnHelper.accessor("region", { 
+    columnHelper.accessor("city", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Region
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          City
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
+        <span className="text-gray-600 dark:text-gray-400">
           {info.getValue()}
         </span>
-      )
+      ),
     }),
-    columnHelper.accessor("isActive", {
+    columnHelper.accessor("timezone", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Timezone
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
+      cell: (info) => (
+        <span className="text-gray-600 dark:text-gray-400">
+          {info.getValue()}
+        </span>
+      ),
+    }),
+    columnHelper.accessor("is_active", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Status
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          info.getValue()
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          info.getValue() 
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
         }`}>
           {info.getValue() ? "Active" : "Inactive"}
-        </span>
-      ),
-    }),
-    columnHelper.accessor("updatedAt", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Last Updated
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue()).toLocaleDateString()}
         </span>
       ),
     }),
@@ -202,235 +231,312 @@ function PODPortsPage() {
       header: "Actions",
       cell: (info) => (
         <div className="flex space-x-2">
-          <button
+          <Button
+            size="sm"
+            variant="outline"
             onClick={() => openModal(info.row.original)}
-            className="p-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-            title="Edit Port"
+            className="p-1"
           >
             <PencilIcon className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleDelete(info.row.original.id)}
-            className="p-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-            title="Delete Port"
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setDeletingItem(info.row.original);
+              setDeleteModalOpen(true);
+            }}
+            className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       ),
     }),
   ], [openModal]);
 
-  // Filter data
-  const filteredData = useMemo(() => {
-    return podPorts.filter(port => {
-      const searchTerm = globalFilter.toLowerCase();
-      return port.code.toLowerCase().includes(searchTerm) ||
-             port.name.toLowerCase().includes(searchTerm) ||
-             port.country.toLowerCase().includes(searchTerm) ||
-             port.region.toLowerCase().includes(searchTerm);
-    });
-  }, [podPorts, globalFilter]);
-
-  const table = useReactTable({
-    data: filteredData,
+  const table = useReactTable<PODResponse>({
+    data: pods,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     state: {
+      globalFilter,
       sorting,
     },
+    onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
   });
 
-  const handleAddNew = () => {
-    openModal(undefined);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this POD port?")) {
-      setPodPorts(prev => prev.filter(item => item.id !== id));
-      toast.success("POD port deleted successfully");
-    }
-  };
-
   const handleSubmit = async (formData: PortFormData) => {
-    setModalLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      setModalLoading(true);
       
       if (editingItem) {
-        // Update existing port
-        setPodPorts(prev => prev.map(item => 
-          // @ts-ignore 
-          item.id === editingItem.id ? { 
-            ...item, 
-            ...formData,
-            updatedAt: new Date().toISOString()
-          } : item
-        ));
-        toast.success("POD port updated successfully");
-      } else {
-        // Add new port
-        const newPort: PODPort = {
-          id: Date.now().toString(),
-          ...formData,
-          region: "Europe", // Default region for POD ports
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+        // Update existing POD port
+        const updateData: UpdatePODRequest = {
+          name: formData.name,
+          code: formData.code,
+          country: formData.country,
+          city: formData.city,
+          timezone: formData.timezone,
+          is_active: formData.is_active
         };
         
-        setPodPorts(prev => [...prev, newPort]);
-        toast.success("POD port added successfully");
+        await podService.updatePOD(editingItem.id, updateData);
+        toast.success('POD port updated successfully');
+      } else {
+        // Create new POD port
+        const createData: CreatePODRequest = {
+          name: formData.name,
+          code: formData.code,
+          country: formData.country,
+          city: formData.city,
+          timezone: formData.timezone,
+          is_active: formData.is_active
+        };
+        
+        await podService.createPOD(createData);
+        toast.success('POD port created successfully');
       }
       
       closeModal();
-    } catch (error) {
-      toast.error("Operation failed");
+      loadPODs(); // Reload the data
+    } catch (error: any) {
+      console.error('Error saving POD port:', error);
+      toast.error(error.message || 'Failed to save POD port');
     } finally {
       setModalLoading(false);
     }
   };
 
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+    
+    try {
+      setLoading(true);
+      await podService.deletePOD(deletingItem.id);
+      toast.success('POD port deleted successfully');
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      loadPODs(); // Reload the data
+    } catch (error: any) {
+      console.error('Error deleting POD port:', error);
+      toast.error(error.message || 'Failed to delete POD port');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      setLoading(true);
+      const response = await podService.getPODs({ ...filters, export: true });
+      
+      // Create CSV content
+      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status'];
+      const csvContent = [
+        headers.join(','),
+        ...pods.map(pod => [
+          pod.code,
+          pod.name,
+          pod.country,
+          pod.city,
+          pod.timezone,
+          pod.is_active ? 'Active' : 'Inactive'
+        ].join(','))
+      ].join('\n');
+
+      // Download CSV file
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'pod_ports.csv';
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('POD ports exported successfully');
+    } catch (error: any) {
+      console.error('Error exporting POD ports:', error);
+      toast.error('Failed to export POD ports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (newFilters: Partial<PODListRequest>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  const handlePageChange = (page: number) => {
+    handleFilterChange({ page });
+  };
+
+  const handleSearch = (searchTerm: string) => {
+    setGlobalFilter(searchTerm);
+    handleFilterChange({ 
+      name: searchTerm,
+      page: 1 
+    });
+  };
+
+  if (loading && pods.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading POD ports...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6">         
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           POD Master
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage Port of Discharge ports for container shipments
+          Manage Port of Destination (POD) ports and their configurations
         </p>
       </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Total POD Ports</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{podPorts.length}</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Active Ports</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {podPorts.filter(p => p.isActive).length}
+            {pods.filter(p => p.is_active).length}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(podPorts.map(p => p.country)).size}
+            {new Set(pods.map(p => p.country)).size}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Regions</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Cities</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(podPorts.map(p => p.region)).size}
+            {new Set(pods.map(p => p.city)).size}
           </div>
         </div>
       </div>
 
-      {/* Filters and Actions */}
+      {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Search POD ports..."
+            placeholder="Search ports by code, name, country, or city..."
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="max-w-md"
           />
         </div>
-        <div className="flex gap-4">
-          <Button onClick={handleAddNew} size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline" className="flex items-center gap-2" disabled={loading}>
+            <DownloadIcon className="w-4 h-4" />
+            Export
+          </Button>
+          <Button onClick={() => openModal()} className="flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" />
             Add POD Port
           </Button>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 dark:bg-gray-800">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            {table.getRowModel().rows.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-gray-700 dark:text-gray-300">
-          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-          {Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
-          )}{" "}
-          of {table.getFilteredRowModel().rows.length} results
-        </div>
-        <Pagination
-          currentPage={table.getState().pagination.pageIndex + 1}
-          totalPages={table.getPageCount()}
-          onPageChange={(page) => table.setPageIndex(page - 1)}
-        />
-      </div>
-
-      {filteredData.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No POD ports found matching your filters.
+      {Math.ceil(total / (filters.page_size || 10)) > 1 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={filters.page || 1}
+            totalPages={Math.ceil(total / (filters.page_size || 10))}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
 
-      {/* Modal */}
+      {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingItem ? "Edit POD Port" : "Add New POD Port"}
         size="lg"
-        isLoading={isModalLoading}
         showFooter={false}
       >
         <PortForm
           initialData={editingItem ? {
-            code: editingItem.code,
+            id: editingItem.id.toString(),
             name: editingItem.name,
+            code: editingItem.code,
             country: editingItem.country,
-            region: editingItem.region,
-            type: "POD" as const,
-            isActive: editingItem.isActive
+            city: editingItem.city,
+            timezone: editingItem.timezone,
+            type: "POD",
+            is_active: editingItem.is_active
           } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
@@ -438,8 +544,18 @@ function PODPortsPage() {
           portType="POD"
         />
       </FormModal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete POD Port"
+        message={`Are you sure you want to delete the POD port "${deletingItem?.name}"? This action cannot be undone.`}
+        isLoading={loading}
+      />
     </div>
   );
 }
 
-export default withUserAuth(PODPortsPage);
+export default withRouteAuth(PODPortsPage, "user/port-customer-master/pod-ports");

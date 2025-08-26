@@ -1,4 +1,4 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { 
   persistStore, 
@@ -12,15 +12,19 @@ import {
 } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 
-// Import API slice
 import { apiSlice } from './api/apiSlice';
 
-// Import feature slices
+
 import authReducer from './slices/authSlice';
 import uiReducer from './slices/uiSlice';
 import userReducer from './slices/userSlice';
+import userInfoReducer from './slices/userInfoSlice';
 import roleReducer from './slices/roleSlice';
-import polReducer from './slices/polSlice';
+
+import customerReducer from './slices/customerSlice';
+import containerTypeReducer from './slices/containerTypeSlice';
+import containerThresholdReducer from './slices/containerThresholdSlice';
+import commonDataReducer from './slices/commonDataSlice';
 
 // Persist config for auth
 const authPersistConfig = {
@@ -46,8 +50,13 @@ export const store = configureStore({
     auth: persistReducer(authPersistConfig, authReducer),
     ui: persistReducer(uiPersistConfig, uiReducer),
     users: userReducer,
+    userInfo: userInfoReducer,
     roles: roleReducer,
-    pols: polReducer,
+    // pols: polReducer, // Removed
+    customers: customerReducer,
+    containerTypes: containerTypeReducer,
+    commonData: commonDataReducer,
+    containerThresholds: containerThresholdReducer,
   },
   
   middleware: (getDefaultMiddleware) =>
@@ -71,4 +80,4 @@ export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
 // Export store as default
-export default store;
+export default store; 

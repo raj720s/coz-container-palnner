@@ -9,11 +9,11 @@ import Checkbox from "@/components/form/input/Checkbox";
 import Button from "@/components/ui/button/Button";
 
 const containerTypeSchema = z.object({
-  name: z.string().min(1, "Container name is required"),
-  code: z.string().min(1, "Container code is required"),
-  description: z.string().optional(),
-  capacity: z.number().min(1, "Capacity must be greater than 0"),
-  isActive: z.boolean(),
+  code: z.string().min(1, "Container type code is required"),
+  name: z.string().min(1, "Container type name is required"),
+  description: z.string().min(1, "Description is required"),
+  capacity: z.string().min(1, "Capacity is required"),
+  status: z.boolean(),
 });
 
 export type ContainerTypeFormData = z.infer<typeof containerTypeSchema>;
@@ -41,15 +41,15 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
   } = useForm<ContainerTypeFormData>({
     resolver: zodResolver(containerTypeSchema),
     defaultValues: {
-      name: "",
       code: "",
+      name: "",
       description: "",
-      capacity: 0,
-      isActive: true,
+      capacity: "",
+      status: true,
     },
   });
 
-  const isActive = watch("isActive");
+  const isActive = watch("status");
   const isEditing = !!initialData;
 
   useEffect(() => {
@@ -57,11 +57,11 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
       reset(initialData);
     } else {
       reset({
-        name: "",
         code: "",
+        name: "",
         description: "",
-        capacity: 0,
-        isActive: true,
+        capacity: "",
+        status: true,
       });
     }
   }, [initialData, reset]);
@@ -74,17 +74,23 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <Label>Container Name *</Label>
+          <Label htmlFor="name" required>
+            Container Type Name
+          </Label>
           <Input
-            placeholder="e.g., 40 High Cube"
+            id="name"
+            placeholder="e.g., 20ft General Purpose"
             {...register("name")}
             error={errors.name?.message}
           />
         </div>
         <div>
-          <Label>Container Code *</Label>
+          <Label htmlFor="code" required>
+            Container Type Code
+          </Label>
           <Input
-            placeholder="e.g., 40HC"
+            id="code"
+            placeholder="e.g., 20GP, 40HC"
             {...register("code")}
             error={errors.code?.message}
           />
@@ -92,35 +98,40 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
       </div>
 
       <div>
-        <Label>Description</Label>
+        <Label htmlFor="description" required>
+          Description
+        </Label>
         <Input
-          placeholder="Optional description"
+          id="description"
+          placeholder="e.g., Standard 20ft general purpose container"
           {...register("description")}
           error={errors.description?.message}
         />
       </div>
 
       <div>
-        <Label>Capacity (CBM) *</Label>
+        <Label htmlFor="capacity" required>
+          Capacity
+        </Label>
         <Input
-          type="number"
-          placeholder="e.g., 67.7"
-          {...register("capacity", { valueAsNumber: true })}
+          id="capacity"
+          placeholder="e.g., 67.7 CBM, 28,000 kg"
+          {...register("capacity")}
           error={errors.capacity?.message}
         />
       </div>
 
       <div className="flex items-center gap-3">
         <Checkbox
-          {...register("isActive")}
+          {...register("status")}
           checked={isActive}
-          onChange={(e) => setValue("isActive", e.target.checked)}
+          onChange={(e) => setValue("status", e.target.checked)}
         />
         <Label className="text-sm">Active</Label>
       </div>
 
-      {errors.isActive && (
-        <p className="text-xs text-red-500">{errors.isActive.message}</p>
+      {errors.status && (
+        <p className="text-xs text-red-500">{errors.status.message}</p>
       )}
 
       {/* Form Actions */}

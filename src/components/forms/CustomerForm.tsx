@@ -9,15 +9,18 @@ import Checkbox from "@/components/form/input/Checkbox";
 import Button from "@/components/ui/button/Button";
 
 const customerSchema = z.object({
-  code: z.string().min(1, "Customer code is required"),
-  name: z.string().min(1, "Customer name is required"),
-  email: z.string().email("Please enter a valid email address"),
+  customer_code: z.string().min(1, "Customer code is required"),
+  name: z.string().min(1, "Company name is required"),
+  contact_person: z.string().min(1, "Contact person is required"),
+  email: z.string().email("Valid email is required"),
   phone: z.string().min(1, "Phone number is required"),
   address: z.string().min(1, "Address is required"),
-  isActive: z.boolean(),
+  country: z.string().min(1, "Country is required"),
+  tax_id: z.string().min(1, "Tax ID is required"),
+  is_active: z.boolean(),
 });
 
-type CustomerFormData = z.infer<typeof customerSchema>;
+export type CustomerFormData = z.infer<typeof customerSchema>;
 
 interface CustomerFormProps {
   initialData?: CustomerFormData & { id?: string };
@@ -42,16 +45,19 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   } = useForm<CustomerFormData>({
     resolver: zodResolver(customerSchema),
     defaultValues: {
-      code: "",
+      customer_code: "",
       name: "",
+      contact_person: "",
       email: "",
       phone: "",
       address: "",
-      isActive: true,
+      country: "",
+      tax_id: "",
+      is_active: true,
     },
   });
 
-  const isActive = watch("isActive");
+  const isActive = watch("is_active");
   const isEditing = !!initialData;
 
   useEffect(() => {
@@ -59,12 +65,15 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
       reset(initialData);
     } else {
       reset({
-        code: "",
+        customer_code: "",
         name: "",
+        contact_person: "",
         email: "",
         phone: "",
         address: "",
-        isActive: true,
+        country: "",
+        tax_id: "",
+        is_active: true,
       });
     }
   }, [initialData, reset]);
@@ -73,22 +82,36 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
     onSubmit(data);
   };
 
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      window.history.back();
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <Label>Customer Code *</Label>
+          <Label htmlFor="customer_code" required>
+            Customer Code
+          </Label>
           <Input
-            placeholder="e.g., CUST001, CUST002"
-            {...register("code")}
-            error={errors.code?.message}
+            id="customer_code"
+            {...register("customer_code")}
+            placeholder="e.g., CUST001"
+            error={errors.customer_code?.message}
           />
         </div>
         <div>
-          <Label>Customer Name *</Label>
+          <Label htmlFor="name" required>
+            Company Name
+          </Label>
           <Input
-            placeholder="e.g., ABC Company Ltd"
+            id="name"
             {...register("name")}
+            placeholder="e.g., ABC Corporation"
             error={errors.name?.message}
           />
         </div>
@@ -96,72 +119,108 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <Label>Email Address *</Label>
+          <Label htmlFor="contact_person" required>
+            Contact Person
+          </Label>
           <Input
-            type="email"
-            placeholder="e.g., contact@abc.com"
-            {...register("email")}
-            error={errors.email?.message}
+            id="contact_person"
+            {...register("contact_person")}
+            placeholder="e.g., John Doe"
+            error={errors.contact_person?.message}
           />
         </div>
         <div>
-          <Label>Phone Number *</Label>
+          <Label htmlFor="email" required>
+            Email
+          </Label>
           <Input
-            placeholder="e.g., +65 1234 5678"
+            id="email"
+            type="email"
+            {...register("email")}
+            placeholder="e.g., john@example.com"
+            error={errors.email?.message}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <Label htmlFor="phone" required>
+            Phone
+          </Label>
+          <Input
+            id="phone"
             {...register("phone")}
+            placeholder="e.g., +1-555-123-4567"
             error={errors.phone?.message}
+          />
+        </div>
+        <div>
+          <Label htmlFor="country" required>
+            Country
+          </Label>
+          <Input
+            id="country"
+            {...register("country")}
+            placeholder="e.g., United States"
+            error={errors.country?.message}
           />
         </div>
       </div>
 
       <div>
-        <Label>Address *</Label>
+        <Label htmlFor="address" required>
+          Address
+        </Label>
         <Input
-          placeholder="e.g., 123 Business Street, Singapore 123456"
+          id="address"
           {...register("address")}
+          placeholder="e.g., 123 Business St, City, State, ZIP"
           error={errors.address?.message}
         />
       </div>
 
-      <div className="flex items-center gap-3">
-        <Checkbox
-          {...register("isActive")}
-          checked={isActive}
-          onChange={(e) => setValue("isActive", e.target.checked)}
-        />
-        <Label className="text-sm">Active</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <Label htmlFor="tax_id" required>
+            Tax ID
+          </Label>
+          <Input
+            id="tax_id"
+            {...register("tax_id")}
+            placeholder="e.g., 12-3456789"
+            error={errors.tax_id?.message}
+          />
+        </div>
+        <div className="flex items-center gap-3 pt-6">
+          <Checkbox
+            id="is_active"
+            {...register("is_active")}
+            checked={isActive}
+            onChange={(e) => setValue("is_active", e.target.checked)}
+          />
+          <Label htmlFor="is_active" className="text-sm">
+            Active
+          </Label>
+        </div>
       </div>
 
-      {errors.isActive && (
-        <p className="text-xs text-red-500">{errors.isActive.message}</p>
-      )}
-
-      {/* Form Actions */}
-      <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-        {onCancel && (
-          <Button
-            variant="outline"
-            onClick={onCancel}
-            disabled={isLoading}
-          >
-            Cancel
-          </Button>
-        )}
+      <div className="flex justify-end gap-3 pt-4">
         <Button
-          onClick={handleSubmit(handleFormSubmit)}
+          variant="outline"
+          onClick={handleCancel}
           disabled={isLoading}
-          className="min-w-[100px]"
         >
-          {isLoading ? (
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Saving...
-            </div>
-          ) : (
-            isEditing ? "Update Customer" : "Create Customer"
-          )}
+          Cancel
+        </Button>
+        <Button
+          disabled={isLoading}
+        >
+          {isLoading ? 'Saving...' : (isEditing ? 'Update Customer' : 'Create Customer')}
         </Button>
       </div>
     </form>
   );
-}; 
+};
+
+export default CustomerForm; 

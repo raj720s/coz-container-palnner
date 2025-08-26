@@ -1,11 +1,13 @@
 "use client";
 
-import { withAdminRBAC } from "@/components/auth/withRBACAuth";
+import { withAdminRBAC } from "@/components/auth/withSimpleRBAC";
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
 import { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import { FormModal } from "@/components/ui/modal/FormModal";
+import { CommonModalWrapper } from "@/components/ui/modal/CommonModalWrapper";
+import { PrivilegeModal } from "@/components/ui/modal/PrivilegeModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import Input from "@/components/form/input/InputField";
@@ -16,6 +18,9 @@ import { RoleResponse, CreateRoleRequest, UpdateRoleRequest, PrivilegeResponse }
 import { RoleForm } from "@/components/forms/RoleForm";
 import { useRoles } from "@/hooks/useRoles";
 import moduleDefinitions from "@/config/modules.json";
+import { useCommonData } from "@/hooks/useCommonData";
+import { fetchUserInfo, selectUserInfo } from "@/store/slices/userInfoSlice";
+import { getUsernameById } from "@/utils/userUtils";
 
 const columnHelper = createColumnHelper<RoleResponse>();
 
@@ -32,7 +37,10 @@ const getModuleInfo = (moduleId: string) => {
 
 function AdminRoleManagementPage() {
   // Use the useRoles hook to get roles from Redux state
-  const { roles, loading, error, refreshRoles } = useRoles();
+  const { roles, rolesWithPrivileges, loading, error, refreshRoles } = useRoles();
+  const { data: userInfo, loading: userInfoLoading, error: userInfoError, refresh: refreshUserInfo } = useCommonData(fetchUserInfo, selectUserInfo)
+  
+
   
   const [privileges, setPrivileges] = useState<PrivilegeResponse | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
@@ -84,6 +92,7 @@ function AdminRoleManagementPage() {
         order_type: 'asc'
       });
       console.log('🔍 Privileges API response:', response);
+      
       console.log('📊 Response structure:', {
         count: response.count,
         resultsType: typeof response.results,
@@ -214,30 +223,32 @@ function AdminRoleManagementPage() {
   const openPrivilegesModal = async (role: RoleResponse) => {
     console.log('🔍 Opening privileges modal for role:', role);
     console.log('📊 Role ID:', role.id);
+    console.log('📊 Role privilege_names:', role.privilege_names);
     
     setIsLoadingPrivileges(true);
     
     try {
-      // Fetch privileges for this specific role
+      // Use privilege_names directly from the role object since they're already available
+      if (role.privilege_names && role.privilege_names.length > 0) {
+        console.log('📊 Using privilege_names from role object:', role.privilege_names);
+        
+        setSelectedRolePrivileges(role.privilege_names);
+        setSelectedRoleName(role.role_name);
+        setIsPrivilegesModalOpen(true);
+      } else {
+        console.log('⚠️ No privilege_names in role object, falling back to API call');
+        
+        // Fallback to API call if no privilege_names available
       const rolePrivileges = await roleService.getPrivilegesByRole(parseInt(role.id));
-      console.log('📊 Role privileges response:', rolePrivileges);
-      console.log('📊 Role privileges results:', rolePrivileges.results);
+        console.log('📊 Role privileges API response:', rolePrivileges);
       
-      // Extract privilege names from the response
       const privilegeNames = rolePrivileges.results?.map(p => p.privilege_name) || [];
-      console.log('📊 Extracted privilege names:', privilegeNames);
-      console.log('📊 Privilege names length:', privilegeNames.length);
-      
-      // If no privileges found for this role, try to show available privileges
-      if (privilegeNames.length === 0) {
-        console.log('⚠️ No privileges found for this role, showing available privileges');
-        // For now, show empty privileges - in a real app, you might want to show
-        // all available privileges that could be assigned to this role
-      }
+        console.log('📊 Extracted privilege names from API:', privilegeNames);
       
       setSelectedRolePrivileges(privilegeNames);
       setSelectedRoleName(role.role_name);
       setIsPrivilegesModalOpen(true);
+      }
     } catch (error) {
       console.error('❌ Error fetching role privileges:', error);
       toast.error('Failed to fetch role privileges');
@@ -248,6 +259,7 @@ function AdminRoleManagementPage() {
     } finally {
       setIsLoadingPrivileges(false);
     }
+
   };
 
   const closePrivilegesModal = () => {
@@ -356,13 +368,13 @@ function AdminRoleManagementPage() {
           </span>
         </button>
       ),
-      cell: (info) => (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {info.row.original.created_by || 'System'}
-        </div>
-      ),
+              cell: (info) => (
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {getUsernameById(info.row.original.created_by || null, userInfo, 'System')}
+          </div>
+        ),
     }),
-    columnHelper.accessor("created_at", {
+    columnHelper.accessor("created_on", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -376,7 +388,7 @@ function AdminRoleManagementPage() {
       ),
       cell: (info) => (
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue()).toLocaleDateString()}
+          {new Date(info.getValue() as string).toLocaleDateString()}
         </div>
       ),
     }),
@@ -393,13 +405,13 @@ function AdminRoleManagementPage() {
           </span>
         </button>
       ),
-      cell: (info) => (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {info.row.original.modified_by || '-'}
-        </div>
-      ),
+              cell: (info) => (
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {getUsernameById(info.row.original.modified_by || null, userInfo, '-')}
+          </div>
+        ),
     }),
-    columnHelper.accessor("updated_at", {
+    columnHelper.accessor("modified_on", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -413,7 +425,7 @@ function AdminRoleManagementPage() {
       ),
       cell: (info) => (
         <div className="text-sm text-gray-500 dark:text-gray-400">
-          {info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-'}
+          {info.getValue() ? new Date(info.getValue() as string).toLocaleDateString() : '-'}
         </div>
       ),
     }),
@@ -666,6 +678,7 @@ function AdminRoleManagementPage() {
          <RoleForm
            initialData={editingItem || undefined}
            privileges={privileges}
+           rolesWithPrivileges={rolesWithPrivileges}
            onSubmit={handleSubmit}
            onCancel={closeModal}
            isLoading={isModalLoading}
@@ -673,139 +686,16 @@ function AdminRoleManagementPage() {
        </FormModal>
 
                {/* Privileges Modal */}
-        <FormModal
+        <PrivilegeModal
           isOpen={isPrivilegesModalOpen}
           onClose={closePrivilegesModal}
           title={`Privileges for ${selectedRoleName}`}
-          size="2xl"
-          showHeader={true}
-          showFooter={false}
-        >
-          <div className="space-y-4">
-            {isLoadingPrivileges ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Loading privileges...</p>
-              </div>
-            ) : (
-              <div key="privileges-content">
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  This role has <span className="font-medium text-blue-600">{selectedRolePrivileges.length}</span> privileges assigned across different modules.
-                </div>
-            
-            {selectedRolePrivileges.length > 0 ? (
-              <div className="space-y-4">
-                {/* Group privileges by module */}
-                {(() => {
-                  // Group privileges by module using the privileges data
-                  const moduleGroups: Record<string, string[]> = {};
-                  
-                  console.log('🔍 Grouping privileges:', {
-                    selectedRolePrivileges,
-                    privilegesData: privileges,
-                    privilegesResults: privileges?.results
-                  });
-                  
-                  if (privileges && privileges.results) {
-                    privileges.results.forEach((privilegeItem) => {
-                      const moduleId = privilegeItem.module_id;
-                      if (selectedRolePrivileges.includes(privilegeItem.privilege_name)) {
-                        if (!moduleGroups[moduleId]) {
-                          moduleGroups[moduleId] = [];
-                        }
-                        moduleGroups[moduleId].push(privilegeItem.privilege_name);
-                      }
-                    });
-                  }
-                  
-                  console.log('📊 Module groups created:', moduleGroups);
-                  
-                  // If no privileges are grouped (maybe privileges data structure is different), 
-                  // show them as ungrouped list
-                  if (Object.keys(moduleGroups).length === 0 && selectedRolePrivileges.length > 0) {
-                    console.log('⚠️ No modules groups found, displaying privileges as ungrouped list');
-                    return (
-                      <div key="ungrouped" className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                        <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                          <h4 className="font-medium text-gray-900 dark:text-white text-sm">
-                            All Privileges ({selectedRolePrivileges.length})
-                          </h4>
-                        </div>
-                        <div className="p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {selectedRolePrivileges.map((privilege) => (
-                              <div
-                                key={`ungrouped-${privilege}`}
-                                className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
-                              >
-                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                                <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                                  {privilege}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  
-                  return Object.entries(moduleGroups).map(([moduleId, modulePrivileges]) => {
-                     const moduleInfo = getModuleInfo(moduleId);
-                     return (
-                     <div key={moduleId} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                       <div className="bg-gray-50 dark:bg-gray-800 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                         <h4 className="font-medium text-gray-900 dark:text-white text-sm flex items-center gap-2">
-                           <span className={`w-3 h-3 bg-${moduleInfo.color}-500 rounded-full`}></span>
-                           {moduleInfo.name}
-                           <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
-                             ({modulePrivileges.length} privileges)
-                           </span>
-                         </h4>
-                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                           {moduleInfo.description}
-                         </p>
-                       </div>
-                      <div className="p-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {modulePrivileges.map((privilege) => (
-                            <div
-                              key={`${moduleId}-${privilege}`}
-                              className="flex items-center space-x-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"
-                            >
-                              <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
-                              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                                {privilege}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                     </div>
-                   );
-                   });
-                })()}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <InformationCircleIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p>No privileges assigned to this role.</p>
-                <p className="text-sm mt-1">You can assign privileges when editing the role.</p>
-              </div>
-            )}
-            
-            <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                variant="outline"
-                onClick={closePrivilegesModal}
-              >
-                Close
-              </Button>
-            </div>
-              </div>
-            )}
-          </div>
-        </FormModal>
+          privileges={selectedRolePrivileges}
+          isLoading={isLoadingPrivileges}
+          emptyMessage="No privileges assigned to this role."
+          emptyDescription="You can assign privileges when editing the role."
+          showFooter={true}
+        />
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmationModal

@@ -1,6 +1,5 @@
 "use client";
 
-import { withRouteAuth } from "@/components/auth/withAuth";
 import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,86 +14,86 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
+import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import { useMessage } from "@/components/ui/MessageBox";
+import toast from "react-hot-toast";
+import { withRouteAuth } from "@/components/auth/withAuth";
 import Pagination from "@/components/tables/Pagination";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import {
+  fetchCustomers,
+  createCustomer,
+  updateCustomer,
+  patchCustomer,
+  deleteCustomer,
+  exportCustomers,
+  selectCustomers,
+  selectCustomersLoading,
+  selectCustomersError,
+  selectCustomersTotal,
+  clearError,
+} from "@/store/slices/customerSlice";
+import {
+  useGetCustomersQuery,
+  useCreateCustomerMutation,
+  useUpdateCustomerMutation,
+  usePatchCustomerMutation,
+  useDeleteCustomerMutation,
+} from "@/store/api/apiSlice";
+import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
+import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
 
-interface Customer {
-  id: string;
-  code: string;
-  name: string;
-  country: string;
-  region: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const columnHelper = createColumnHelper<Customer>();
-
-// Mock data for customers
-const mockCustomers: Customer[] = [
-  {
-    id: "1",
-    code: "BON",
-    name: "BON PRIX",
-    country: "Germany",
-    region: "Europe",
-    contactPerson: "Hans Mueller",
-    email: "hans.mueller@bonprix.de",
-    phone: "+49 40 12345678",
-    isActive: true,
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01"
-  },
-  {
-    id: "2",
-    code: "OTTO",
-    name: "OTTO GME",
-    country: "Germany",
-    region: "Europe",
-    contactPerson: "Anna Schmidt",
-    email: "anna.schmidt@otto.de",
-    phone: "+49 40 87654321",
-    isActive: true,
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01"
-  },
-  {
-    id: "3",
-    code: "ABC",
-    name: "ABC Corp",
-    country: "United States",
-    region: "North America",
-    contactPerson: "John Smith",
-    email: "john.smith@abccorp.com",
-    phone: "+1 555 1234567",
-    isActive: true,
-    createdAt: "2024-01-01",
-    updatedAt: "2024-01-01"
-  }
-];
+const columnHelper = createColumnHelper<CustomerResponse>();
 
 function CustomersPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const action = searchParams?.get('action') || '';
-  const { showSuccess, showError } = useMessage();
+  const action = searchParams.get('action');
+  const dispatch = useDispatch<AppDispatch>();
   
-  // Customers data
-  const [customers, setCustomers] = useState<Customer[]>(mockCustomers);
+  // Local state for filtering and pagination
+  const [filters, setFilters] = useState<CustomerListRequest>({
+    page: 1,
+    page_size: 10,
+    order_by: "created_on",
+    order_type: "desc"
+  });
 
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<CustomerResponse | null>(null);
+
+  // Redux state
+  const customers = useSelector(selectCustomers);
+  const loading = useSelector(selectCustomersLoading);
+  const error = useSelector(selectCustomersError);
+  const total = useSelector(selectCustomersTotal);
+
+  // RTK Query hooks (alternative approach)
+  // const { data: customersRTK, isLoading: loadingRTK, error: errorRTK } = useGetCustomersQuery(filters);
+  const [createCustomerMutation] = useCreateCustomerMutation();
+  const [updateCustomerMutation] = useUpdateCustomerMutation();
+  const [patchCustomerMutation] = usePatchCustomerMutation();
+  const [deleteCustomerMutation] = useDeleteCustomerMutation();
+
+  // Load customers on component mount and when filters change
+  useEffect(() => {
+    dispatch(fetchCustomers(filters));
+  }, [dispatch, filters]);
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        dispatch(clearError());
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, dispatch]);
 
   const {
     isOpen: isModalOpen,
@@ -103,26 +102,34 @@ function CustomersPage() {
     openModal,
     closeModal,
     setLoading: setModalLoading,
-  } = useFormModal();
+  } = useFormModal<CustomerResponse>();
 
   // Auto-open modal if action=add
   useEffect(() => {
     if (action === 'add') {
       openModal(undefined);
+      // Clear the URL parameter
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('action');
+      router.replace(`?${newSearchParams.toString()}`);
     }
-  }, [action, openModal]);
+  }, [action, openModal, router, searchParams]);
 
   const columns = useMemo(() => [
-    columnHelper.accessor("code", { 
+    columnHelper.accessor("customer_code", { 
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Customer Code
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
         </button>
       ),
       cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
@@ -131,90 +138,98 @@ function CustomersPage() {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Customer Name
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          Company Name
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
         </button>
       ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
-    columnHelper.accessor("country", { 
+    columnHelper.accessor("contact_person", { 
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Country
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          Contact Person
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
         </button>
       ),
       cell: (info) => info.getValue() 
     }),
-    columnHelper.accessor("region", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          Region
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("contactPerson", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          Contact Person
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => <span className="text-sm">{info.getValue()}</span>
-    }),
     columnHelper.accessor("email", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          Email
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
+      header: "Email",
       cell: (info) => (
         <span className="text-sm text-blue-600 dark:text-blue-400">
           {info.getValue()}
         </span>
       )
     }),
-    columnHelper.accessor("isActive", {
+    columnHelper.accessor("phone", { 
+      header: "Phone",
+      cell: (info) => (
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {info.getValue()}
+          </span>
+      )
+    }),
+    columnHelper.accessor("country", { 
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Country
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
+      cell: (info) => (
+        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("tax_id", { 
+      header: "Tax ID",
+      cell: (info) => (
+        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+          {info.getValue()}
+        </span>
+      )
+    }),
+    columnHelper.accessor("is_active", {
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Status
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
         </button>
       ),
       cell: (info) => (
@@ -227,19 +242,27 @@ function CustomersPage() {
         </span>
       ),
     }),
-    columnHelper.accessor("createdAt", {
+    columnHelper.accessor("created_on", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300"
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Created
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
         </button>
       ),
-      cell: (info) => new Date(info.getValue()).toLocaleDateString(),
+      cell: (info) => (
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
+        </span>
+      ),
     }),
     columnHelper.display({
       id: "actions",
@@ -257,7 +280,7 @@ function CustomersPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleDelete(info.row.original.id)}
+            onClick={() => handleDeleteClick(info.row.original)}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -270,12 +293,11 @@ function CustomersPage() {
   const filteredData = useMemo(() => {
     return customers.filter(item => {
       const matchesSearch =
-        item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.customer_code.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.region.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.contactPerson.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.email.toLowerCase().includes(globalFilter.toLowerCase());
+        item.contact_person.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.email.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.country.toLowerCase().includes(globalFilter.toLowerCase());
 
       return matchesSearch;
     });
@@ -289,145 +311,221 @@ function CustomersPage() {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     state: {
-      globalFilter,
       sorting,
-      pagination,
     },
-    onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
-    onPaginationChange: setPagination,
+    initialState: {
+      pagination: {
+        pageSize: 10,
+      },
+    },
   });
 
   const handleAddNew = () => {
     openModal(undefined);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      try {
-        const updatedCustomers = customers.filter(customer => customer.id !== id);
-        setCustomers(updatedCustomers);
-        showSuccess('Success', 'Customer deleted successfully');
-      } catch (error) {
-        console.error('Error deleting customer:', error);
-        showError('Error', 'Failed to delete customer');
-      }
-    }
+  const handleDeleteClick = (customer: CustomerResponse) => {
+    setDeletingItem(customer);
+    setDeleteModalOpen(true);
   };
 
-  const handleSubmit = async (formData: Customer) => {
+  const handleDeleteConfirm = async () => {
+    if (!deletingItem) return;
+
     try {
       setModalLoading(true);
+      await dispatch(deleteCustomer(deletingItem.id)).unwrap();
+      toast.success('Customer deleted successfully');
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
       
-      if (editingItem) {
-        // Update existing customer
-        const updatedCustomers = customers.map(customer => 
-          customer.id === (editingItem as Customer).id 
-            ? { ...customer, ...formData, updatedAt: new Date().toISOString() }
-            : customer
-        );
-        setCustomers(updatedCustomers);
-        showSuccess('Success', 'Customer updated successfully');
-      } else {
-        // Create new customer
-        const newCustomer: Customer = {
-          ...formData,
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        setCustomers([...customers, newCustomer]);
-        showSuccess('Success', 'Customer created successfully');
-      }
-      
-      closeModal();
-    } catch (error) {
-      console.error('Error saving customer:', error);
-      showError('Error', 'Failed to save customer');
+      // Refresh the list
+      dispatch(fetchCustomers(filters));
+    } catch (error: any) {
+        console.error('Error deleting customer:', error);
+      toast.error(error.message || 'Failed to delete customer');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const exportData = () => {
-    const headers = ["Customer Code", "Customer Name", "Country", "Region", "Contact Person", "Email", "Phone", "Status", "Created"];
-    const csvContent = [
-      headers.join(","),
-      ...filteredData.map(row => [
-        row.code,
-        row.name,
-        row.country,
-        row.region,
-        row.contactPerson,
-        row.email,
-        row.phone,
-        row.isActive ? "Active" : "Inactive",
-        new Date(row.createdAt).toLocaleDateString()
-      ].join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "customers.csv";
-    a.click();
-    window.URL.revokeObjectURL(url);
-    showSuccess('Success', 'Export completed successfully');
+  const handleSubmit = async (formData: CustomerFormData) => {
+    try {
+      setModalLoading(true);
+      
+      // Convert form data to API format
+      const customerData: CreateCustomerRequest | UpdateCustomerRequest = {
+        name: formData.name,
+        customer_code: formData.customer_code,
+        contact_person: formData.contact_person,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        country: formData.country,
+        tax_id: formData.tax_id,
+        is_active: formData.is_active,
+      };
+      
+      if (editingItem) {
+        // Update existing customer
+        await dispatch(updateCustomer({ id: editingItem.id, customerData })).unwrap();
+        toast.success('Customer updated successfully');
+      } else {
+        // Create new customer
+        await dispatch(createCustomer(customerData as CreateCustomerRequest)).unwrap();
+        toast.success('Customer created successfully');
+      }
+      
+      // Refresh the list
+      dispatch(fetchCustomers(filters));
+      closeModal();
+    } catch (error: any) {
+      console.error('Error saving customer:', error);
+      toast.error(error.message || 'Failed to save customer');
+    } finally {
+      setModalLoading(false);
+    }
   };
+
+  const handleExport = async () => {
+    try {
+      const exportData = await dispatch(exportCustomers({
+        ...filters,
+        export: true,
+        page_size: 1000
+      })).unwrap();
+      
+      // Create CSV content
+      const headers = ['Code', 'Company Name', 'Contact Person', 'Email', 'Phone', 'Address', 'Country', 'Tax ID', 'Status', 'Created On'];
+      const csvRows = [
+        headers.join(','),
+        ...exportData.map(customer => [
+          customer.customer_code,
+          customer.name,
+          customer.contact_person,
+          customer.email,
+          customer.phone,
+          customer.address,
+          customer.country,
+          customer.tax_id,
+          customer.is_active ? 'Active' : 'Inactive',
+          customer.created_on ? new Date(customer.created_on).toLocaleDateString() : 'N/A'
+        ].join(','))
+      ];
+      
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Customers exported successfully');
+    } catch (error: any) {
+      console.error('Error exporting customers:', error);
+      toast.error('Failed to export customers');
+    }
+  };
+
+  const handleFilterChange = (newFilters: Partial<CustomerListRequest>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
+  const handlePageChange = (page: number) => {
+    handleFilterChange({ page });
+  };
+
+  const handleSearch = (searchTerm: string) => {
+    setGlobalFilter(searchTerm);
+    handleFilterChange({ 
+      name: searchTerm,
+      page: 1 
+    });
+  };
+
+  if (loading && customers.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading customers...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Customer Records
+          Customer Master
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage customer information and contact details
+          Manage customer information and their configurations
         </p>
       </div>
 
-      {/* Summary Stats */}
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
-          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            {customers.length}
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total Customers</div>
+          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
           </div>
-          <div className="text-sm text-blue-600 dark:text-blue-400">Total Customers</div>
-        </div>
-        <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-200 dark:border-green-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Active Customers</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {customers.filter(item => item.isActive).length}
+            {customers.filter(c => c.is_active).length}
           </div>
-          <div className="text-sm text-green-600 dark:text-green-400">Active Customers</div>
         </div>
-        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(customers.map(item => item.country)).size}
+            {new Set(customers.map(c => c.country)).size}
           </div>
-          <div className="text-sm text-purple-600 dark:text-purple-400">Countries</div>
         </div>
-        <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">With Tax ID</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(customers.map(item => item.region)).size}
+            {customers.filter(c => c.tax_id).length}
           </div>
-          <div className="text-sm text-orange-600 dark:text-orange-400">Regions</div>
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Filters */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Search customers by code, name, country, region, contact person, or email..."
+            placeholder="Search customers by code, name, contact person, email, or country..."
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             className="max-w-md"
           />
         </div>
+
         <div className="flex gap-3">
-          <Button onClick={exportData} size="sm" variant="outline">
+          <Button onClick={handleExport} size="sm" variant="outline">
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export
           </Button>
@@ -479,14 +577,7 @@ function CustomersPage() {
         </div>
       </div>
 
-      {filteredData.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No customers found matching your search criteria.
-        </div>
-      )}
-
       {/* Pagination */}
-      {filteredData.length > 0 && (
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-gray-700 dark:text-gray-300">
             Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
@@ -501,159 +592,56 @@ function CustomersPage() {
             totalPages={table.getPageCount()}
             onPageChange={(page) => table.setPageIndex(page - 1)}
           />
+      </div>
+
+      {filteredData.length === 0 && !loading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No customers found matching your search criteria.
         </div>
       )}
 
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
-        onSubmit={handleSubmit}
         onClose={closeModal}
         title={editingItem ? "Edit Customer" : "Add New Customer"}
-        isLoading={isModalLoading}
       >
         <CustomerForm
-          initialData={editingItem as Customer | undefined}
+          initialData={editingItem ? {
+            customer_code: editingItem.customer_code,
+            name: editingItem.name,
+            contact_person: editingItem.contact_person,
+            email: editingItem.email,
+            phone: editingItem.phone,
+            address: editingItem.address,
+            country: editingItem.country,
+            tax_id: editingItem.tax_id,
+            is_active: editingItem.is_active
+          } : undefined}
           onSubmit={handleSubmit}
+          onCancel={closeModal}
+          isLoading={isModalLoading}
         />
       </FormModal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeletingItem(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Customer"
+        message={`Are you sure you want to delete the customer "${deletingItem?.name}" (${deletingItem?.customer_code})? This action cannot be undone.`}
+        itemName={deletingItem?.name}
+        isLoading={isModalLoading}
+        variant="danger"
+      />
     </div>
   );
 }
 
-// Simple Customer Form Component
-function CustomerForm({ initialData, onSubmit }: { initialData?: Customer; onSubmit: (data: Customer) => void }) {
-  const [formData, setFormData] = useState({
-    code: initialData?.code || '',
-    name: initialData?.name || '',
-    country: initialData?.country || '',
-    region: initialData?.region || '',
-    contactPerson: initialData?.contactPerson || '',
-    email: initialData?.email || '',
-    phone: initialData?.phone || '',
-    isActive: initialData?.isActive ?? true
-  });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({
-      ...formData,
-      id: initialData?.id || '',
-      createdAt: initialData?.createdAt || '',
-      updatedAt: initialData?.updatedAt || ''
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Customer Code
-          </label>
-          <Input
-            value={formData.code}
-            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-            placeholder="e.g., BON"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Customer Name
-          </label>
-          <Input
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., BON PRIX"
-            required
-          />
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Country
-          </label>
-          <Input
-            value={formData.country}
-            onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-            placeholder="e.g., Germany"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Region
-          </label>
-          <Input
-            value={formData.region}
-            onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-            placeholder="e.g., Europe"
-            required
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Contact Person
-          </label>
-          <Input
-            value={formData.contactPerson}
-            onChange={(e) => setFormData({ ...formData, contactPerson: e.target.value })}
-            placeholder="e.g., Hans Mueller"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Email
-          </label>
-          <Input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            placeholder="e.g., hans.mueller@bonprix.de"
-            required
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Phone
-        </label>
-        <Input
-          value={formData.phone}
-          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          placeholder="e.g., +49 40 12345678"
-          required
-        />
-      </div>
-
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="isActive"
-          checked={formData.isActive}
-          onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-        />
-        <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-          Active
-        </label>
-      </div>
-
-      <div className="flex justify-end gap-3 pt-4">
-        <Button size="sm">
-          {initialData ? "Update Customer" : "Create Customer"}
-        </Button>
-      </div>
-    </form>
-  );
-}
 
 export default withRouteAuth(CustomersPage, "admin/port-customer-master/customers");

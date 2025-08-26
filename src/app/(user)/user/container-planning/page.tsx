@@ -1,6 +1,6 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
@@ -98,140 +98,101 @@ function ContainerPlanningPage() {
       }
 
       const validationData = JSON.parse(storedData);
-      
-      // Get valid shipments data
-      if (!validationData.validData || validationData.validData.length === 0) {
-        throw new Error('No valid shipment data found.');
-      }
-
-      // Transform data to ShipmentData format for planning
-      const shipmentData = validationData.validData.map((data: Record<string, unknown>) => ({
-        id: `shipment_${Date.now()}`,
-        shipmentId: (data.SHIPMENT as string) || '',
-        customer: (data.CUSTOMER as string) || (data.CUSTOME as string) || '',
-        supplier: (data.SUPPLIER as string) || '',
-        volume: parseFloat(((data.VOLUME as string) || '0').toString().replace(',', '')) || 0,
-        qty: parseInt(((data.Qty as string) || '0').toString().replace(',', '')) || 0,
-        rcvPug: (data['RCV/PUG'] as string) || '',
-        pol: (data.POL as string) || '',
-        destsite: (data.Destsite as string) || '',
-        fileId: (validationData.fileId as string) || 'client_planning',
-        uploadDate: new Date().toISOString()
-      }));
+      const validShipments = validationData.validData;
 
       // Stage 1: Shipment Grouping
       setCurrentStage(0);
-      setStages(prev => prev.map((stage, index) => 
-        index === 0 
-          ? { ...stage, status: "in-progress", progress: 0 }
-          : stage
-      ));
-
-      for (let progress = 0; progress <= 100; progress += 20) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setStages(prev => prev.map((stage, index) => 
-          index === 0 
-            ? { ...stage, progress }
-            : stage
-        ));
-      }
-
-      setStages(prev => prev.map((stage, index) => 
-        index === 0 
-          ? { ...stage, status: "completed", progress: 100 }
-          : stage
-      ));
-
+      updateStageStatus(0, "in-progress", 0);
+      
+      await simulateProgress(0, 100, 50);
+      updateStageStatus(0, "completed", 100);
+      
       // Stage 2: Load Optimization
       setCurrentStage(1);
-      setStages(prev => prev.map((stage, index) => 
-        index === 1 
-          ? { ...stage, status: "in-progress", progress: 0 }
-          : stage
-      ));
-
-      // Run container planning algorithm (client-side)
-      const planningResult = await planContainers(shipmentData);
+      updateStageStatus(1, "in-progress", 0);
       
-      // Save planning results
-      const savedResult = savePlanningResults(planningResult, (validationData.fileId as string) || 'client_planning');
+      await simulateProgress(1, 100, 80);
+      updateStageStatus(1, "completed", 100);
+      
+      // Stage 3: Container Assignment
+      setCurrentStage(2);
+      updateStageStatus(2, "in-progress", 0);
+      
+      await simulateProgress(2, 100, 100);
+      updateStageStatus(2, "completed", 100);
 
-      // Store planning result for export
-      setPlanningResult(savedResult as unknown as Record<string, unknown>);
+      // Execute container planning
+      const result = await planContainers(validShipments);
+      
+      // Save results
+      await savePlanningResults(result);
+      
+      setPlanningResult(result);
       setShowExportButton(true);
-
-      // Mark all stages as completed
-      setStages(prev => prev.map(stage => 
-        ({ ...stage, status: "completed", progress: 100 })
-      ));
-
-      setIsPlanning(false);
-      toast.success("Container planning completed successfully!");
       
-      // Don't redirect immediately, let user export results first
-      // router.push("/user/assignment-results");
-
+      toast.success('Container planning completed successfully!');
+      
     } catch (error) {
       console.error('Planning error:', error);
-      setIsPlanning(false);
+      toast.error('Container planning failed. Please try again.');
       
       // Mark current stage as error
-      setStages(prev => prev.map((stage, index) => 
-        index === currentStage 
-          ? { ...stage, status: "error", progress: 0 }
-          : stage
-      ));
-
-      toast.error(error instanceof Error ? error.message : 'Planning failed');
+      if (currentStage < stages.length) {
+        updateStageStatus(currentStage, "error", 0);
+      }
+    } finally {
+      setIsPlanning(false);
     }
   };
 
-  const getStatusColor = (status: PlanningStage["status"]) => {
-    switch (status) {
-      case "completed":
-        return "text-green-600 dark:text-green-400";
-      case "in-progress":
-        return "text-blue-600 dark:text-blue-400";
-      case "error":
-        return "text-red-600 dark:text-red-400";
-      default:
-        return "text-gray-500 dark:text-gray-400";
+  const updateStageStatus = (stageIndex: number, status: PlanningStage["status"], progress: number) => {
+    setStages(prev => prev.map((stage, index) => 
+      index === stageIndex 
+        ? { ...stage, status, progress }
+        : stage
+    ));
+  };
+
+  const simulateProgress = async (stageIndex: number, targetProgress: number, duration: number) => {
+    const steps = 20;
+    const increment = targetProgress / steps;
+    const delay = duration / steps;
+
+    for (let i = 0; i <= steps; i++) {
+      const progress = Math.min(i * increment, targetProgress);
+      updateStageStatus(stageIndex, "in-progress", progress);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   };
 
-  const getStatusIcon = (status: PlanningStage["status"]) => {
-    switch (status) {
-      case "completed":
-        return (
-          <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      case "in-progress":
-        return (
-          <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        );
-      case "error":
-        return (
-          <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      default:
-        return (
-          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
+  const handleExport = async () => {
+    try {
+      await downloadResultsExcel();
+      toast.success('Results exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Export failed. Please try again.');
     }
   };
 
-  // Show loading state while checking validation
+  const handleViewResults = () => {
+    router.push('/user/assignment-results');
+  };
+
+  const resetPlanning = () => {
+    setStages(prev => prev.map(stage => ({
+      ...stage,
+      status: "pending" as const,
+      progress: 0
+    })));
+    setCurrentStage(0);
+    setPlanningResult(null);
+    setShowExportButton(false);
+  };
+
   if (!validationPassed) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
+      <div className="p-6">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Checking validation status...</p>
@@ -241,227 +202,186 @@ function ContainerPlanningPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Container Planning
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Run container planning algorithm to optimize assignments
-          </p>
-        </div>
-        <div className="flex gap-3">
-          {showExportButton && planningResult && (
-            <Button
-              onClick={() => {
-                try {
-                  downloadResultsExcel(planningResult as unknown as ContainerPlanningResult, 'Book-results.xlsx');
-                  toast.success('Results exported successfully!');
-                } catch (error) {
-                  console.error('Export error:', error);
-                  toast.error('Failed to export results');
-                }
-              }}
-              size="md"
-              className="bg-green-600 hover:bg-green-700"
-            >
-              📊 Export Results (Book Format)
-            </Button>
-          )}
-          <Button
-            onClick={startPlanning}
-            disabled={isPlanning}
-            size="md"
-            className={isPlanning ? "opacity-50 cursor-not-allowed" : ""}
-          >
-            {isPlanning ? "Planning in Progress..." : "Run Container Planning"}
-          </Button>
-        </div>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Container Planning
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Optimize container load distribution and generate efficient shipping plans
+        </p>
       </div>
 
       {/* Planning Stages */}
-      <div className="space-y-4">
-        {stages.map((stage) => (
-          <div
-            key={stage.id}
-            className={`p-6 bg-white rounded-lg shadow dark:bg-gray-800 border-l-4 ${
-              stage.status === "completed"
-                ? "border-l-green-500"
-                : stage.status === "in-progress"
-                ? "border-l-blue-500"
-                : stage.status === "error"
-                ? "border-l-red-500"
-                : "border-l-gray-300 dark:border-l-gray-600"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                {getStatusIcon(stage.status)}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {stage.name}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {stage.description}
-                  </p>
+      <div className="mb-8">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Planning Process</h2>
+        <div className="space-y-4">
+          {stages.map((stage, index) => (
+            <div
+              key={stage.id}
+              className={`p-4 rounded-lg border ${
+                stage.status === "completed"
+                  ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20"
+                  : stage.status === "in-progress"
+                  ? "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20"
+                  : stage.status === "error"
+                  ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20"
+                  : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    stage.status === "completed"
+                      ? "bg-green-500 text-white"
+                      : stage.status === "in-progress"
+                      ? "bg-blue-500 text-white"
+                      : stage.status === "error"
+                      ? "bg-red-500 text-white"
+                      : "bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-300"
+                  }`}>
+                    {stage.status === "completed" ? "✓" : stage.status === "in-progress" ? "⟳" : stage.status === "error" ? "✗" : index + 1}
+                  </div>
+                  <div>
+                    <h3 className={`font-medium ${
+                      stage.status === "completed"
+                        ? "text-green-800 dark:text-green-200"
+                        : stage.status === "in-progress"
+                        ? "text-blue-800 dark:text-blue-200"
+                        : stage.status === "error"
+                        ? "text-red-800 dark:text-red-200"
+                        : "text-gray-700 dark:text-gray-300"
+                    }`}>
+                      {stage.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{stage.description}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <span className={`text-sm font-medium ${getStatusColor(stage.status)}`}>
-                  {stage.status === "completed"
-                    ? "Completed"
-                    : stage.status === "in-progress"
-                    ? "In Progress"
-                    : stage.status === "error"
-                    ? "Error"
-                    : "Pending"}
-                </span>
-                {stage.status === "in-progress" && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {stage.progress}%
                   </div>
-                )}
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    stage.status === "completed"
+                      ? "bg-green-500"
+                      : stage.status === "in-progress"
+                      ? "bg-blue-500"
+                      : stage.status === "error"
+                      ? "bg-red-500"
+                      : "bg-gray-300"
+                  }`}
+                  style={{ width: `${stage.progress}%` }}
+                />
               </div>
             </div>
-
-            {/* Progress Bar */}
-            <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-              <div
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  stage.status === "completed"
-                    ? "bg-green-500"
-                    : stage.status === "in-progress"
-                    ? "bg-blue-500"
-                    : stage.status === "error"
-                    ? "bg-red-500"
-                    : "bg-gray-300 dark:bg-gray-600"
-                }`}
-                style={{ width: `${stage.progress}%` }}
-              ></div>
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Planning Results Summary */}
-      {showExportButton && planningResult && (
-        <div className="p-6 bg-green-50 rounded-lg dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-green-900 dark:text-green-100">
-              🎉 Planning Completed Successfully!
-            </h3>
+      {/* Action Buttons */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        {!isPlanning && !showExportButton && (
+          <Button
+            onClick={startPlanning}
+            className="flex items-center gap-2"
+            disabled={!validationPassed}
+          >
+            Start Container Planning
+          </Button>
+        )}
+        
+        {showExportButton && (
+          <>
             <Button
-              onClick={() => router.push("/user/assignment-results")}
-              size="sm"
-              className="bg-green-600 hover:bg-green-700"
+              onClick={handleExport}
+              variant="outline"
+              className="flex items-center gap-2"
             >
-              View Detailed Results
+              Export Results
             </Button>
-          </div>
-          
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 mb-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                {/* @ts-ignore */}
-                {(planningResult.summary as unknown as Record<string, unknown>)?.totalShipments || 0}
+            <Button
+              onClick={handleViewResults}
+              className="flex items-center gap-2"
+            >
+              View Results
+            </Button>
+            <Button
+              onClick={resetPlanning}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              Reset Planning
+            </Button>
+          </>
+        )}
+      </div>
+
+      {/* Planning Status */}
+      {isPlanning && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <div>
+              <h3 className="text-lg font-medium text-blue-900 dark:text-blue-100">
+                Planning in Progress...
+              </h3>
+              <p className="text-blue-800 dark:text-blue-200">
+                Currently processing: {stages[currentStage]?.name}
               </p>
-              <p className="text-sm text-green-700 dark:text-green-300">Total Shipments</p>
             </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                {/* @ts-ignore */}
-                {(planningResult.summary as unknown as Record<string, unknown>)?.assignedShipments || 0}
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300">Assigned</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                {/* @ts-ignore */}
-                {(planningResult.summary as unknown as Record<string, unknown>)?.totalContainers || 0}
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300">Containers</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                  {/* @ts-ignore */}
-                {(planningResult.summary as unknown as Record<string, unknown>)?.unassignedShipments || 0}
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300">Unassigned</p>
-            </div>
-          </div>
-          
-          <div className="text-sm text-green-800 dark:text-green-200">
-            <p><strong>Next Steps:</strong></p>
-            <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>Click &quot;Export Results (Book Format)&quot; to download the Excel file</li>
-              <li>The file will match the exact format of Book-results.xlsx</li>
-              <li>Click &quot;View Detailed Results&quot; to see the full planning breakdown</li>
-            </ul>
           </div>
         </div>
       )}
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-        <div className="p-6 bg-white rounded-lg shadow dark:bg-gray-800">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-full dark:bg-blue-900">
-              <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+      {/* Results Summary */}
+      {planningResult && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+              <span className="text-white text-lg">✓</span>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Shipments</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">1,234</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6 bg-white rounded-lg shadow dark:bg-gray-800">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-full dark:bg-green-900">
-              <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Containers Assigned</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">567</p>
+            <div>
+              <h3 className="text-lg font-medium text-green-900 dark:text-green-100">
+                Planning Completed Successfully!
+              </h3>
+              <p className="text-green-800 dark:text-green-200">
+                Container planning has been completed. You can now export the results or view them in detail.
+              </p>
             </div>
           </div>
         </div>
-
-        <div className="p-6 bg-white rounded-lg shadow dark:bg-gray-800">
-          <div className="flex items-center">
-            <div className="p-3 bg-yellow-100 rounded-full dark:bg-yellow-900">
-              <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Optimization Score</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">94%</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Instructions */}
-      <div className="p-6 bg-blue-50 rounded-lg dark:bg-blue-900/20">
-        <h3 className="mb-3 text-lg font-medium text-blue-900 dark:text-blue-100">
-          Planning Process
+      <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mt-6">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
+          How Container Planning Works
         </h3>
-        <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
-          <li>• <strong>Data Bucketing:</strong> Groups shipments by container type and capacity requirements</li>
-          <li>• <strong>Container Planning:</strong> Optimizes container assignments based on capacity and priority</li>
-          <li>• <strong>Mode Selection:</strong> Determines FCL/LCL mode for each shipment</li>
-          <li>• <strong>Repositioning Analysis:</strong> Analyzes container repositioning requirements</li>
-        </ul>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-400">
+          <div>
+            <h4 className="font-medium text-gray-900 dark:text-white mb-2">1. Shipment Grouping</h4>
+            <p>Shipments are analyzed and grouped by destination, port of loading, and compatibility factors.</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-900 dark:text-white mb-2">2. Load Optimization</h4>
+            <p>Advanced algorithms optimize container load distribution for maximum capacity utilization.</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-900 dark:text-white mb-2">3. Container Assignment</h4>
+            <p>Optimal container types are assigned and final load plans are generated.</p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-export default withUserAuth(ContainerPlanningPage); 
+export default withSimpleRBAC(ContainerPlanningPage, {
+  route: "/user/container-planning"
+}); 

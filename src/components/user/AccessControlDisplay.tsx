@@ -17,7 +17,8 @@ const AccessControlDisplay: React.FC = () => {
     page_size: 10,
     role_name: '',
     order_by: 'created_on',
-    order_type: 'desc'
+    order_type: 'desc',
+    include_privilege_data: true,
   });
   
   const { data: rolesRTK, isLoading: loadingRTK, error: errorRTK, refetch: refetchRTK } = useGetRolesQuery(filters);
