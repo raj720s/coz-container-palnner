@@ -1,6 +1,6 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
+
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Button from "@/components/ui/button/Button";
@@ -8,6 +8,7 @@ import { ArrowLeftIcon, DownloadIcon, FileIcon, CheckCircleIcon } from "@/icons"
 import { getUploadedFiles } from "@/utils/clientShipmentService";
 import { formatFileSize } from "@/utils/formatUtils";
 import { type UploadedFile } from "@/utils/localStorageService";
+import withSimpleRBAC, { withRoleRBAC } from "@/components/auth/withSimpleRBAC";
 
 function UserOutputFileViewerPage() {
   const params = useParams();
@@ -202,4 +203,6 @@ function UserOutputFileViewerPage() {
   );
 }
 
-export default withUserAuth(UserOutputFileViewerPage);
+export default withSimpleRBAC(UserOutputFileViewerPage, {
+  role: 0,
+});

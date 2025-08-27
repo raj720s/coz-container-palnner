@@ -18,83 +18,38 @@ import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, Chev
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
+import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
-
 import Pagination from "@/components/tables/Pagination";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
-import {
-  fetchCustomers,
-  createCustomer,
-  updateCustomer,
-  patchCustomer,
-  deleteCustomer,
-  exportCustomers,
-  selectCustomers,
-  selectCustomersLoading,
-  selectCustomersError,
-  selectCustomersTotal,
-  clearError,
-} from "@/store/slices/customerSlice";
-import {
-  useGetCustomersQuery,
-  useCreateCustomerMutation,
-  useUpdateCustomerMutation,
-  usePatchCustomerMutation,
-  useDeleteCustomerMutation,
-} from "@/store/api/apiSlice";
-import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
-import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
-import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
+import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
+import { polService } from "@/services";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 
-const columnHelper = createColumnHelper<CustomerResponse>();
+const columnHelper = createColumnHelper<POLResponse>();
 
-function CustomersPage() {
+function PolDataManager() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
-  const dispatch = useDispatch<AppDispatch>();
+  
+  // Local state for data management
+  const [pols, setPols] = useState<POLResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
   
   // Local state for filtering and pagination
-  const [filters, setFilters] = useState<CustomerListRequest>({
+  const [filters, setFilters] = useState<POLListRequest>({
     page: 1,
     page_size: 10,
     order_by: "created_on",
     order_type: "desc"
   });
-
+  
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingItem, setDeletingItem] = useState<CustomerResponse | null>(null);
-
-  // Redux state
-  const customers = useSelector(selectCustomers);
-  const loading = useSelector(selectCustomersLoading);
-  const error = useSelector(selectCustomersError);
-  const total = useSelector(selectCustomersTotal);
-
-  // RTK Query hooks (alternative approach)
-  // const { data: customersRTK, isLoading: loadingRTK, error: errorRTK } = useGetCustomersQuery(filters);
-  const [createCustomerMutation] = useCreateCustomerMutation();
-  const [updateCustomerMutation] = useUpdateCustomerMutation();
-  const [patchCustomerMutation] = usePatchCustomerMutation();
-  const [deleteCustomerMutation] = useDeleteCustomerMutation();
-
-  // Load customers on component mount and when filters change
-  useEffect(() => {
-    dispatch(fetchCustomers(filters));
-  }, [dispatch, filters]);
-
-  // Auto-clear errors after 5 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        dispatch(clearError());
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error, dispatch]);
+  const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
 
   const {
     isOpen: isModalOpen,
@@ -103,7 +58,7 @@ function CustomersPage() {
     openModal,
     closeModal,
     setLoading: setModalLoading,
-  } = useFormModal<CustomerResponse>();
+  } = useFormModal<POLResponse>();
 
   // Auto-open modal if action=add
   useEffect(() => {
@@ -116,14 +71,44 @@ function CustomersPage() {
     }
   }, [action, openModal, router, searchParams]);
 
+  // Load POL ports on component mount and when filters change
+  useEffect(() => {
+    loadPOLs();
+  }, [filters]);
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  const loadPOLs = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await polService.getPOLs(filters);
+      setPols(response.results || []);
+      setTotal(response.count || 0);
+    } catch (err: any) {
+      console.error('Error loading POL ports:', err);
+      setError(err.message || 'Failed to load POL ports');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const columns = useMemo(() => [
-    columnHelper.accessor("customer_code", { 
+    columnHelper.accessor("code", { 
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Customer Code
+          Port Code
           {column.getIsSorted() === "asc" ? (
             <ChevronUpIcon className="w-4 h-4" />
           ) : column.getIsSorted() === "desc" ? (
@@ -141,7 +126,7 @@ function CustomersPage() {
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Company Name
+          Port Name
           {column.getIsSorted() === "asc" ? (
             <ChevronUpIcon className="w-4 h-4" />
           ) : column.getIsSorted() === "desc" ? (
@@ -152,40 +137,6 @@ function CustomersPage() {
         </button>
       ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("contact_person", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Contact Person
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => info.getValue() 
-    }),
-    columnHelper.accessor("email", { 
-      header: "Email",
-      cell: (info) => (
-        <span className="text-sm text-blue-600 dark:text-blue-400">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("phone", { 
-      header: "Phone",
-      cell: (info) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {info.getValue()}
-          </span>
-      )
     }),
     columnHelper.accessor("country", { 
       header: ({ column }) => (
@@ -203,14 +154,32 @@ function CustomersPage() {
           )}
         </button>
       ),
+      cell: (info) => info.getValue() 
+    }),
+    columnHelper.accessor("city", { 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          City
+          {column.getIsSorted() === "asc" ? (
+            <ChevronUpIcon className="w-4 h-4" />
+          ) : column.getIsSorted() === "desc" ? (
+            <ChevronDownIcon className="w-4 h-4" />
+          ) : (
+            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+          )}
+        </button>
+      ),
       cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
+        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
           {info.getValue()}
         </span>
       )
     }),
-    columnHelper.accessor("tax_id", { 
-      header: "Tax ID",
+    columnHelper.accessor("timezone", { 
+      header: "Timezone",
       cell: (info) => (
         <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
           {info.getValue()}
@@ -292,17 +261,16 @@ function CustomersPage() {
   ], [openModal]);
 
   const filteredData = useMemo(() => {
-    return customers.filter(item => {
+    return pols.filter(item => {
       const matchesSearch =
-        item.customer_code.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.contact_person.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.email.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.country.toLowerCase().includes(globalFilter.toLowerCase());
+        item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.city.toLowerCase().includes(globalFilter.toLowerCase());
 
       return matchesSearch;
     });
-  }, [customers, globalFilter]);
+  }, [pols, globalFilter]);
 
   const table = useReactTable({
     data: filteredData,
@@ -326,8 +294,8 @@ function CustomersPage() {
     openModal(undefined);
   };
 
-  const handleDeleteClick = (customer: CustomerResponse) => {
-    setDeletingItem(customer);
+  const handleDeleteClick = (pol: POLResponse) => {
+    setDeletingItem(pol);
     setDeleteModalOpen(true);
   };
 
@@ -336,54 +304,52 @@ function CustomersPage() {
 
     try {
       setModalLoading(true);
-      await dispatch(deleteCustomer(deletingItem.id)).unwrap();
-      toast.success('Customer deleted successfully');
+      await polService.deletePOL(deletingItem.id);
+      toast.success('POL port deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
       
       // Refresh the list
-      dispatch(fetchCustomers(filters));
+      loadPOLs();
     } catch (error: any) {
-        console.error('Error deleting customer:', error);
-      toast.error(error.message || 'Failed to delete customer');
+      console.error('Error deleting POL port:', error);
+      toast.error(error.message || 'Failed to delete POL port');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const handleSubmit = async (formData: CustomerFormData) => {
+  const handleSubmit = async (formData: PortFormData) => {
     try {
       setModalLoading(true);
       
       // Convert form data to API format
-      const customerData: CreateCustomerRequest | UpdateCustomerRequest = {
+      const polData: CreatePOLRequest | UpdatePOLRequest = {
         name: formData.name,
-        customer_code: formData.customer_code,
-        contact_person: formData.contact_person,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
+        code: formData.code,
         country: formData.country,
-        tax_id: formData.tax_id,
+        city: formData.city,
+        timezone: formData.timezone,
         is_active: formData.is_active,
       };
       
       if (editingItem) {
-        // Update existing customer
-        await dispatch(updateCustomer({ id: editingItem.id, customerData })).unwrap();
-        toast.success('Customer updated successfully');
+        console.log("editingItem", editingItem);
+        // Update existing port
+        await polService.updatePOL(editingItem.id, polData);
+        toast.success('POL port updated successfully');
       } else {
-        // Create new customer
-        await dispatch(createCustomer(customerData as CreateCustomerRequest)).unwrap();
-        toast.success('Customer created successfully');
+        // Create new port
+        await polService.createPOL(polData as CreatePOLRequest);
+        toast.success('POL port created successfully');
       }
       
       // Refresh the list
-      dispatch(fetchCustomers(filters));
+      loadPOLs();
       closeModal();
     } catch (error: any) {
-      console.error('Error saving customer:', error);
-      toast.error(error.message || 'Failed to save customer');
+      console.error('Error saving POL port:', error);
+      toast.error(error.message || 'Failed to save POL port');
     } finally {
       setModalLoading(false);
     }
@@ -391,27 +357,24 @@ function CustomersPage() {
 
   const handleExport = async () => {
     try {
-      const exportData = await dispatch(exportCustomers({
+      const exportData = await polService.exportPOLs({
         ...filters,
         export: true,
         page_size: 1000
-      })).unwrap();
+      });
       
       // Create CSV content
-      const headers = ['Code', 'Company Name', 'Contact Person', 'Email', 'Phone', 'Address', 'Country', 'Tax ID', 'Status', 'Created On'];
+      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status', 'Created On'];
       const csvRows = [
         headers.join(','),
-        ...exportData.map(customer => [
-          customer.customer_code,
-          customer.name,
-          customer.contact_person,
-          customer.email,
-          customer.phone,
-          customer.address,
-          customer.country,
-          customer.tax_id,
-          customer.is_active ? 'Active' : 'Inactive',
-          customer.created_on ? new Date(customer.created_on).toLocaleDateString() : 'N/A'
+        ...exportData.map(pol => [
+          pol.code,
+          pol.name,
+          pol.country,
+          pol.city,
+          pol.timezone,
+          pol.is_active ? 'Active' : 'Inactive',
+          pol.created_on ? new Date(pol.created_on).toLocaleDateString() : 'N/A'
         ].join(','))
       ];
       
@@ -420,20 +383,20 @@ function CustomersPage() {
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute('download', `pol_ports_${new Date().toISOString().split('T')[0]}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      toast.success('Customers exported successfully');
+      toast.success('POL ports exported successfully');
     } catch (error: any) {
-      console.error('Error exporting customers:', error);
-      toast.error('Failed to export customers');
+      console.error('Error exporting POL ports:', error);
+      toast.error('Failed to export POL ports');
     }
   };
 
-  const handleFilterChange = (newFilters: Partial<CustomerListRequest>) => {
+  const handleFilterChange = (newFilters: Partial<POLListRequest>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
@@ -449,12 +412,12 @@ function CustomersPage() {
     });
   };
 
-  if (loading && customers.length === 0) {
+  if (loading && pols.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading customers...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading POL ports...</p>
         </div>
       </div>
     );
@@ -463,12 +426,12 @@ function CustomersPage() {
   return (
     <div className="p-6">
       {/* Header */}
-      <div className="mb-6">
+      <div className="mb-6">         
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Customer Master
+          POL Master
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage customer information and their configurations
+          Manage Port of Loading (POL) ports and their configurations
         </p>
       </div>
 
@@ -491,25 +454,25 @@ function CustomersPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Customers</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total POL Ports</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
-          </div>
+        </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Active Customers</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Active Ports</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {customers.filter(c => c.is_active).length}
+            {pols.filter(p => p.is_active).length}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(customers.map(c => c.country)).size}
+            {new Set(pols.map(p => p.country)).size}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">With Tax ID</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Cities</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {customers.filter(c => c.tax_id).length}
+            {new Set(pols.map(p => p.city)).size}
           </div>
         </div>
       </div>
@@ -518,7 +481,7 @@ function CustomersPage() {
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Search customers by code, name, contact person, email, or country..."
+            placeholder="Search ports by code, name, country, or city..."
             value={globalFilter}
             onChange={(e) => handleSearch(e.target.value)}
             className="max-w-md"
@@ -532,7 +495,7 @@ function CustomersPage() {
           </Button>
           <Button onClick={handleAddNew} size="sm">
             <PlusIcon className="w-4 h-4 mr-2" />
-            Add Customer
+            Add POL Port
           </Button>
         </div>
       </div>
@@ -579,25 +542,25 @@ function CustomersPage() {
       </div>
 
       {/* Pagination */}
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-            {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
-            )}{" "}
-            of {table.getFilteredRowModel().rows.length} results
-          </div>
-          <Pagination
-            currentPage={table.getState().pagination.pageIndex + 1}
-            totalPages={table.getPageCount()}
-            onPageChange={(page) => table.setPageIndex(page - 1)}
-          />
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+          {Math.min(
+            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+            table.getFilteredRowModel().rows.length
+          )}{" "}
+          of {table.getFilteredRowModel().rows.length} results
+        </div>
+        <Pagination
+          currentPage={table.getState().pagination.pageIndex + 1}
+          totalPages={table.getPageCount()}
+          onPageChange={(page) => table.setPageIndex(page - 1)}
+        />
       </div>
 
       {filteredData.length === 0 && !loading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No customers found matching your search criteria.
+          No POL ports found matching your search criteria.
         </div>
       )}
 
@@ -605,22 +568,21 @@ function CustomersPage() {
       <FormModal
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={editingItem ? "Edit Customer" : "Add New Customer"}
+        title={editingItem ? "Edit POL Port" : "Add New POL Port"}
       >
-        <CustomerForm
+        <PortForm
           initialData={editingItem ? {
-            customer_code: editingItem.customer_code,
+            id: editingItem.id.toString(),
+            code: editingItem.code,
             name: editingItem.name,
-            contact_person: editingItem.contact_person,
-            email: editingItem.email,
-            phone: editingItem.phone,
-            address: editingItem.address,
             country: editingItem.country,
-            tax_id: editingItem.tax_id,
+            city: editingItem.city,
+            timezone: editingItem.timezone,
+            type: "POL" as const,
             is_active: editingItem.is_active
           } : undefined}
           onSubmit={handleSubmit}
-          onCancel={closeModal}
+          portType="POL"
           isLoading={isModalLoading}
         />
       </FormModal>
@@ -633,8 +595,8 @@ function CustomersPage() {
           setDeletingItem(null);
         }}
         onConfirm={handleDeleteConfirm}
-        title="Delete Customer"
-        message={`Are you sure you want to delete the customer "${deletingItem?.name}" (${deletingItem?.customer_code})? This action cannot be undone.`}
+        title="Delete POL Port"
+        message={`Are you sure you want to delete the POL port "${deletingItem?.name}" (${deletingItem?.code})? This action cannot be undone.`}
         itemName={deletingItem?.name}
         isLoading={isModalLoading}
         variant="danger"
@@ -643,9 +605,6 @@ function CustomersPage() {
   );
 }
 
-
-
-export default withSimpleRBAC(CustomersPage, {
-  route: "/admin/port-customer-master/customers",
-  privilege: "VIEW_PORT_CUSTOMER_MASTER"
+export default withSimpleRBAC(PolDataManager, {
+  route: "/admin/port-customer-master/pol-ports"
 });

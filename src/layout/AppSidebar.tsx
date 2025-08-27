@@ -7,7 +7,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/slices/authSlice';
-import { useRBAC } from '@/hooks/useRBAC';
+
 import { 
   HiOutlineHome, 
   HiOutlineCog, 
@@ -18,6 +18,7 @@ import {
   HiOutlineChevronDown,
   HiOutlineDotsHorizontal
 } from "react-icons/hi";
+import useSimpleRBAC from "@/hooks/useSimpleRBAC";
 
 type NavItem = {
   name: string;
@@ -152,7 +153,7 @@ const AppSidebar: React.FC = () => {
   const { user: contextUser } = useAuth();
   const reduxUser = useSelector(selectUser);
   const pathname = usePathname();
-  const { filterMenu, canAccessRoute, userRole, isAdmin } = useRBAC();
+  const {  canAccessRoute, userRole, isAdmin } = useSimpleRBAC();
   
   // Use Redux user if available, fallback to context user
   const user = reduxUser || contextUser;

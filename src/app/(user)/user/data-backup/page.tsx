@@ -1,10 +1,11 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
+
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, DatabaseIcon, TrashBinIcon, RefreshIcon, PlayIcon, PauseIcon } from "@/icons";
+import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
 
 interface BackupJob {
   id: string;
@@ -509,4 +510,7 @@ function DataBackupPage() {
   );
 }
 
-export default withUserAuth(DataBackupPage);
+export default withSimpleRBAC(DataBackupPage, {
+  module: "backup",
+  route: "/user/data-backup",
+});

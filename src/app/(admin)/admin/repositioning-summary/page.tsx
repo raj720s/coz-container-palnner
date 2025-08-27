@@ -1,6 +1,5 @@
 "use client";
-
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
 import React, { useState, useMemo } from "react";
@@ -345,4 +344,7 @@ function RepositioningSummaryPage() {
   );
 }
 
-export default withAdminAuth(RepositioningSummaryPage); 
+export default withSimpleRBAC(RepositioningSummaryPage, {
+  
+  route: "/admin/repositioning-summary",
+}); 

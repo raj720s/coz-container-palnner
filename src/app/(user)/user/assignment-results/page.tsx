@@ -1,4 +1,4 @@
-import AssignmentResultsManager from "@/components/shared/master-data/AssignmentResultsManager";
+import AssignmentResultsManager from "@/components/shared/operations/AssignmentResultsManager";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

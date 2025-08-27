@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import CustomersClient from "./CustomersClient";
+import { CustomerManager } from "@/components/shared/master-data";
 
 export const metadata: Metadata = {
   title: "Customer Records | COZ",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function CustomersPage() {
-  return <CustomersClient />;
+  return <CustomerManager />;
 }

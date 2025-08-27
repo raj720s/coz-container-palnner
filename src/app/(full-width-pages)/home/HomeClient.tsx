@@ -1,6 +1,6 @@
 "use client";
 
-import { withAnyAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -79,4 +79,4 @@ function HomePage() {
   );
 }
 
-export default withAnyAuth(HomePage);
+export default withSimpleRBAC(HomePage);

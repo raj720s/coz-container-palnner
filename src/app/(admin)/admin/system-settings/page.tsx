@@ -1,11 +1,12 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { CheckCircleIcon, AlertIcon, TimeIcon, SettingsIcon, ShieldIcon, DatabaseIcon, BellIcon, GlobeIcon } from "@/icons";
+import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
 
 interface SystemSetting {
   id: string;
@@ -415,4 +416,7 @@ function AdminSystemSettingsPage() {
   );
 }
 
-export default withAdminAuth(AdminSystemSettingsPage); 
+export default withSimpleRBAC(AdminSystemSettingsPage, {
+  
+  route: "/admin/system-settings",
+}); 

@@ -37,7 +37,7 @@ interface AssignmentResult {
 
 const columnHelper = createColumnHelper<AssignmentResult>();
 
-function AssignmentResultsPage() {
+function AssignmentResultsManager() {
   // Get planning results from session storage or use mock data
   const getAssignmentData = (): AssignmentResult[] => {
     try {
@@ -381,7 +381,7 @@ function AssignmentResultsPage() {
   );
 }
 
-export default withSimpleRBAC(AssignmentResultsPage, {
+export default withSimpleRBAC(AssignmentResultsManager, {
   route: "/admin/assignment-results",
   privilege: "VIEW_ASSIGNMENT_RESULTS"
 }); 

@@ -1,4 +1,4 @@
-import ContainerPlanningManager from "@/components/shared/master-data/ContainerPlanningManager";
+import ContainerPlanningManager from "@/components/shared/operations/ContainerPlanningManager";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

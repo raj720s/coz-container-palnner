@@ -1,6 +1,6 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useRouter } from "next/navigation";
 
@@ -15,7 +15,7 @@ function TestValidationPage() {
   };
 
   const handleGoToUpload = () => {
-    console.log('TestValidationPage: Navigating to upload');
+    console.log('TestValidationPage: Navigating to upload');  
     router.push('/user/shipment-upload');
   };
 
@@ -54,4 +54,7 @@ function TestValidationPage() {
   );
 }
 
-export default withUserAuth(TestValidationPage);
+export default withSimpleRBAC(TestValidationPage, {
+  module: "shipment-operations",
+  route: "/user/test-validation",
+});

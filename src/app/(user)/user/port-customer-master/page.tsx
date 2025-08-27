@@ -1,6 +1,6 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -195,4 +195,7 @@ function UserPortCustomerMasterPage() {
   );
 }
 
-export default withUserAuth(UserPortCustomerMasterPage);
+export default withSimpleRBAC(UserPortCustomerMasterPage, {
+  module: "port-customer-master",
+  route: "/user/port-customer-master",
+});

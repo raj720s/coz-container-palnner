@@ -1,6 +1,6 @@
 "use client";
 
-import { withRouteAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -250,4 +250,7 @@ function ShipmentUploadPage() {
   );
 }
 
-export default withRouteAuth(ShipmentUploadPage, "user/shipment-upload"); 
+export default withSimpleRBAC(ShipmentUploadPage, {
+  module: "shipment-operations",
+  route: "/user/shipment-upload",
+}); 

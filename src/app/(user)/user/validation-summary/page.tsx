@@ -1,6 +1,6 @@
 "use client";
 
-import { withRouteAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import {
   useReactTable,
@@ -371,4 +371,7 @@ function ValidationSummaryPage() {
   );
 }
 
-export default withRouteAuth(ValidationSummaryPage, "user/validation-summary"); 
+export default withSimpleRBAC(ValidationSummaryPage, {
+  module: "shipment-operations",
+  route: "/user/validation-summary",
+}); 

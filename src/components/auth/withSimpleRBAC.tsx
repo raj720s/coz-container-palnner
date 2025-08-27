@@ -24,6 +24,8 @@ interface WithSimpleRBACProps {
   redirectTo?: string;
   /** Show loading while checking permissions */
   showLoading?: boolean;
+  /** Required module access */
+  module?: string;
   /** Custom access denied component */
   AccessDeniedComponent?: React.ComponentType<{ reason: string }>;
 }
@@ -48,6 +50,7 @@ export function withSimpleRBAC<P extends object>(
     allowSuperUserBypass = true,
     redirectTo,
     showLoading = true,
+    module,
     AccessDeniedComponent
   } = options;
 

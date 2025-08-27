@@ -1,6 +1,6 @@
 "use client";
 
-import { withUserAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
 import React, { useState } from "react";
@@ -411,4 +411,7 @@ function UserRepositioningSummaryPage() {
   );
 }
 
-export default withUserAuth(UserRepositioningSummaryPage); 
+export default withSimpleRBAC(UserRepositioningSummaryPage, {
+  module: "repositioning-summary",
+  route: "/user/repositioning-summary",
+}); 

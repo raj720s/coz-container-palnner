@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import PODPortsClient from "./PODPortsClient";
+import { PodDataManager } from "@/components/shared/master-data";
 
 export const metadata: Metadata = {
   title: "POD Master | COZ",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function PODPortsPage() {
-  return <PODPortsClient />;
+  return <PodDataManager />;
 }

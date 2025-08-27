@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import POLPortsClient from "./POLPortsClient";
+import { PolDataManager } from "@/components/shared/master-data";
 
 export const metadata: Metadata = {
   title: "POL Master | COZ", 
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function POLPortsPage() {
-  return <POLPortsClient />;
+  return <PolDataManager />;
 }
