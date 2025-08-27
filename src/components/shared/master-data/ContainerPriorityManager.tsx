@@ -81,7 +81,7 @@ function SortableDragHandle({ row }: { row: ContainerPriorityResponse }) {
 
 
 
-function ContainerPriorityPage() {
+function ContainerPriorityManager() {
   const dispatch = useDispatch<AppDispatch>();
   // Local state for data management
   const [containerPriorities, setContainerPriorities] = useState<ContainerPriorityResponse[]>([]);
@@ -601,7 +601,7 @@ function ContainerPriorityPage() {
   );
 }
 
-export default withSimpleRBAC(ContainerPriorityPage, {
+export default withSimpleRBAC(ContainerPriorityManager, {
   route: "/admin/container-priority",
   privilege: "VIEW_CONTAINER_PRIORITY"
 });

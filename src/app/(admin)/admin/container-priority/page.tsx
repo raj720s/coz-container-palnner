@@ -1,5 +1,6 @@
+import ContainerPriorityManager from "@/components/shared/master-data/ContainerPriorityManager";
 import type { Metadata } from "next";
-import ContainerPriorityPage from "./ContainerPriorityClient";
+// import ContainerPriorityPage from "./ContainerPriorityClient";
 
 
 export const metadata: Metadata = {
@@ -8,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 function ContainerPriorityPageComponent() {
-  return <ContainerPriorityPage />;
+  return <ContainerPriorityManager />;
 }
 
 export default ContainerPriorityPageComponent;

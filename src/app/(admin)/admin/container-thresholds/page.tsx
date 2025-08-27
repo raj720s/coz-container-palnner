@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import ContainerThreshHoldClient from "./ContainerThreshHoldClient";
-
+import { ContainerThresholdsManager } from "@/components/shared/master-data/ContainerThresholdsManager";
 
 export const metadata: Metadata = {
-  title: "Container ThreshHold Master | COZ",
-  description: "Manage container threshhold and their configurations",
+  title: "Container Thresholds | COZ",
+  description: "Manage container capacity thresholds and constraints",
 };
 
-function ContainerThresholdsPageComponent() {
-  return <ContainerThreshHoldClient />;
+function ContainerThresholdsPage() {
+  return <ContainerThresholdsManager mode="admin" />;
 }
 
-export default ContainerThresholdsPageComponent;
+export default ContainerThresholdsPage;

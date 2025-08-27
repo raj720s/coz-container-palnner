@@ -1,8 +1,9 @@
 "use client";
 
-import Button from "@/components/ui/button/Button";
-import { useState, useMemo, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import { toast } from "react-hot-toast";
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,49 +14,58 @@ import {
   getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
+
+
+import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
-import toast from "react-hot-toast";
-import { withRouteAuth } from "@/components/auth/withAuth";
+import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import Pagination from "@/components/tables/Pagination";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
+
 import {
   fetchContainerTypes,
   createContainerType,
   updateContainerType,
-  patchContainerType,
   deleteContainerType,
-  exportContainerTypes,
   selectContainerTypes,
   selectContainerTypesLoading,
   selectContainerTypesError,
   selectContainerTypesTotal,
+  selectContainerTypesPageSize,
   clearError,
 } from "@/store/slices/containerTypeSlice";
-import {
-  useGetContainerTypesQuery,
-  useCreateContainerTypeMutation,
-  useUpdateContainerTypeMutation,
-  usePatchContainerTypeMutation,
-  useDeleteContainerTypeMutation,
-} from "@/store/api/apiSlice";
-import { ContainerTypeResponse, ContainerTypeListRequest, CreateContainerTypeRequest, UpdateContainerTypeRequest } from "@/types/api";
-import { ContainerTypeForm, ContainerTypeFormData } from "@/components/forms/ContainerTypeForm";
+
+import { ContainerTypeResponse } from "@/types/api";
+import { ContainerTypeFormData } from "@/components/forms/ContainerTypeForm";
+import { ContainerTypeForm } from "@/components/forms/ContainerTypeForm";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+
+interface TableMeta<T> {
+  editRow: (row: T) => void;
+  deleteRow: (id: number) => Promise<void>;
+}
+
+interface ContainerTypesManagerProps {
+  mode: 'admin' | 'user';
+}
 
 const columnHelper = createColumnHelper<ContainerTypeResponse>();
 
-function ContainerTypesPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const action = searchParams.get('action');
+export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mode }) => {
   const dispatch = useDispatch<AppDispatch>();
   
-  // Local state for filtering and pagination
-  const [filters, setFilters] = useState<ContainerTypeListRequest>({
+  // Redux state
+  const containerTypes = useSelector(selectContainerTypes);
+  const loading = useSelector(selectContainerTypesLoading);
+  const error = useSelector(selectContainerTypesError);
+  const total = useSelector(selectContainerTypesTotal);
+  const pageSize = useSelector(selectContainerTypesPageSize);
+  const totalPages = Math.ceil(total / pageSize);
+  
+  // Local state
+  const [filters, setFilters] = useState({
     page: 1,
     page_size: 10,
     order_by: "created_on",
@@ -67,36 +77,33 @@ function ContainerTypesPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<ContainerTypeResponse | null>(null);
 
-  // Redux state
-  const containerTypes = useSelector(selectContainerTypes);
-  const loading = useSelector(selectContainerTypesLoading);
-  const error = useSelector(selectContainerTypesError);
-  const total = useSelector(selectContainerTypesTotal);
-
-  // RTK Query hooks (alternative approach)
-  // const { data: containerTypesRTK, isLoading: loadingRTK, error: errorRTK } = useGetContainerTypesQuery(filters);
-  const [createContainerTypeMutation] = useCreateContainerTypeMutation();
-  const [updateContainerTypeMutation] = useUpdateContainerTypeMutation();
-  const [patchContainerTypeMutation] = usePatchContainerTypeMutation();
-  const [deleteContainerTypeMutation] = useDeleteContainerTypeMutation();
+  const {
+    isOpen: isModalOpen,
+    isLoading: isModalLoading,
+    editingItem,
+    openModal,
+    closeModal,
+    setLoading: setModalLoading,
+  } = useFormModal<ContainerTypeResponse>();
 
   // Load container types on component mount and when filters change
   useEffect(() => {
-    dispatch(fetchContainerTypes(filters));
+    try {
+      dispatch(fetchContainerTypes(filters));
+    } catch (error) {
+      console.error('Error dispatching fetchContainerTypes:', error);
+    }
   }, [dispatch, filters]);
 
   // Sync table sorting with API filters
   useEffect(() => {
     if (sorting.length > 0) {
       const sortConfig = sorting[0];
-      setFilters(prev => {
-        const newFilters = {
-          ...prev,
-          order_by: sortConfig.id,
-          order_type: sortConfig.desc ? 'desc' : 'asc'
-        };
-        return newFilters;
-      });
+      setFilters(prev => ({
+        ...prev,
+        order_by: sortConfig.id,
+        order_type: sortConfig.desc ? 'desc' : 'asc'
+      }));
     }
   }, [sorting]);
 
@@ -110,23 +117,14 @@ function ContainerTypesPage() {
     }
   }, [error, dispatch]);
 
-  const {
-    isOpen: isModalOpen,
-    isLoading: isModalLoading,
-    editingItem,
-    openModal,
-    closeModal,
-    setLoading: setModalLoading,
-  } = useFormModal<ContainerTypeResponse>();
-
-  const columns = useMemo(() => [
+  const columns = [
     columnHelper.accessor("code", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Container Code
+          Code
           <span className="text-xs">
             {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
           </span>
@@ -144,54 +142,54 @@ function ContainerTypesPage() {
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          Container Name
+          Name
           <span className="text-xs">
             {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
           </span>
         </button>
       ),
       cell: (info) => (
-        <span className="text-gray-900 dark:text-white">
+        <span className="text-sm text-gray-600 dark:text-gray-400">
           {info.getValue()}
         </span>
       ),
     }),
-    columnHelper.accessor("description", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Description
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-gray-600 dark:text-gray-400">
-          {info.getValue()}
-        </span>
-      ),
-    }),
-    columnHelper.accessor("capacity", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Capacity
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-gray-600 dark:text-gray-400">
-          {info.getValue()}
-        </span>
-      ),
-    }),
+         columnHelper.accessor("description", {
+       header: ({ column }) => (
+         <button
+           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+         >
+           Description
+           <span className="text-xs">
+             {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+           </span>
+         </button>
+       ),
+       cell: (info) => (
+         <span className="text-sm text-gray-600 dark:text-gray-400">
+           {info.getValue() || "No description"}
+         </span>
+       ),
+     }),
+     columnHelper.accessor("capacity", {
+       header: ({ column }) => (
+         <button
+           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+         >
+           Capacity
+           <span className="text-xs">
+             {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+           </span>
+         </button>
+       ),
+       cell: (info) => (
+         <span className="text-sm text-gray-600 dark:text-gray-400">
+           {info.getValue() || "No capacity"}
+         </span>
+       ),
+     }),
     columnHelper.accessor("status", {
       header: ({ column }) => (
         <button
@@ -222,7 +220,7 @@ function ContainerTypesPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => openModal(info.row.original)}
+            onClick={() => (info.table.options.meta as TableMeta<ContainerTypeResponse>)?.editRow(info.row.original)}
             className="p-1"
           >
             <PencilIcon className="w-4 h-4" />
@@ -230,10 +228,7 @@ function ContainerTypesPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              setDeletingItem(info.row.original);
-              setDeleteModalOpen(true);
-            }}
+            onClick={() => (info.table.options.meta as TableMeta<ContainerTypeResponse>)?.deleteRow(info.row.original.id)}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -241,7 +236,7 @@ function ContainerTypesPage() {
         </div>
       ),
     }),
-  ], [openModal]);
+  ];
 
   const table = useReactTable<ContainerTypeResponse>({
     data: containerTypes,
@@ -256,6 +251,18 @@ function ContainerTypesPage() {
     },
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
+    meta: {
+      editRow: (row: ContainerTypeResponse) => {
+        openModal(row);
+      },
+      deleteRow: async (id: number) => {
+        const item = containerTypes.find(ct => ct.id === id);
+        if (item) {
+          setDeletingItem(item);
+          setDeleteModalOpen(true);
+        }
+      },
+    } as TableMeta<ContainerTypeResponse>,
   });
 
   const handleSubmit = async (formData: ContainerTypeFormData) => {
@@ -291,42 +298,26 @@ function ContainerTypesPage() {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      await dispatch(exportContainerTypes({ ...filters, export: true }));
-      toast.success('Export completed successfully');
-    } catch (error) {
-      console.error('Error exporting container types:', error);
-      toast.error('Failed to export container types');
-    }
-  };
-
   const handleAddNew = () => {
     openModal();
   };
 
   const filteredData = table.getFilteredRowModel().rows;
-  const totalPages = Math.ceil(total / (filters.page_size || 10));
 
   return (
     <div className="p-6">
       <div className="mb-6">
-        <div className="flex items-center gap-4 mb-4">
-          <Button
-            variant="outline"
-            onClick={() => router.back()}
-            className="flex items-center gap-2"
-          >
-            <ChevronUpIcon className="w-4 h-4" />
-            Back
-          </Button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Container Type Management
-          </h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Container Type Management
+        </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage container types with comprehensive CRUD operations
+          Manage container types and their configurations
         </p>
+        {mode === 'admin' && (
+          <div className="mt-2 text-sm text-blue-600 dark:text-blue-400">
+            🔧 Admin Mode - Full Access
+          </div>
+        )}
       </div>
 
       {/* Filters and Controls */}
@@ -340,10 +331,6 @@ function ContainerTypesPage() {
           />
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleExport} variant="outline" className="flex items-center gap-2">
-            <DownloadIcon className="w-4 h-4" />
-            Export
-          </Button>
           <Button onClick={handleAddNew} className="flex items-center gap-2">
             <PlusIcon className="w-4 h-4" />
             Add Container Type
@@ -413,18 +400,18 @@ function ContainerTypesPage() {
         size="lg"
         showFooter={false}
       >
-        <ContainerTypeForm
-          initialData={editingItem ? {
-            code: editingItem.code,
-            name: editingItem.name,
-            description: editingItem.description,
-            capacity: editingItem.capacity,
-            status: editingItem.status
-          } : undefined}
-          onSubmit={handleSubmit}
-          onCancel={closeModal}
-          isLoading={isModalLoading}
-        />
+                 <ContainerTypeForm
+           initialData={editingItem ? {
+             code: editingItem.code,
+             name: editingItem.name,
+             description: editingItem.description,
+             capacity: editingItem.capacity,
+             status: editingItem.status
+           } : undefined}
+           onSubmit={handleSubmit}
+           onCancel={closeModal}
+           isLoading={isModalLoading}
+         />
       </FormModal>
 
       {/* Delete Confirmation Modal */}
@@ -438,6 +425,8 @@ function ContainerTypesPage() {
       />
     </div>
   );
-}
+};
 
-export default withRouteAuth(ContainerTypesPage, "user/container-types");
+export default withSimpleRBAC(ContainerTypesManager, {
+  privilege: "VIEW_CONTAINER_TYPES"
+});

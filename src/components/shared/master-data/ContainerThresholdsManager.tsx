@@ -1,14 +1,9 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
-import Button from "@/components/ui/button/Button";
-import Input from "@/components/form/input/InputField";
-import { FormModal } from "@/components/ui/modal/FormModal";
-import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
-import { useFormModal } from "@/hooks/useFormModal";
-import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { toast } from "react-hot-toast";
 import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/store";
+import { toast } from "react-hot-toast";
 import {
   useReactTable,
   getCoreRowModel,
@@ -19,14 +14,19 @@ import {
   getPaginationRowModel,
   SortingState,
 } from "@tanstack/react-table";
+
+import Button from "@/components/ui/button/Button";
+import Input from "@/components/form/input/InputField";
+import { FormModal } from "@/components/ui/modal/FormModal";
+import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
+import { useFormModal } from "@/hooks/useFormModal";
+import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import Pagination from "@/components/tables/Pagination";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
+
 import {
   fetchContainerThresholds,
   createContainerThreshold,
   updateContainerThreshold,
-  patchContainerThreshold,
   deleteContainerThreshold,
   selectContainerThresholds,
   selectContainerThresholdsLoading,
@@ -35,27 +35,35 @@ import {
   selectContainerThresholdsTotalPages,
   clearError,
 } from "@/store/slices/containerThresholdSlice";
+
 import { 
   fetchContainerTypes, 
   selectContainerTypes 
 } from "@/store/slices/containerTypeSlice";
+
 import { 
   selectPortOfLoading, 
   selectPortOfDischarge, 
   fetchPortOfLoading, 
   fetchPortOfDischarge 
 } from "@/store/slices/commonDataSlice";
+
 import { ContainerThresholdResponse, ContainerThresholdListRequest } from "@/types/api";
 import { ContainerThresholdForm, ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 
 interface TableMeta<T> {
   editRow: (row: T) => void;
   deleteRow: (id: number) => Promise<void>;
 }
 
+interface ContainerThresholdsManagerProps {
+  mode: 'admin' | 'user';
+}
+
 const columnHelper = createColumnHelper<ContainerThresholdResponse>();
 
-function ContainerThresholdsPage() {
+export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProps> = ({ mode }) => {
   const dispatch = useDispatch<AppDispatch>();
   
   // Redux state
@@ -388,6 +396,17 @@ function ContainerThresholdsPage() {
 
   const filteredData = table.getFilteredRowModel().rows;
 
+  if (loading && containerThresholds.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading container thresholds...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -397,24 +416,11 @@ function ContainerThresholdsPage() {
         <p className="text-gray-600 dark:text-gray-400">
           Manage container capacity thresholds and constraints
         </p>
-      </div>
-
-      {/* Filters and Controls */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 flex-1">
-          <Input
-            placeholder="Search container thresholds..."
-            value={globalFilter ?? ""}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleAddNew} className="flex items-center gap-2">
-            <PlusIcon className="w-4 h-4" />
-            Add Container Threshold
-          </Button>
-        </div>
+        {mode === 'admin' && (
+          <div className="mt-2 text-sm text-blue-600 dark:text-blue-400">
+            🔧 Admin Mode - Full Access
+          </div>
+        )}
       </div>
 
       {/* Error Display */}
@@ -423,6 +429,24 @@ function ContainerThresholdsPage() {
           <p className="text-red-800 dark:text-red-200">{error}</p>
         </div>
       )}
+
+      {/* Filters and Controls */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 flex-1">
+          <Input
+            placeholder="Search thresholds..."
+            value={globalFilter ?? ""}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleAddNew} className="flex items-center gap-2">
+            <PlusIcon className="w-4 h-4" />
+            Add Threshold
+          </Button>
+        </div>
+      </div>
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
@@ -486,7 +510,7 @@ function ContainerThresholdsPage() {
             type: editingItem.type,
             min_capacity: editingItem.min_capacity,
             max_capacity: editingItem.max_capacity,
-            status: editingItem.status
+            status: editingItem.status,
           } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}
@@ -503,13 +527,14 @@ function ContainerThresholdsPage() {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={handleDelete}
         title="Delete Container Threshold"
-        message={`Are you sure you want to delete this container threshold? This action cannot be undone.`}
+        message={`Are you sure you want to delete the container threshold "${deletingItem?.type}"? This action cannot be undone.`}
         isLoading={loading}
       />
     </div>
   );
-}
+};
 
-export default withSimpleRBAC(ContainerThresholdsPage, {
-  route: "/user/container-thresholds"
+export default withSimpleRBAC(ContainerThresholdsManager, {
+  route: "/admin/container-thresholds",
+  privilege: "VIEW_CONTAINER_THRESHOLDS"
 });

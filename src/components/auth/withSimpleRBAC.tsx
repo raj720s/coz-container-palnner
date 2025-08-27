@@ -36,6 +36,8 @@ export function withSimpleRBAC<P extends object>(
   WrappedComponent: React.ComponentType<P>,
   options: WithSimpleRBACProps = {}
 ) {
+
+  
   const {
     privilege,
     anyPrivileges,

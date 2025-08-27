@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import ContainerTypesClient from "./ContainerTypesClient";
+import { ContainerTypesManager } from "@/components/shared/master-data/ContainerTypesManager";
 import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 
 export const metadata: Metadata = {
@@ -8,7 +8,11 @@ export const metadata: Metadata = {
 };
 
 function ContainerTypesPage() {
-  return <ContainerTypesClient />;
+  return <ContainerTypesManager mode="admin" />;
 }
+
+// export default withSimpleRBAC(ContainerTypesPage, {
+//   privilege: "VIEW_CONTAINER_TYPES"
+// });
 
 export default ContainerTypesPage;

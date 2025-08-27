@@ -19,7 +19,7 @@ import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import toast from "react-hot-toast";
-import { withRouteAuth } from "@/components/auth/withAuth";
+
 import Pagination from "@/components/tables/Pagination";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
@@ -45,6 +45,7 @@ import {
 } from "@/store/api/apiSlice";
 import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
+import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
 
 const columnHelper = createColumnHelper<CustomerResponse>();
 
@@ -644,4 +645,7 @@ function CustomersPage() {
 
 
 
-export default withRouteAuth(CustomersPage, "admin/port-customer-master/customers");
+export default withSimpleRBAC(CustomersPage, {
+  route: "/admin/port-customer-master/customers",
+  privilege: "VIEW_PORT_CUSTOMER_MASTER"
+});
