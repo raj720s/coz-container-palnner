@@ -64,6 +64,8 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
+      // Add timeout to prevent middleware from hanging
+      immutableCheck: false,
     }).concat(apiSlice.middleware),
   
   devTools: process.env.NODE_ENV !== 'production',
@@ -72,6 +74,7 @@ export const store = configureStore({
 // Setup listeners for RTK Query
 setupListeners(store.dispatch);
 
+// console.log(store.getState());
 // Create persistor
 export const persistor = persistStore(store);
 

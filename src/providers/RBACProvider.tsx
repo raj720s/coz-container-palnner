@@ -1,8 +1,10 @@
-'use client'
+"use client";
+
 import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { useAuth } from '@/context/AuthContext';
-import { setRBACUser } from '@/store/slices/userInfoSlice';
+import { useRouter } from 'next/navigation';
+import { setRBACUser, clearUserInfo } from '@/store/slices/userInfoSlice';
+import { logout as logoutAuth } from '@/store/slices/authSlice';
 import { RBACUser } from '@/store/slices/userInfoSlice';
 
 interface RBACProviderProps {
@@ -10,24 +12,46 @@ interface RBACProviderProps {
 }
 
 /**
- * RBAC Provider that handles RBAC initialization at the app level
- * This prevents infinite loops and ensures RBAC is only initialized once
+ * RBAC Provider - Manages Role-Based Access Control initialization
+ * Handles user authentication state and RBAC data management
  */
 export const RBACProvider: React.FC<RBACProviderProps> = ({ children }) => {
   const dispatch = useDispatch();
-  const { user, isAuthenticated } = useAuth();
+  const router = useRouter();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    console.log('🔄 RBACProvider useEffect triggered:', { isAuthenticated, hasUser: !!user, isInitialized });
+    console.log('🔄 RBACProvider useEffect triggered');
     
-    // Only run once when user authentication state changes
-    if (isAuthenticated && user && !isInitialized) {
-      console.log('🚀 Starting RBAC initialization...');
+    // Check if user is authenticated by looking at session storage
+    const storedToken = sessionStorage.getItem("auth_token");
+    const storedUser = sessionStorage.getItem("auth_user");
+    const storedRBACUser = sessionStorage.getItem("rbac_user");
+    
+    if (!storedToken || !storedUser) {
+      console.log('🚪 No authentication data found, clearing everything and redirecting to signin');
       
-      // Check if we have RBAC data in session storage
-      const storedRBACUser = sessionStorage.getItem("rbac_user");
+      // Clear all session storage
+      sessionStorage.clear();
       
+      // Clear Redux store
+      dispatch(clearUserInfo());
+      dispatch(logoutAuth());
+      
+      // Mark as initialized to prevent retries
+      setIsInitialized(true);
+      
+      // Redirect to signin page
+      router.push('/signin');
+      return;
+    }
+
+    try {
+      // Parse stored user data
+      const userData = JSON.parse(storedUser);
+      console.log('🔍 Found stored user:', userData.email);
+      
+      // Check if we have RBAC data
       if (storedRBACUser) {
         try {
           const rbacUser: RBACUser = JSON.parse(storedRBACUser);
@@ -57,46 +81,50 @@ export const RBACProvider: React.FC<RBACProviderProps> = ({ children }) => {
           
         } catch (error) {
           console.error('Failed to initialize RBAC from session storage:', error);
-          setIsInitialized(true); // Mark as initialized even on error to prevent infinite retries
+          
+          // Clear corrupted RBAC data
+          sessionStorage.removeItem("rbac_user");
+          sessionStorage.removeItem("rbac_initialized");
+          
+          // Clear everything and redirect to signin
+          sessionStorage.clear();
+          dispatch(clearUserInfo());
+          dispatch(logoutAuth());
+          
+          setIsInitialized(true);
+          router.push('/signin');
         }
-      } else if (user.privileges && user.privilege_version) {
-        console.log('📝 Creating RBAC user from AuthContext data...');
-        
-        // Create RBAC user from AuthContext user data
-        const rbacUser: RBACUser = {
-          id: parseInt(user.id),
-          email: user.email,
-          name: user.name,
-          role_id: user.role_id || 0,
-          role_name: user.role === 'admin' ? 'Admin' : 'User',
-          is_superuser: user.is_superuser || false,
-          privileges: user.privileges,
-          privilege_version: user.privilege_version
-        };
-        
-        // Store in session storage and Redux
-        sessionStorage.setItem("rbac_user", JSON.stringify(rbacUser));
-        dispatch(setRBACUser(rbacUser));
-        
-        // Mark as initialized
-        sessionStorage.setItem("rbac_initialized", rbacUser.privilege_version);
-        
-        console.log('🔐 RBAC initialized from AuthContext for user:', rbacUser.email);
-        setIsInitialized(true);
       } else {
-        console.log('⚠️ No RBAC data available, marking as initialized');
-        // No RBAC data available, mark as initialized to prevent retries
+        console.log('⚠️ No RBAC data available, clearing everything and redirecting to signin');
+        
+        // Clear all session storage
+        sessionStorage.clear();
+        
+        // Clear Redux store
+        dispatch(clearUserInfo());
+        dispatch(logoutAuth());
+        
+        // Mark as initialized to prevent retries
         setIsInitialized(true);
+        
+        // Redirect to signin page
+        router.push('/signin');
       }
-    } else if (!isAuthenticated) {
-      console.log('🚪 User logged out, resetting RBAC state');
-      // User logged out, reset initialization state
-      setIsInitialized(false);
+    } catch (error) {
+      console.error('Error parsing stored user data:', error);
+      
+      // Clear corrupted data and redirect
+      sessionStorage.clear();
+      dispatch(clearUserInfo());
+      dispatch(logoutAuth());
+      
+      setIsInitialized(true);
+      router.push('/signin');
     }
-  }, [isAuthenticated, user, isInitialized, dispatch]);
+  }, [dispatch, router]);
 
   // Show loading state while initializing
-  if (isAuthenticated && !isInitialized) {
+  if (!isInitialized) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

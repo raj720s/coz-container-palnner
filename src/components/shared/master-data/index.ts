@@ -1,4 +1,4 @@
-
+// Master data management components - UPDATED with role fixes
 
 export { ContainerTypesManager } from './ContainerTypesManager';
 export { ContainerThresholdsManager } from './ContainerThresholdsManager';

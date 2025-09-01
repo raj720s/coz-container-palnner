@@ -1,7 +1,8 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import superAxios from '@/utils/superAxios';
 import { RootState } from '@/store';
 import { rbacService } from '@/services/rbacService';
+import { privilegeService } from '@/services/privilegeService';
 
 // User Info API Response Interface
 export interface UserInfoResponse {
@@ -95,24 +96,21 @@ export const fetchUserRBACInfo = createAsyncThunk(
       const userResponse = await superAxios.get('/user/v1/json-info');
       const userInfo = userResponse.data;
 
+      // For now, skip server privilege fetching since we're using static privileges
+      // TODO: Re-enable when server integration is ready
+      /*
       // Then get privileges
       const privilegeInfo = await rbacService.getUserPrivileges(userId);
+      const privilegeResponse = await privilegeService.getPrivileges({ role_id: roleId });
+      const roleId = privilegeInfo.role_id || userInfo.role_id;
+      const privilegeNames = privilegeService.extractPrivilegeNames(privilegeResponse.results);
+      */
 
-      // Combine into RBAC user object
-      const rbacUser: RBACUser = {
-        id: userInfo.id || userId,
-        email: userInfo.email,
-        name: `${userInfo.first_name} ${userInfo.last_name}`.trim(),
-        role_id: privilegeInfo.role_id,
-        role_name: privilegeInfo.role_name,
-        is_superuser: userInfo.is_superuser || false,
-        privileges: privilegeInfo.privileges,
-        privilege_version: privilegeInfo.privilege_version,
-      };
-
+      // Return basic user info without privileges for now
       return {
         userInfo,
-        rbacUser,
+        privileges: [], // Empty for now, will be populated by AuthContext
+        roleId: userInfo.role_id
       };
     } catch (error: any) {
       return rejectWithValue(
@@ -144,6 +142,34 @@ export const checkPrivilegeChanges = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(
         error.response?.data?.detail || error.message || 'Failed to check privilege changes'
+      );
+    }
+  }
+);
+
+// Async Thunk for fetching privileges from server API
+export const fetchUserPrivileges = createAsyncThunk(
+  'userInfo/fetchUserPrivileges',
+  async (request: { role_id: number }, { rejectWithValue }) => {
+    try {
+      // For now, return empty privileges since we're using static privileges from AuthContext
+      // TODO: Re-enable server privilege fetching when ready
+      console.log('ℹ️ Using static privileges from AuthContext, skipping server fetch');
+      
+      return {
+        privileges: [], // Will be populated by AuthContext
+        role_id: request.role_id,
+        success: true
+      };
+      
+      /*
+      // Server privilege fetching (commented out for now)
+      const response = await privilegeService.getPrivileges(request);
+      return response;
+      */
+    } catch (error: any) {
+      return rejectWithValue(
+        error.response?.data?.detail || error.message || 'Failed to fetch user privileges'
       );
     }
   }
@@ -271,6 +297,38 @@ const userInfoSlice = createSlice({
       .addCase(checkPrivilegeChanges.rejected, (state, action) => {
         // Silently fail privilege checks to avoid interrupting user experience
         console.warn('Privilege check failed:', action.payload);
+      })
+
+      // Fetch User Privileges from Server API
+      .addCase(fetchUserPrivileges.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchUserPrivileges.fulfilled, (state, action) => {
+        state.isLoading = false;
+        
+        // Update RBAC user with new privileges
+        if (state.rbacUser) {
+          state.rbacUser.privileges = action.payload.privileges;
+          state.rbacUser.privilege_version = `server_${action.payload.fetchedAt}`;
+        }
+        
+        // Also update userInfo if it exists
+        if (state.userInfo) {
+          state.userInfo.privileges = action.payload.privileges;
+          state.userInfo.privilege_version = `server_${action.payload.fetchedAt}`;
+        }
+        
+        state.privilegeVersion = `server_${action.payload.fetchedAt}`;
+        state.lastPrivilegeCheck = action.payload.fetchedAt;
+        state.error = null;
+        
+        console.log('✅ Privileges updated from server:', action.payload.privileges);
+      })
+      .addCase(fetchUserPrivileges.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+        console.error('❌ Failed to fetch privileges:', action.payload);
       });
   },
 });
@@ -287,34 +345,83 @@ export const {
   setLoading,
 } = userInfoSlice.actions;
 
-// Export selectors
-export const selectUserInfo = (state: RootState) => ({
-  data: state.userInfo.userInfo,
-  loading: state.userInfo.isLoading,
-  error: state.userInfo.error,
-  isInitialized: state.userInfo.isInitialized,
-  lastFetched: state.userInfo.lastFetched,
-});
+// Export selectors with proper memoization
+export const selectUserInfo = createSelector(
+  [(state: RootState) => state.userInfo.userInfo,
+   (state: RootState) => state.userInfo.isLoading,
+   (state: RootState) => state.userInfo.error,
+   (state: RootState) => state.userInfo.isInitialized,
+   (state: RootState) => state.userInfo.lastFetched],
+  (userInfo, loading, error, isInitialized, lastFetched) => ({
+    data: userInfo,
+    loading,
+    error,
+    isInitialized,
+    lastFetched,
+  })
+);
 
-export const selectRBACUser = (state: RootState) => ({
-  data: state.userInfo.rbacUser,
-  loading: state.userInfo.isLoading,
-  error: state.userInfo.error,
-  isInitialized: state.userInfo.isInitialized,
-  privilegeVersion: state.userInfo.privilegeVersion,
-  lastPrivilegeCheck: state.userInfo.lastPrivilegeCheck,
-});
+export const selectRBACUser = createSelector(
+  [(state: RootState) => state.userInfo.rbacUser,
+   (state: RootState) => state.userInfo.isLoading,
+   (state: RootState) => state.userInfo.error,
+   (state: RootState) => state.userInfo.isInitialized,
+   (state: RootState) => state.userInfo.privilegeVersion,
+   (state: RootState) => state.userInfo.lastPrivilegeCheck],
+  (rbacUser, loading, error, isInitialized, privilegeVersion, lastPrivilegeCheck) => ({
+    data: rbacUser,
+    loading,
+    error,
+    isInitialized,
+    privilegeVersion,
+    lastPrivilegeCheck,
+  })
+);
 
-export const selectUserPrivileges = (state: RootState) => state.userInfo.rbacUser?.privileges || [];
-export const selectUserRole = (state: RootState) => state.userInfo.rbacUser?.role_id || 0;
-export const selectIsSuperUser = (state: RootState) => state.userInfo.rbacUser?.is_superuser || false;
-export const selectPrivilegeVersion = (state: RootState) => state.userInfo.privilegeVersion;
-export const selectPrivilegeChangeDetected = (state: RootState) => state.userInfo.error === 'PRIVILEGE_CHANGED';
+export const selectUserPrivileges = createSelector(
+  [(state: RootState) => state.userInfo.rbacUser?.privileges],
+  (privileges) => privileges || []
+);
 
-export const selectUserInfoLoading = (state: { userInfo: UserInfoState }) => state.userInfo.isLoading;
-export const selectUserInfoError = (state: { userInfo: UserInfoState }) => state.userInfo.error;
-export const selectUserInfoInitialized = (state: { userInfo: UserInfoState }) => state.userInfo.isInitialized;
-export const selectUserInfoLastFetched = (state: { userInfo: UserInfoState }) => state.userInfo.lastFetched;
+export const selectUserRole = createSelector(
+  [(state: RootState) => state.userInfo.rbacUser?.role_id],
+  (roleId) => roleId || 0
+);
+
+export const selectIsSuperUser = createSelector(
+  [(state: RootState) => state.userInfo.rbacUser?.is_superuser],
+  (isSuperUser) => isSuperUser || false
+);
+
+export const selectPrivilegeVersion = createSelector(
+  [(state: RootState) => state.userInfo.privilegeVersion],
+  (privilegeVersion) => privilegeVersion
+);
+
+export const selectPrivilegeChangeDetected = createSelector(
+  [(state: RootState) => state.userInfo.error],
+  (error) => error === 'PRIVILEGE_CHANGED'
+);
+
+export const selectUserInfoLoading = createSelector(
+  [(state: RootState) => state.userInfo.isLoading],
+  (loading) => loading
+);
+
+export const selectUserInfoError = createSelector(
+  [(state: RootState) => state.userInfo.error],
+  (error) => error
+);
+
+export const selectUserInfoInitialized = createSelector(
+  [(state: RootState) => state.userInfo.isInitialized],
+  (isInitialized) => isInitialized
+);
+
+export const selectUserInfoLastFetched = createSelector(
+  [(state: RootState) => state.userInfo.lastFetched],
+  (lastFetched) => lastFetched
+);
 
 // Export reducer
 export default userInfoSlice.reducer;

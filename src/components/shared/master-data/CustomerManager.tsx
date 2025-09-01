@@ -45,15 +45,22 @@ import {
 } from "@/store/api/apiSlice";
 import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
-import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
+import withSimpleRBAC, { RBACContextValue } from "@/components/auth/withSimpleRBAC";
 
 const columnHelper = createColumnHelper<CustomerResponse>();
 
-function CustomerManager() {
+interface CustomerManagerProps {
+  rbacContext?: RBACContextValue;
+}
+
+function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   const dispatch = useDispatch<AppDispatch>();
+  
+  // Use RBAC context from withSimpleRBAC instead of duplicate hooks
+  const { hasPrivilege, isAdmin, isSuperUser } = rbacContext || {};
   
   // Local state for filtering and pagination
   const [filters, setFilters] = useState<CustomerListRequest>({
@@ -67,6 +74,9 @@ function CustomerManager() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<CustomerResponse | null>(null);
+
+  // Check if user can delete customer data using RBAC context
+  const canDeleteCustomer = hasPrivilege?.("DELETE_CUSTOMER") || isAdmin?.() || isSuperUser;
 
   // Redux state
   const customers = useSelector(selectCustomers);
@@ -278,18 +288,22 @@ function CustomerManager() {
           >
             <PencilIcon className="w-4 h-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleDeleteClick(info.row.original)}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
+          
+          {/* Only show delete button if user has permission */}
+          {canDeleteCustomer && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleDeleteClick(info.row.original)}
+              className="p-1 text-red-600 hover:text-red-700"
+            >
+              <TrashBinIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     }),
-  ], [openModal]);
+  ], [openModal, canDeleteCustomer]);
 
   const filteredData = useMemo(() => {
     return customers.filter(item => {
@@ -333,6 +347,14 @@ function CustomerManager() {
 
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
+
+    // Check permission before allowing delete
+    if (!canDeleteCustomer) {
+      toast.error("You don't have permission to delete customer data");
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      return;
+    }
 
     try {
       setModalLoading(true);
@@ -470,6 +492,20 @@ function CustomerManager() {
         <p className="text-gray-600 dark:text-gray-400">
           Manage customer information and their configurations
         </p>
+        
+        {/* Permission indicator */}
+        {!canDeleteCustomer && (
+          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-md">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-yellow-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm">
+                <strong>Read-only mode:</strong> You can view and edit customer data, but cannot delete records.
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Error Display */}
@@ -646,6 +682,8 @@ function CustomerManager() {
 
 
 export default withSimpleRBAC(CustomerManager, {
-  route: "/admin/port-customer-master/customers",
-  privilege: "VIEW_PORT_CUSTOMER_MASTER"
+  privilege: "VIEW_PORT_CUSTOMER_MASTER", // Minimum required privilege to access
+  role: [1, 2, 3], // Admin users (role 1), Manager users (role 2), and Regular users (role 3) can access
+  allowSuperUserBypass: true, // Superusers can always access
+  redirectTo: "/user/dashboard" // Redirect if no access
 });

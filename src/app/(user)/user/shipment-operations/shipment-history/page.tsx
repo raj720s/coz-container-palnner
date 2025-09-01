@@ -517,6 +517,5 @@ function ShipmentHistoryPage() {
 }
 
 export default withSimpleRBAC(ShipmentHistoryPage, {
-  module: "shipment-operations",
   route: "/user/shipment-operations/shipment-history",
 });

@@ -1,44 +1,48 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { localStorageService } from '@/utils/localStorageService';
 
 export function LocalStorageInitializer() {
+  const hasInitialized = useRef(false);
+
   useEffect(() => {
-    // Force clear ALL localStorage data to ensure fresh initialization
-    if (typeof window !== 'undefined') {
-      console.log('🔄 FORCE CLEARING ALL localStorage data for fresh initialization');
-      
-      // Clear all localStorage keys that start with 'nxt_admin_'
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('nxt_admin_')) {
-          console.log(`🗑️ Removing: ${key}`);
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Also clear any other potential keys
-      const additionalKeys = [
-        'nxt_admin_pol_ports',
-        'nxt_admin_pod_ports', 
-        'nxt_admin_container_priorities',
-        'nxt_admin_container_thresholds',
-        'nxt_admin_uploaded_files',
-        'nxt_admin_shipment_data',
-        'nxt_admin_container_planning_results',
-        'nxt_admin_file_counter'
-      ];
-      
-      additionalKeys.forEach(key => {
-        if (localStorage.getItem(key)) {
-          console.log(`🗑️ Force removing: ${key}`);
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Wait a bit to ensure clearing is complete
-      setTimeout(() => {
-        console.log('⏳ Clearing complete, now initializing...');
+    // Only run once to prevent conflicts with Redux Persist
+    if (hasInitialized.current || typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      hasInitialized.current = true;
+
+      // Check if we need to initialize (only if data doesn't exist)
+      const polPorts = localStorage.getItem('nxt_admin_pol_ports');
+      const podPorts = localStorage.getItem('nxt_admin_pod_ports');
+      const priorities = localStorage.getItem('nxt_admin_container_priorities');
+      const thresholds = localStorage.getItem('nxt_admin_container_thresholds');
+
+      // Only clear and reinitialize if the data is missing or corrupted
+      if (!polPorts || !podPorts || !priorities || !thresholds) {
+        console.log('🔄 Some localStorage data is missing, initializing...');
+        
+        // Clear only the specific keys that need reinitialization
+        const keysToClear = [
+          'nxt_admin_pol_ports',
+          'nxt_admin_pod_ports', 
+          'nxt_admin_container_priorities',
+          'nxt_admin_container_thresholds',
+          'nxt_admin_uploaded_files',
+          'nxt_admin_shipment_data',
+          'nxt_admin_container_planning_results',
+          'nxt_admin_file_counter'
+        ];
+        
+        keysToClear.forEach(key => {
+          if (localStorage.getItem(key)) {
+            console.log(`🗑️ Removing: ${key}`);
+            localStorage.removeItem(key);
+          }
+        });
         
         // Initialize localStorage service with default data
         localStorageService.init();
@@ -46,40 +50,23 @@ export function LocalStorageInitializer() {
         console.log('✅ LocalStorage service initialized with default data');
         
         // Log what was initialized
-        const polPorts = localStorageService.getPOLPorts();
-        const podPorts = localStorageService.getPODPorts();
-        const priorities = localStorageService.getContainerPriorities();
-        const thresholds = localStorageService.getContainerThresholds();
+        const newPolPorts = localStorageService.getPOLPorts();
+        const newPodPorts = localStorageService.getPODPorts();
+        const newPriorities = localStorageService.getContainerPriorities();
+        const newThresholds = localStorageService.getContainerThresholds();
         
         console.log('📊 Initialized data:', {
-          polPorts: polPorts.length,
-          podPorts: podPorts.length,
-          priorities: priorities.length,
-          thresholds: thresholds.length
+          polPorts: newPolPorts.length,
+          podPorts: newPodPorts.length,
+          priorities: newPriorities.length,
+          thresholds: newThresholds.length
         });
-        
-        console.log('🏗️ Available POL ports:', polPorts.map(p => p.name).join(', '));
-        console.log('🏗️ Available container types:', priorities.map(p => p.containerType).join(', '));
-        
-        // Verify the data is correct
-        if (polPorts.length !== 6) {
-          console.error('❌ Expected 6 POL ports, got:', polPorts.length);
-          console.error('❌ This means the initialization failed!');
-        } else {
-          console.log('✅ SUCCESS: All 6 POL ports are now available!');
-        }
-        
-        if (priorities.length !== 3) {
-          console.error('❌ Expected 3 container priorities, got:', priorities.length);
-        } else {
-          console.log('✅ SUCCESS: All 3 container priorities are now available!');
-        }
-        
-        // Double-check by reading directly from localStorage
-        const rawPolPorts = localStorage.getItem('nxt_admin_pol_ports');
-        console.log('🔍 Raw localStorage POL ports:', rawPolPorts);
-        
-      }, 100);
+      } else {
+        console.log('✅ LocalStorage data already exists, skipping initialization');
+      }
+    } catch (error) {
+      console.error('❌ Error during localStorage initialization:', error);
+      // Don't let initialization errors break the app
     }
   }, []);
 

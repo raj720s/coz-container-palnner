@@ -7,6 +7,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/slices/authSlice';
+import staticModuleDefinitions from '@/config/staticModules';
 
 import { 
   HiOutlineHome, 
@@ -16,17 +17,35 @@ import {
   HiOutlineUserGroup,
   HiOutlineChartBar,
   HiOutlineChevronDown,
-  HiOutlineDotsHorizontal
+  HiOutlineDotsHorizontal,
+  HiOutlineGlobe,
+  HiOutlineCheckCircle,
+  HiOutlineExclamationCircle
 } from "react-icons/hi";
 import useSimpleRBAC from "@/hooks/useSimpleRBAC";
+
+// Icon mapping for modules
+const moduleIcons: Record<string, React.ReactNode> = {
+  'UserCircleIcon': <HiOutlineUserGroup className="w-5 h-5" />,
+  'CheckCircleIcon': <HiOutlineCheckCircle className="w-5 h-5" />,
+  'AlertIcon': <HiOutlineExclamationCircle className="w-5 h-5" />,
+  'CogIcon': <HiOutlineCog className="w-5 h-5" />,
+  'CubeIcon': <HiOutlineCube className="w-5 h-5" />,
+  'GlobeIcon': <HiOutlineGlobe className="w-5 h-5" />,
+  'DocumentIcon': <HiOutlineDocumentText className="w-5 h-5" />,
+  'ChartIcon': <HiOutlineChartBar className="w-5 h-5" />,
+  'HomeIcon': <HiOutlineHome className="w-5 h-5" />
+};
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
-  path: string; // Make path required
+  path: string;
+  moduleId: number;
   subItems?: { 
     name: string; 
     path: string; 
+    moduleId: number;
     pro?: boolean; 
     adminOnly?: boolean;
     userOnly?: boolean;
@@ -35,128 +54,17 @@ type NavItem = {
   userOnly?: boolean;
 };
 
-const navItems: NavItem[] = [
-  {
-    icon: <HiOutlineHome className="w-5 h-5" />,
-    name: "Dashboard",
-    path: "/dashboard", // This will be dynamically set based on role
-
-    // subItems: [
-    //   { name: "Admin Dashboard", path: "/admin/dashboard", adminOnly: true },
-    //   { name: "User Dashboard", path: "/user/dashboard", userOnly: true },
-    // ],
-  },
-  {
-    icon: <HiOutlineCog className="w-5 h-5" />,
-    name: "Master Data Management",
-    path: "/admin/port-customer-master", // Admin parent link
-    adminOnly: true,
-    subItems: [
-      // { name: "Port & Customer Master", path: "/admin/port-customer-master" },
-      { name: "POL Master", path: "/admin/port-customer-master/pol-ports" },
-      { name: "POD Master", path: "/admin/port-customer-master/pod-ports" },
-      { name: "Customer Records", path: "/admin/port-customer-master/customers" },
-      { name: "Container Type Master", path: "/admin/container-types" },
-      { name: "Threshold Configuration", path: "/admin/container-thresholds" },
-      { name: "Priority Configuration", path: "/admin/container-priority" },
-    ],
-  },
-  {
-    icon: <HiOutlineCog className="w-5 h-5" />,
-    name: "Master Data Management",
-    path: "/user/port-customer-master", // User parent link
-    userOnly: true,
-    subItems: [
-      // { name: "Port & Customer Master", path: "/user/port-customer-master" },
-      { name: "POL Master", path: "/user/port-customer-master/pol-ports" },
-      { name: "POD Master", path: "/user/port-customer-master/pod-ports" },
-      { name: "Customer Records", path: "/user/port-customer-master/customers" },
-      { name: "Container Type Master", path: "/user/container-types" },
-      { name: "Threshold Configuration", path: "/user/container-thresholds" },
-      { name: "Priority Configuration", path: "/user/container-priority" },
-    ],
-  },
-  {
-    icon: <HiOutlineDocumentText className="w-5 h-5" />,
-    name: "Shipment Operations",
-    path: "/admin/shipment-upload", // Admin parent link
-    adminOnly: true,
-    subItems: [
-      { name: "Upload Shipments", path: "/admin/shipment-upload" },
-      { name: "Validation Summary", path: "/admin/validation-summary" },
-      { name: "Container Planning", path: "/admin/container-planning" },
-      { name: "Assignment Results", path: "/admin/assignment-results" },
-      // { name: "Repositioning Summary", path: "/admin/repositioning-summary" },
-    ],
-  },
-  {
-    icon: <HiOutlineDocumentText className="w-5 h-5" />,
-    name: "Shipment Operations",
-    path: "/user/shipment-upload", // User parent link
-    userOnly: true,
-    subItems: [
-      { name: "Upload Shipments", path: "/user/shipment-upload" },
-      { name: "Validation Summary", path: "/user/validation-summary" },
-      { name: "Container Planning", path: "/user/container-planning" },
-      { name: "Assignment Results", path: "/user/assignment-results" },
-      // { name: "Repositioning Summary", path: "/user/repositioning-summary" },
-    ],
-  },
-  {
-    icon: <HiOutlineUserGroup className="w-5 h-5" />,
-    name: "Admin Configuration",
-    path: "/admin/user-management", // Admin parent link
-    adminOnly: true,
-    subItems: [
-      { name: "User Management", path: "/admin/user-management" },
-      { name: "Role Management", path: "/admin/role-management" },
-      // { name: "System Settings", path: "/admin/system-settings" },
-      // { name: "Data Backup", path: "/admin/data-backup" },
-    ],
-  },
-  // {
-  //   icon: <HiOutlineUserGroup className="w-5 h-5" />,
-  //   name: "Admin Profile",
-  //   path: "/admin/profile",
-  //   adminOnly: true,
-  // },
-  {
-    icon: <HiOutlineCube className="w-5 h-5" />,
-    name: "History",
-    path: "/admin/shipment-operations/uploads-history", // Admin parent link
-    adminOnly: true,
-    subItems: [
-      { name: "Uploads History", path: "/admin/shipment-operations/uploads-history" },
-      // { name: "Shipment History", path: "/admin/shipment-operations/shipment-history" },
-    ],
-  },
-  {
-    icon: <HiOutlineCube className="w-5 h-5" />,
-    name: "History",
-    path: "/user/shipment-operations/uploads-history", // User parent link
-    userOnly: true,
-    subItems: [
-      { name: "Uploads History", path: "/user/shipment-operations/uploads-history" },
-      // { name: "Shipment History", path: "/user/shipment-operations/shipment-history" },
-    ],
-  },
-  // {
-  //   icon: <HiOutlineUserGroup className="w-5 h-5" />,
-  //   name: "User Profile",
-  //   path: "/user/profile",
-  //   userOnly: false, // Available for both admin and user
-  // },
-];
-
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const { user: contextUser } = useAuth();
   const reduxUser = useSelector(selectUser);
   const pathname = usePathname();
-  const {  canAccessRoute, userRole, isAdmin } = useSimpleRBAC();
+  const { canAccessRoute, userRole, isAdmin, getAccessibleModules, getModuleInfo, userPrivileges } = useSimpleRBAC();
   
   // Use Redux user if available, fallback to context user
   const user = reduxUser || contextUser;
+
+  console.log("user", user);
   
   // Helper function to check if user is admin (legacy support)
   const isUserAdmin = (user: any): boolean => {
@@ -166,47 +74,170 @@ const AppSidebar: React.FC = () => {
     return user?.role === 'admin' || isAdmin();
   };
 
+  // Memoize the user admin status to prevent infinite loops
+  const userIsAdmin = useMemo(() => isUserAdmin(user), [user, reduxUser?.is_superuser, isAdmin]);
+
   // Memoize the isActive function
   const isActive = useCallback((path: string) => path === pathname, [pathname]);
 
+  // Generate static navigation items based on user role
+  const generateNavItems = useCallback((): NavItem[] => {
+    const navItems: NavItem[] = [];
+    
+    // Admin Menu (Role 1)
+    console.log("userRole", userRole);
+    if (userRole === 1) {
+      // Dashboard
+      navItems.push({
+        icon: <HiOutlineChartBar className="w-5 h-5" />,
+        name: "Dashboard",
+        path: "/admin/dashboard",
+        moduleId: 80
+      });
+
+      // Master Data Management
+      navItems.push({
+        icon: <HiOutlineCog className="w-5 h-5" />,
+        name: "Master Data Management",
+        path: "/admin/port-customer-master",
+        moduleId: 40,
+        subItems: [
+          { name: "POL Master", path: "/admin/port-customer-master/pol-ports", moduleId: 41 },
+          { name: "POD Master", path: "/admin/port-customer-master/pod-ports", moduleId: 42 },
+          { name: "Customer Records", path: "/admin/port-customer-master/customers", moduleId: 43 },
+          { name: "Container Type Master", path: "/admin/container-types", moduleId: 30 },
+          { name: "Threshold Configuration", path: "/admin/container-thresholds", moduleId: 31 },
+          { name: "Priority Configuration", path: "/admin/container-priority", moduleId: 32 }
+        ]
+      });
+
+      // Shipment Operations
+      navItems.push({
+        icon: <HiOutlineCube className="w-5 h-5" />,
+        name: "Shipment Operations",
+        path: "/admin/shipment-upload",
+        moduleId: 50,
+        subItems: [
+          { name: "Upload Shipments", path: "/admin/shipment-upload", moduleId: 51 },
+          { name: "Validation Summary", path: "/admin/validation-summary", moduleId: 52 },
+          { name: "Container Planning", path: "/admin/container-planning", moduleId: 53 },
+          { name: "Assignment Results", path: "/admin/assignment-results", moduleId: 54 }
+        ]
+      });
+
+      // Admin Configuration
+      navItems.push({
+        icon: <HiOutlineUserGroup className="w-5 h-5" />,
+        name: "Admin Configuration",
+        path: "/admin/user-management",
+        moduleId: 10,
+        subItems: [
+          { name: "User Management", path: "/admin/user-management", moduleId: 11 },
+          { name: "Role Management", path: "/admin/role-management", moduleId: 12 }
+        ]
+      });
+
+      // History
+      navItems.push({
+        icon: <HiOutlineDocumentText className="w-5 h-5" />,
+        name: "History",
+        path: "/admin/shipment-operations/uploads-history",
+        moduleId: 70,
+        subItems: [
+          { name: "Uploads History", path: "/admin/shipment-operations/uploads-history", moduleId: 71 }
+        ]
+      });
+    } else {
+      // User Menu (Role 2+ and other roles)
+
+      console.log({userRole})
+      
+      // Dashboard
+      navItems.push({
+        icon: <HiOutlineChartBar className="w-5 h-5" />,
+        name: "Dashboard",
+        path: "/user/dashboard",
+        moduleId: 80
+      });
+
+      // Master Data Management
+      navItems.push({
+        icon: <HiOutlineCog className="w-5 h-5" />,
+        name: "Master Data Management",
+        path: "/user/port-customer-master",
+        moduleId: 40,
+        subItems: [
+          { name: "POL Master", path: "/user/port-customer-master/pol-ports", moduleId: 41 },
+          { name: "POD Master", path: "/user/port-customer-master/pod-ports", moduleId: 42 },
+          { name: "Customer Records", path: "/user/port-customer-master/customers", moduleId: 43 },
+          { name: "Container Type Master", path: "/user/container-types", moduleId: 30 },
+          { name: "Threshold Configuration", path: "/user/container-thresholds", moduleId: 31 },
+          { name: "Priority Configuration", path: "/user/container-priority", moduleId: 32 }
+        ]
+      });
+
+      // Shipment Operations
+      navItems.push({
+        icon: <HiOutlineCube className="w-5 h-5" />,
+        name: "Shipment Operations",
+        path: "/user/shipment-upload",
+        moduleId: 50,
+        subItems: [
+          { name: "Upload Shipments", path: "/user/shipment-upload", moduleId: 51 },
+          { name: "Validation Summary", path: "/user/validation-summary", moduleId: 52 },
+          { name: "Container Planning", path: "/user/container-planning", moduleId: 53 },
+          { name: "Assignment Results", path: "/user/assignment-results", moduleId: 54 }
+        ]
+      });
+
+      // History
+      navItems.push({
+        icon: <HiOutlineDocumentText className="w-5 h-5" />,
+        name: "History",
+        path: "/user/shipment-operations/uploads-history",
+        moduleId: 70,
+        subItems: [
+          { name: "Uploads History", path: "/user/shipment-operations/uploads-history", moduleId: 71 }
+        ]
+      });
+    }
+
+    return navItems;
+  }, [userRole]);
+
+  console.log("navItems", generateNavItems());
+
+  
+
   // Memoize filtered nav items using RBAC
   const filteredNavItems = useMemo(() => {
-    if (!user) return navItems;
+    if (!user) return [];
+
     
-    // Transform nav items to include RBAC path filtering
-    const transformedItems = navItems.map(item => {
-      // For Dashboard, set the path based on user role
-      if (item.name === "Dashboard") {
-        const dashboardPath = userRole === 1 ? '/admin/dashboard' : '/user/dashboard';
-        return { ...item, path: dashboardPath };
-      }
+    const navItems = generateNavItems();
+    
+    // Filter items based on RBAC and legacy role checks
+    return navItems.filter(item => {
       
-      return item;
-    }).filter(item => {
-      // Legacy role filtering for compatibility
-      if (item.adminOnly && !isUserAdmin(user)) return false;
-      if (item.userOnly && isUserAdmin(user)) return false;
       
       // RBAC route access check
-      if (!canAccessRoute(item.path)) return false;
+      // if (!canAccessRoute(item.path)) return false;
       
       if (item.subItems) {
         const filteredSubItems = item.subItems.filter(subItem => {
-          // Legacy role filtering
-          if (subItem.adminOnly && !isUserAdmin(user)) return false;
-          if (subItem.userOnly && isUserAdmin(user)) return false;
           
           // RBAC route access check
-          return canAccessRoute(subItem.path);
+          // return canAccessRoute(subItem.path);
+          return true;
         });
+        
+        // Only show parent item if it has accessible sub-items
         return filteredSubItems.length > 0;
       }
       
       return true;
     });
-
-    return transformedItems;
-  }, [user, userRole, isAdmin, canAccessRoute]);
+  }, [user, userRole, isAdmin, canAccessRoute, generateNavItems, userIsAdmin]);
 
   // Track which submenus are open
   const [openSubmenus, setOpenSubmenus] = useState<Set<number>>(new Set());
@@ -223,13 +254,15 @@ const AppSidebar: React.FC = () => {
     });
   }, []);
 
+  console.log("filteredNavItems", filteredNavItems);
+
   const renderMenuItems = useCallback((
     navItems: NavItem[],
     menuType: "main"
   ) => (
     <ul className="flex flex-col gap-2">
       {navItems.map((nav, index) => (
-        <li key={nav.name}>
+        <li key={`${nav.name}-${nav.moduleId}`}>
           {nav.subItems ? (
             <div>
               {/* Clickable parent menu item with toggle functionality */}
@@ -264,7 +297,7 @@ const AppSidebar: React.FC = () => {
                       className={`ml-auto w-4 h-4 transition-transform duration-200 ${
                         openSubmenus.has(index)
                           ? "rotate-180 text-brand-500"
-                          : "text-gray-400"
+                          : "rotate-0 text-gray-400"
                       }`}
                     />
                   )}
@@ -276,8 +309,8 @@ const AppSidebar: React.FC = () => {
                   openSubmenus.has(index) ? 'max-h-96' : 'max-h-0'
                 }`}>
                   <ul className="mt-2 space-y-1 ml-6">
-                    {nav.subItems.map((subItem) => (
-                      <li key={subItem.path}>
+                    {nav.subItems.map((subItem, subIndex) => (
+                      <li key={`${nav.moduleId}-${subItem.moduleId}-${subIndex}`}>
                         <Link
                           href={subItem.path}
                           className={`block px-3 py-2 text-sm rounded-md transition-colors duration-200 ${
@@ -349,7 +382,7 @@ const AppSidebar: React.FC = () => {
 
     // If no submenu item matches, keep existing open submenus
     // (don't close them automatically)
-  }, [pathname, isActive,]);
+  }, [pathname, isActive, filteredNavItems]);
 
   return (
     <aside

@@ -7,6 +7,7 @@ export { default as customerService } from './customerService';
 export { default as containerTypeService } from './containerTypeService';
 export { containerPriorityService } from './containerPriorityService';
 export { containerThresholdService } from './containerThresholdService';
+export { default as privilegeService } from './privilegeService';
 
 // Export base service class for inheritance
 export { BaseService } from './baseService';

@@ -16,21 +16,25 @@ import {
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon } from "@/icons";
+import { getStoredOptimizationResults } from '@/services/cargoOptimizationService';
 
 interface AssignmentResult {
   id: string;
-  shipmentId: string;
   customer: string;
+  shipment: string;
   optimizedContainerRef: string;
   containerType: string;
   minThreshold: number;
   maxThreshold: number;
   totalCBM: number;
-  volume: number;
+  cbm: number;
   pol: string;
-  destsite: string;
+  destination: string;
+  pugDate: string;
+  pucDate: string;
   qty: number;
   totalQty: number;
+  groupMixStatus: string;
   status: "assigned" | "unassigned" | "error";
   createdAt: string;
 }
@@ -38,84 +42,133 @@ interface AssignmentResult {
 const columnHelper = createColumnHelper<AssignmentResult>();
 
 function AssignmentResultsManager() {
-  // Get planning results from session storage or use mock data
+  // Get planning results from session storage, optimization results, or use mock data
   const getAssignmentData = (): AssignmentResult[] => {
     try {
+      // First, try to get results from session storage (latest planning results)
       const storedData = sessionStorage.getItem('planningResults');
       if (storedData) {
         const parsed = JSON.parse(storedData);
         return parsed.assignments.map((assignment: Record<string, unknown>, index: number) => ({
           id: (index + 1).toString(),
-          shipmentId: (assignment.shipmentId as string) || '',
           customer: (assignment.customer as string) || '',
+          shipment: (assignment.shipmentId as string) || '',
           optimizedContainerRef: (assignment.containerRef as string) || (assignment.optimizedContainerRef as string) || '',
           containerType: (assignment.containerType as string) || 'Unknown',
           minThreshold: (assignment.minThreshold as number) || 0,
           maxThreshold: (assignment.maxThreshold as number) || 0,
           totalCBM: (assignment.totalCBM as number) || (assignment.volume as number) || 0,
-          volume: (assignment.volume as number) || (assignment.cbm as number) || 0,
+          cbm: (assignment.volume as number) || (assignment.cbm as number) || 0,
           pol: (assignment.pol as string) || '',
-          destsite: (assignment.pod as string) || (assignment.destsite as string) || '',
+          destination: (assignment.pod as string) || (assignment.destsite as string) || '',
+          pugDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '/'),
+          pucDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '/'),
           qty: (assignment.qty as number) || 0,
           totalQty: (assignment.totalQty as number) || 0,
-          status: (assignment.status as string) || 'assigned',
+          groupMixStatus: 'Standard GroupMix',
+          status: (assignment.status as "assigned" | "unassigned" | "error") || 'assigned',
           createdAt: new Date().toISOString().split('T')[0],
         }));
       }
+
+             // Second, try to get results from cargo optimization API results
+       const optimizationResults = getStoredOptimizationResults();
+       if (optimizationResults && optimizationResults.results.length > 0) {
+         return optimizationResults.results.map((result, index) => {
+           // Calculate PUG and PUC dates based on processing date
+           const processingDate = new Date(optimizationResults.processedAt);
+           const pugDate = processingDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+           
+           // PUC date is PUG date + 5 days
+           const pucDate = new Date(processingDate);
+           pucDate.setDate(pucDate.getDate() + 5);
+           const pucDateStr = pucDate.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+           
+           return {
+             id: (index + 1).toString(),
+             customer: result.customer || 'Unknown',
+             shipment: result.shipment || `SHIP_${index + 1}`,
+             optimizedContainerRef: result.optimizedContainerRef || `CONT_${index + 1}`,
+             containerType: result.containerType || 'Unknown',
+             minThreshold: result.minThreshold || 0,
+             maxThreshold: result.maxThreshold || 0,
+             totalCBM: result.totalCBM || result.cbm || 0,
+             cbm: result.cbm || 0,
+             pol: result.pol || 'Unknown',
+             destination: result.destination || 'Unknown',
+             pugDate: pugDate,
+             pucDate: pucDateStr,
+             qty: result.qty || 0,
+             totalQty: result.totalQty || result.qty || 0,
+             groupMixStatus: 'Standard GroupMix',
+             status: (result.status as "assigned" | "unassigned" | "error") || "assigned",
+             createdAt: processingDate.toISOString().split('T')[0],
+           };
+         });
+       }
     } catch (error) {
       console.error('Error parsing planning results:', error);
     }
 
-    // Fallback to mock data matching Book-results.xlsx format
+    // Fallback to mock data matching the image format
     return [
       {
         id: "1",
-        shipmentId: "QL30258221",
         customer: "BON PRIX",
-        optimizedContainerRef: "CONT_001_40HC",
-        containerType: "40HC",
-        minThreshold: 54.8,
-        maxThreshold: 62,
-        totalCBM: 61.381,
-        volume: 56.557,
+        shipment: "QL302582",
+        optimizedContainerRef: "CONT_001",
+        containerType: "40FT",
+        minThreshold: 50,
+        maxThreshold: 67,
+        totalCBM: 56.557,
+        cbm: 56.557,
         pol: "Qingdao",
-        destsite: "HALDENSLEBEN",
+        destination: "HALDENSL",
+        pugDate: "17/07/202",
+        pucDate: "22/07/202",
         qty: 2873,
-        totalQty: 4376,
+        totalQty: 2873,
+        groupMixStatus: "Standard GroupMix",
         status: "assigned",
         createdAt: "2024-01-15",
       },
       {
         id: "2",
-        shipmentId: "QL30258201",
         customer: "BON PRIX",
-        optimizedContainerRef: "CONT_001_40HC",
-        containerType: "40HC",
-        minThreshold: 54.8,
-        maxThreshold: 62,
-        totalCBM: 61.381,
-        volume: 4.824,
+        shipment: "QL302581",
+        optimizedContainerRef: "CONT_002",
+        containerType: "40DRY",
+        minThreshold: 44.8,
+        maxThreshold: 54.8,
+        totalCBM: 54.024,
+        cbm: 54.024,
         pol: "Qingdao",
-        destsite: "HALDENSLEBEN",
-        qty: 1503,
-        totalQty: 4376,
+        destination: "HALDENSL",
+        pugDate: "18/07/202",
+        pucDate: "23/07/202",
+        qty: 3217,
+        totalQty: 3217,
+        groupMixStatus: "Standard GroupMix",
         status: "assigned",
         createdAt: "2024-01-15",
       },
       {
         id: "3",
-        shipmentId: "QL30258155",
         customer: "BON PRIX",
-        optimizedContainerRef: "CONT_002_40HC",
-        containerType: "40HC",
-        minThreshold: 54.8,
-        maxThreshold: 62,
-        totalCBM: 57.645,
-        volume: 54.024,
-        pol: "Qingdao",
-        destsite: "HALDENSLEBEN",
-        qty: 3217,
-        totalQty: 12212,
+        shipment: "QL302583",
+        optimizedContainerRef: "CONT_003",
+        containerType: "LCL",
+        minThreshold: 0,
+        maxThreshold: 19.9,
+        totalCBM: 53.983,
+        cbm: 9.792,
+        pol: "Yantian",
+        destination: "HALDENSL",
+        pugDate: "21/07/202",
+        pucDate: "26/07/202",
+        qty: 4550,
+        totalQty: 4550,
+        groupMixStatus: "Standard GroupMix",
         status: "assigned",
         createdAt: "2024-01-15",
       },
@@ -134,7 +187,7 @@ function AssignmentResultsManager() {
       header: "Customer", 
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
-    columnHelper.accessor("shipmentId", { 
+    columnHelper.accessor("shipment", { 
       header: "Shipment", 
       cell: (info) => <span className="font-mono text-sm">{info.getValue()}</span>
     }),
@@ -166,7 +219,7 @@ function AssignmentResultsManager() {
       header: "Total CBM", 
       cell: (info) => <span className="font-medium">{info.getValue().toFixed(2)}</span>
     }),
-    columnHelper.accessor("volume", { 
+    columnHelper.accessor("cbm", { 
       header: "CBM", 
       cell: (info) => <span className="text-sm">{info.getValue().toFixed(2)}</span>
     }),
@@ -174,9 +227,17 @@ function AssignmentResultsManager() {
       header: "POL", 
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
-    columnHelper.accessor("destsite", { 
+    columnHelper.accessor("destination", { 
       header: "Destination", 
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("pugDate", { 
+      header: "PUG Date", 
+      cell: (info) => <span className="text-sm">{info.getValue()}</span>
+    }),
+    columnHelper.accessor("pucDate", { 
+      header: "Ship Date (PUG+5)", 
+      cell: (info) => <span className="text-sm">{info.getValue()}</span>
     }),
     columnHelper.accessor("qty", { 
       header: "Qty", 
@@ -185,6 +246,14 @@ function AssignmentResultsManager() {
     columnHelper.accessor("totalQty", { 
       header: "Total Qty", 
       cell: (info) => <span className="font-medium">{info.getValue().toLocaleString()}</span>
+    }),
+    columnHelper.accessor("groupMixStatus", { 
+      header: "GroupMix Status", 
+      cell: (info) => (
+        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300">
+          {info.getValue()}
+        </span>
+      )
     }),
     columnHelper.accessor("status", {
       header: "Status",
@@ -204,11 +273,11 @@ function AssignmentResultsManager() {
 
   const filteredData = useMemo(() => data.filter(item => {
     const matchesSearch =
-      item.shipmentId.toLowerCase().includes(globalFilter.toLowerCase()) ||
+      item.shipment.toLowerCase().includes(globalFilter.toLowerCase()) ||
       item.customer.toLowerCase().includes(globalFilter.toLowerCase()) ||
       item.optimizedContainerRef.toLowerCase().includes(globalFilter.toLowerCase()) ||
       item.pol.toLowerCase().includes(globalFilter.toLowerCase()) ||
-      item.destsite.toLowerCase().includes(globalFilter.toLowerCase());
+      item.destination.toLowerCase().includes(globalFilter.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
 
@@ -228,25 +297,26 @@ function AssignmentResultsManager() {
   });
 
   const exportToExcel = () => {
-    const headers = [
-      "Customer", "Shipment", "Optimized Container Ref", "Cont. Type", "Min. Threshold", "Max. Threshold", "Total CBM", "CBM", "POL", "Destination", "Qty", "Total Qty", "Status"
-    ];
+    const headers = ["Customer", "Shipment", "Optimized Container Ref", "Cont. Type", "Min. Threshold", "Max. Threshold", "Total CBM", "CBM", "POL", "Destination", "PUG Date", "Ship Date (PUG+5)", "Qty", "Total Qty", "GroupMix Status", "Status"];
     
     const csvContent = [
       headers.join(","),
       ...filteredData.map(row => [
         row.customer,
-        row.shipmentId,
+        row.shipment,
         row.optimizedContainerRef,
         row.containerType,
         row.minThreshold,
         row.maxThreshold,
         row.totalCBM,
-        row.volume,
+        row.cbm,
         row.pol,
-        row.destsite,
+        row.destination,
+        row.pugDate,
+        row.pucDate,
         row.qty,
         row.totalQty,
+        row.groupMixStatus,
         row.status
       ].join(","))
     ].join("\n");

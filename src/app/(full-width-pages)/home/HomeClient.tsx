@@ -31,7 +31,9 @@ function HomePage() {
   const handleGetStarted = () => {
     if (isAuthenticated) {
       if (user?.role === 'admin') {
-        router.push("/admin/dashboard");
+        // router.push("/admin/dashboard");
+
+        console.log(user);
       } else {
         router.push("/user/dashboard");
       }

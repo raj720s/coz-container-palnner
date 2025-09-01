@@ -8,6 +8,12 @@ import { useRouter } from "next/navigation";
 import { planContainers, savePlanningResults } from "@/utils/containerPlanningService";
 import { downloadResultsExcel } from "@/utils/exportResultsService";
 import { ContainerPlanningResult } from "@/utils/localStorageService";
+import { 
+  uploadFileForOptimization, 
+  convertExcelToCSV, 
+  CargoOptimizationUploadProgress,
+  OptimizationResult
+} from '@/services/cargoOptimizationService';
 
 interface PlanningStage {
   id: string;
@@ -24,6 +30,9 @@ function ContainerPlanningPage() {
   const [validationPassed, setValidationPassed] = useState(false);
   const [planningResult, setPlanningResult] = useState<Record<string, unknown> | null>(null);
   const [showExportButton, setShowExportButton] = useState(false);
+  const [optimizationResults, setOptimizationResults] = useState<OptimizationResult[]>([]);
+  const [apiProgress, setApiProgress] = useState<CargoOptimizationUploadProgress | null>(null);
+  const [apiResponseFile, setApiResponseFile] = useState<{ blob: Blob; fileName: string } | null>(null);
 
   // Check validation status on component mount
   useEffect(() => {
@@ -65,30 +74,31 @@ function ContainerPlanningPage() {
   const [stages, setStages] = useState<PlanningStage[]>([
     {
       id: "1",
-      name: "Shipment Grouping",
+      name: "File Upload",
       status: "pending",
       progress: 0,
-      description: "Analyzing and grouping shipments by destination, POL, and compatibility",
+      description: "Uploading shipment data to cargo optimization service",
     },
     {
       id: "2",
-      name: "Load Optimization",
+      name: "Optimization Processing",
       status: "pending",
       progress: 0,
-      description: "Optimizing container load distribution and capacity utilization",
+      description: "AI-powered cargo optimization and container assignment",
     },
     {
       id: "3",
-      name: "Container Assignment",
+      name: "Results Processing",
       status: "pending",
       progress: 0,
-      description: "Assigning optimized container types and finalizing load plans",
+      description: "Processing optimization results and generating assignment data",
     },
   ]);
 
   const startPlanning = async () => {
     setIsPlanning(true);
     setCurrentStage(0);
+    setApiProgress(null);
 
     try {
       // Get validation data from session storage
@@ -104,22 +114,37 @@ function ContainerPlanningPage() {
         throw new Error('No valid shipment data found.');
       }
 
-      // Transform data to ShipmentData format for planning
-      const shipmentData = validationData.validData.map((data: Record<string, unknown>) => ({
-        id: `shipment_${Date.now()}`,
-        shipmentId: (data.SHIPMENT as string) || '',
-        customer: (data.CUSTOMER as string) || (data.CUSTOME as string) || '',
-        supplier: (data.SUPPLIER as string) || '',
-        volume: parseFloat(((data.VOLUME as string) || '0').toString().replace(',', '')) || 0,
-        qty: parseInt(((data.Qty as string) || '0').toString().replace(',', '')) || 0,
-        rcvPug: (data['RCV/PUG'] as string) || '',
-        pol: (data.POL as string) || '',
-        destsite: (data.Destsite as string) || '',
-        fileId: (validationData.fileId as string) || 'client_planning',
-        uploadDate: new Date().toISOString()
-      }));
+      // Get the original uploaded file from localStorage
+      const uploadedFiles = JSON.parse(localStorage.getItem('nxt_admin_uploaded_files') || '[]');
+      const currentFile = uploadedFiles.find((f: any) => f.id === validationData.fileId);
+      
+      if (!currentFile || !currentFile.fileContent) {
+        throw new Error('Original file not found. Please re-upload the file.');
+      }
 
-      // Stage 1: Shipment Grouping
+      // Convert base64 back to file
+      const fileContent = atob(currentFile.fileContent);
+      const bytes = new Uint8Array(fileContent.length);
+      for (let i = 0; i < fileContent.length; i++) {
+        bytes[i] = fileContent.charCodeAt(i);
+      }
+      
+      const originalFile = new File([bytes], currentFile.originalName, {
+        type: currentFile.originalName.endsWith('.csv') ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      // Convert to CSV if it's an Excel file (API might prefer CSV)
+      let fileToUpload = originalFile;
+      if (originalFile.name.match(/\.(xlsx|xls)$/i)) {
+        try {
+          fileToUpload = await convertExcelToCSV(originalFile);
+        } catch (error) {
+          console.warn('Failed to convert to CSV, using original file:', error);
+          fileToUpload = originalFile;
+        }
+      }
+
+      // Stage 1: File Upload
       setCurrentStage(0);
       setStages(prev => prev.map((stage, index) => 
         index === 0 
@@ -127,62 +152,128 @@ function ContainerPlanningPage() {
           : stage
       ));
 
-      for (let progress = 0; progress <= 100; progress += 20) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setStages(prev => prev.map((stage, index) => 
-          index === 0 
-            ? { ...stage, progress }
-            : stage
-        ));
-      }
+      // Upload file to cargo optimization API
+      const { results, fileName, responseBlob } = await uploadFileForOptimization(
+        fileToUpload,
+        (progress: CargoOptimizationUploadProgress) => {
+          setApiProgress(progress);
+          
+          // Update stages based on API progress
+          if (progress.stage === 'uploading') {
+            setCurrentStage(0);
+            setStages(prev => prev.map((stage, index) => 
+              index === 0 
+                ? { ...stage, status: "in-progress", progress: Math.min(progress.progress, 100) }
+                : stage
+            ));
+          } else if (progress.stage === 'processing') {
+            // Complete upload stage and start processing
+            setStages(prev => prev.map((stage, index) => 
+              index === 0 
+                ? { ...stage, status: "completed", progress: 100 }
+                : index === 1
+                ? { ...stage, status: "in-progress", progress: Math.min(progress.progress - 70, 100) }
+                : stage
+            ));
+            setCurrentStage(1);
+          } else if (progress.stage === 'downloading' || progress.stage === 'parsing') {
+            // Processing stage
+            setStages(prev => prev.map((stage, index) => 
+              index === 1 
+                ? { ...stage, status: progress.stage === 'parsing' ? "completed" : "in-progress", progress: Math.min(progress.progress - 70, 100) }
+                : index === 2 && progress.stage === 'parsing'
+                ? { ...stage, status: "in-progress", progress: Math.min(progress.progress - 85, 100) }
+                : stage
+            ));
+            if (progress.stage === 'parsing') {
+              setCurrentStage(2);
+            }
+          } else if (progress.stage === 'completed') {
+            // Complete all stages
+            setStages(prev => prev.map((stage, index) => 
+              index <= 2 
+                ? { ...stage, status: "completed", progress: 100 }
+                : stage
+            ));
+          } else if (progress.stage === 'error') {
+            // Error state
+            setStages(prev => prev.map((stage, index) => 
+              index === currentStage 
+                ? { ...stage, status: "error", progress: 100 }
+                : stage
+            ));
+          }
+        }
+      );
 
-      setStages(prev => prev.map((stage, index) => 
-        index === 0 
-          ? { ...stage, status: "completed", progress: 100 }
-          : stage
-      ));
+      // Store optimization results and API response file
+      setOptimizationResults(results);
+      setApiResponseFile({
+        blob: responseBlob,
+        fileName: fileName
+      });
 
-      // Stage 2: Load Optimization
-      setCurrentStage(1);
-      setStages(prev => prev.map((stage, index) => 
-        index === 1 
-          ? { ...stage, status: "in-progress", progress: 0 }
-          : stage
-      ));
+      // Store results in session storage for assignment results page
+      const resultsForSession = {
+        fileName,
+        uploadDate: new Date().toISOString(),
+        assignments: results.map(result => ({
+          shipmentId: result.shipment,
+          customer: result.customer,
+          containerRef: result.optimizedContainerRef,
+          containerType: result.containerType,
+          volume: result.cbm,
+          totalCBM: result.totalCBM,
+          qty: result.qty,
+          totalQty: result.totalQty,
+          pol: result.pol,
+          pod: result.destination,
+          status: result.status,
+          minThreshold: result.minThreshold,
+          maxThreshold: result.maxThreshold
+        })),
+        summary: {
+          totalShipments: results.length,
+          assignedShipments: results.filter(r => r.status === 'assigned').length,
+          unassignedShipments: results.filter(r => r.status !== 'assigned').length,
+          totalContainers: new Set(results.map(r => r.optimizedContainerRef)).size,
+          containerTypes: results.reduce((acc, r) => {
+            acc[r.containerType] = (acc[r.containerType] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        }
+      };
 
-      // Run container planning algorithm (client-side)
-      const planningResult = await planContainers(shipmentData);
-      
-      // Save planning results
-      const savedResult = savePlanningResults(planningResult, (validationData.fileId as string) || 'client_planning');
-
-      // Store planning result for export
-      setPlanningResult(savedResult as unknown as Record<string, unknown>);
+      sessionStorage.setItem('planningResults', JSON.stringify(resultsForSession));
+      setPlanningResult(resultsForSession);
       setShowExportButton(true);
 
-      // Mark all stages as completed
-      setStages(prev => prev.map(stage => 
-        ({ ...stage, status: "completed", progress: 100 })
-      ));
+      const assignedCount = results.filter(r => r.status === 'assigned').length;
+      const containerCount = new Set(results.map(r => r.optimizedContainerRef)).size;
 
-      setIsPlanning(false);
-      toast.success("Container planning completed successfully!");
-      
-      // Don't redirect immediately, let user export results first
-      // router.push("/admin/assignment-results");
+      toast.success(
+        `🎉 Cargo optimization completed successfully!
+        📦 ${containerCount} containers optimized
+        ✅ ${assignedCount} shipments assigned
+        📊 View detailed results in Assignment Results`
+      );
 
     } catch (error) {
       console.error('Planning error:', error);
-      setIsPlanning(false);
       
       // Mark current stage as error
       setStages(prev => prev.map((stage, index) => 
         index === currentStage 
-          ? { ...stage, status: "error", progress: 0 }
+          ? { ...stage, status: "error", progress: 100 }
           : stage
       ));
 
-      toast.error(error instanceof Error ? error.message : 'Planning failed');
+      toast.error(
+        `Cargo optimization failed: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      );
+    } finally {
+      setIsPlanning(false);
+      setApiProgress(null);
     }
   };
 
@@ -225,6 +316,37 @@ function ContainerPlanningPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
+    }
+  };
+
+  /**
+   * Download the API response file (Excel file from cargo optimization)
+   */
+  const downloadApiResponseFile = () => {
+    if (!apiResponseFile) {
+      toast.error('No API response file available for download');
+      return;
+    }
+
+    try {
+      // Create a download link
+      const url = window.URL.createObjectURL(apiResponseFile.blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = apiResponseFile.fileName;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`Downloaded: ${apiResponseFile.fileName}`);
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download file');
     }
   };
 
@@ -345,6 +467,34 @@ function ContainerPlanningPage() {
         ))}
       </div>
 
+      {/* API Progress Display */}
+      {apiProgress && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+              API Progress: {apiProgress.stage.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+            </h4>
+            <span className="text-sm text-blue-600 dark:text-blue-300">
+              {apiProgress.progress}%
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
+            <div
+              className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${apiProgress.progress}%` }}
+            />
+          </div>
+          <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
+            {apiProgress.message}
+          </p>
+          {apiProgress.error && (
+            <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+              Error: {apiProgress.error}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Planning Results Summary */}
       {showExportButton && planningResult && (
         <div className="p-6 bg-green-50 rounded-lg dark:bg-green-900/20 border border-green-200 dark:border-green-800">
@@ -352,13 +502,24 @@ function ContainerPlanningPage() {
             <h3 className="text-lg font-medium text-green-900 dark:text-green-100">
               🎉 Planning Completed Successfully!
             </h3>
-            <Button
-              onClick={() => router.push("/admin/assignment-results")}
-              size="sm"
-              className="bg-green-600 hover:bg-green-700"
-            >
-              View Detailed Results
-            </Button>
+            <div className="flex gap-2">
+              {apiResponseFile && (
+                <Button
+                  onClick={downloadApiResponseFile}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  📥 Download Assignments
+                </Button>
+              )}
+              <Button
+                onClick={() => router.push("/admin/assignment-results")}
+                size="sm"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                View Detailed Results
+              </Button>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4 mb-4">
@@ -395,8 +556,8 @@ function ContainerPlanningPage() {
           <div className="text-sm text-green-800 dark:text-green-200">
             <p><strong>Next Steps:</strong></p>
             <ul className="list-disc list-inside mt-2 space-y-1">
-              <li>Click &quot;Export Results (Book Format)&quot; to download the Excel file</li>
-              <li>The file will match the exact format of Book-results.xlsx</li>
+              <li>Click &quot;📥 Download Assignments&quot; to download the exact API response file</li>
+              <li>Click &quot;Export Results (Book Format)&quot; to download the Excel file in Book-results.xlsx format</li>
               <li>Click &quot;View Detailed Results&quot; to see the full planning breakdown</li>
             </ul>
           </div>

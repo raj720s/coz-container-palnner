@@ -1,9 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { fetchUserRBACInfo, setRBACUser } from "@/store/slices/userInfoSlice";
 import { RBACUser } from "@/store/slices/userInfoSlice";
+import { selectIsAuthenticated, selectUser as selectReduxUser, loginSuccess, logout as logoutAction } from "@/store/slices/authSlice";
 
 export type UserRole = "admin" | "user";
 
@@ -45,11 +46,14 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
+  
+  // Get authentication state from Redux
+  const reduxIsAuthenticated = useSelector(selectIsAuthenticated);
+  const reduxUser = useSelector(selectReduxUser);
 
-  // Initialize auth state from session storage
+  // Initialize auth state from session storage and sync with Redux
   useEffect(() => {
     const initializeAuth = () => {
       try {
@@ -58,8 +62,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const storedRBACUser = sessionStorage.getItem("rbac_user");
 
         if (storedToken && storedUser) {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          const userData = JSON.parse(storedUser);
+          
+          // Dispatch to Redux to sync state
+          dispatch(loginSuccess({
+            user: {
+              id: parseInt(userData.id),
+              first_name: userData.name.split(' ')[0] || userData.name,
+              last_name: userData.name.split(' ').slice(1).join(' ') || '',
+              email: userData.email,
+              organisation_name: userData.company || 'Company',
+              role: userData.role,
+              role_id: userData.role_id || 0,
+              is_superuser: userData.is_superuser || false,
+              is_active: true,
+              status: true,
+              created_on: new Date().toISOString(),
+              updated_on: new Date().toISOString(),
+              phone_number: null,
+              country_code: null,
+              country: null,
+              timezone: null
+            },
+            token: storedToken
+          }));
           
           // Initialize RBAC data if available
           if (storedRBACUser) {
@@ -84,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
 
     initializeAuth();
-  }, []);
+  }, [dispatch]);
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
@@ -95,48 +121,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Mock authentication logic
       if (email === "admin@company.com" && password === "admin123") {
-        // Superuser with ALL privileges
-        const allPrivileges = [
-          // System Management
-          "VIEW_SYSTEM_SETTINGS", "UPDATE_SYSTEM_SETTINGS", "DELETE_SYSTEM_SETTINGS",
-          
+        // Admin user with ALL privileges from static modules
+        const adminPrivileges = [
           // Role Management (Module 10)
           "CREATE_ROLE", "UPDATE_ROLE", "DELETE_ROLE", "VIEW_ROLE", "VIEW_ROLE_LIST",
-          "CREATE_ROLE_PERMISSION", "VIEW_ROLE_PERMISSION_LIST",
           
           // User Management (Module 20)
-          "CREATE_USER", "UPDATE_USER", "DELETE_USER", "VIEW_USER", "VIEW_USER_LIST",
-          "UPDATE_USER_PASSWORD", "UPDATE_USER_STATUS", "VIEW_USER_SHORT_INFO_LIST",
+          "CREATE_USER", "VIEW_USER_LIST", "UPDATE_USER", "UPDATE_USER_PASSWORD", "UPDATE_USER_STATUS", "DELETE_USER",
           
-          // Container Types (Module 30)
+          // Container Management (Module 30)
           "VIEW_CONTAINER_TYPES", "CREATE_CONTAINER_TYPE", "UPDATE_CONTAINER_TYPE", "DELETE_CONTAINER_TYPE",
-          
-          // Container Priority (Module 31)
-          "VIEW_CONTAINER_PRIORITY", "CREATE_PRIORITY", "UPDATE_PRIORITY", "DELETE_PRIORITY",
-          
-          // Container Thresholds (Module 32)
           "VIEW_CONTAINER_THRESHOLDS", "CREATE_THRESHOLD", "UPDATE_THRESHOLD", "DELETE_THRESHOLD",
+          "VIEW_CONTAINER_PRIORITY", "CREATE_PRIORITY", "UPDATE_PRIORITY", "DELETE_PRIORITY",
+          "VIEW_CONTAINER_PLANNING", "CREATE_PLAN", "UPDATE_PLAN", "DELETE_PLAN",
           
-          // Port Management (Module 40)
+          // Port & Customer Management (Module 40)
           "VIEW_PORT_CUSTOMER_MASTER", "VIEW_POL_PORTS", "VIEW_POD_PORTS", "VIEW_CUSTOMERS",
-          "CREATE_PORT", "UPDATE_PORT", "DELETE_PORT",
+          "CREATE_PORT", "UPDATE_PORT", "DELETE_PORT", "CREATE_CUSTOMER", "UPDATE_CUSTOMER", "DELETE_CUSTOMER",
+          "CREATE_POL", "UPDATE_POL", "DELETE_POL", "CREATE_POD", "UPDATE_POD", "DELETE_POD",
+          "EXPORT_CUSTOMERS", "EXPORT_POL_PORTS", "EXPORT_POD_PORTS",
           
           // Shipment Operations (Module 50)
           "VIEW_SHIPMENT_UPLOAD", "CREATE_SHIPMENT", "UPDATE_SHIPMENT", "DELETE_SHIPMENT",
-          "VIEW_SHIPMENT_HISTORY", "VIEW_UPLOADS_HISTORY",
+          "VIEW_SHIPMENT_HISTORY", "VIEW_UPLOADS_HISTORY", "VIEW_INPUT_FILE", "VIEW_OUTPUT_FILE",
+          "UPLOAD_SHIPMENT_FILE", "PROCESS_SHIPMENT", "EXPORT_SHIPMENT_DATA",
           
-          // Container Planning (Module 60)
-          "VIEW_CONTAINER_PLANNING", "CREATE_PLAN", "UPDATE_PLAN", "DELETE_PLAN",
+          // Analytics & Reports (Module 60)
+          "VIEW_ASSIGNMENT_RESULTS", "VIEW_VALIDATION_SUMMARY", "VIEW_REPOSITIONING_SUMMARY", "VIEW_TEST_VALIDATION",
+          "EXPORT_ASSIGNMENT_DATA", "EXPORT_VALIDATION_DATA", "EXPORT_REPOSITIONING_DATA", "RUN_TEST_VALIDATION",
           
-          // Results & Reports (Module 70)
-          "VIEW_ASSIGNMENT_RESULTS", "VIEW_VALIDATION_SUMMARY", "VIEW_REPOSITIONING_SUMMARY",
-          "EXPORT_DATA", "IMPORT_DATA", "VIEW_DATA_BACKUP",
+          // System Administration (Module 70)
+          "VIEW_SYSTEM_SETTINGS", "UPDATE_SYSTEM_SETTINGS", "DELETE_SYSTEM_SETTINGS",
+          "VIEW_DATA_BACKUP", "CREATE_DATA_BACKUP", "RESTORE_DATA_BACKUP", "DELETE_DATA_BACKUP",
           
-          // Dashboard Access
-          "VIEW_DASHBOARD", "VIEW_ADMIN_DASHBOARD", "VIEW_USER_DASHBOARD",
-          
-          // Test & Validation
-          "VIEW_TEST_VALIDATION", "RUN_TESTS", "VIEW_TEST_RESULTS"
+          // Dashboard (Module 80)
+          "VIEW_DASHBOARD", "VIEW_USER_DASHBOARD", "VIEW_ADMIN_DASHBOARD"
         ];
 
         const mockUser: User = {
@@ -144,154 +163,188 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           email: "admin@company.com",
           name: "Admin User",
           role: "admin",
-          company: "Company Name",
+          company: "Company",
           is_superuser: true,
           role_id: 1,
-          privileges: allPrivileges,
-          privilege_version: `superuser_${Date.now()}_${allPrivileges.length}`,
-          accessControl: [
-            "admin/dashboard",
-            "admin/user-management",
-            "admin/role-management",
-            "admin/container-types",
-            "admin/container-thresholds",
-            "admin/container-priority",
-            "admin/port-customer-master",
-            "admin/port-customer-master/pol-ports",
-            "admin/port-customer-master/pod-ports",
-            "admin/port-customer-master/customers",
-            "admin/shipment-upload",
-            "admin/container-planning",
-            "admin/assignment-results",
-            "admin/repositioning-summary",
-            "admin/validation-summary",
-            "admin/data-backup",
-            "admin/system-settings",
-            "admin/test-validation",
-            "admin/shipment-operations/uploads-history",
-            "admin/shipment-operations/shipment-history",
-            "user/dashboard",
-            "user/shipment-upload",
-            "user/container-planning",
-            "user/assignment-results",
-            "user/validation-summary",
-            "user/repositioning-summary",
-            "user/test",
-          ]
+          privileges: adminPrivileges,
+          privilege_version: `admin_static_${Date.now()}_${adminPrivileges.length}`
         };
 
-        // Create RBAC user object for Redux store
-        const rbacUser: RBACUser = {
-          id: 1,
-          email: mockUser.email,
-          name: mockUser.name,
-          role_id: 1,
-          role_name: "Superuser",
-          is_superuser: true,
-          privileges: allPrivileges,
-          privilege_version: mockUser.privilege_version!
-        };
+        const mockToken = `mock_token_${Date.now()}`;
 
-        const mockToken = "mock_jwt_token_" + Date.now();
-        
-        setUser(mockUser);
-        setToken(mockToken);
-        
         // Store in session storage
         sessionStorage.setItem("auth_token", mockToken);
         sessionStorage.setItem("auth_user", JSON.stringify(mockUser));
+
+        // Create RBAC user and store
+        const rbacUser: RBACUser = {
+          id: parseInt(mockUser.id),
+          email: mockUser.email,
+          name: mockUser.name,
+          role_id: mockUser.role_id || 0,
+          role_name: mockUser.role === 'admin' ? 'Admin' : 'User',
+          is_superuser: mockUser.is_superuser,
+          privileges: mockUser.privileges || [],
+          privilege_version: mockUser.privilege_version || `v1_${Date.now()}`
+        };
+
+        sessionStorage.setItem("rbac_user", JSON.stringify(rbacUser));
+
+        // Dispatch to Redux
+        const reduxUserData = {
+          user: {
+            id: parseInt(mockUser.id),
+            first_name: mockUser.name.split(' ')[0] || mockUser.name,
+            last_name: mockUser.name.split(' ').slice(1).join(' ') || '',
+            email: mockUser.email,
+            organisation_name: mockUser.company || 'Company',
+            role: mockUser.role,
+            role_id: mockUser.role_id || 0,
+            is_superuser: mockUser.is_superuser,
+            is_active: true,
+            status: true,
+            created_on: new Date().toISOString(),
+            updated_on: new Date().toISOString(),
+            phone_number: null,
+            country_code: null,
+            country: null,
+            timezone: null
+          },
+          token: mockToken
+        };
         
-        // Initialize RBAC in Redux store
-        try {
-          // Dispatch to Redux store to set RBAC user
-          // Note: We'll need to access dispatch from the component that uses this context
-          // For now, we'll store the RBAC data in session storage
-          sessionStorage.setItem("rbac_user", JSON.stringify(rbacUser));
-        } catch (error) {
-          console.warn("RBAC initialization failed:", error);
-        }
-        
+        console.log('🔐 Login: Dispatching to Redux:', reduxUserData);
+        dispatch(loginSuccess(reduxUserData));
+
+        setLoading(false);
         return { success: true };
       } else if (email === "user@company.com" && password === "user123") {
-        // Regular user with limited privileges
-        const userPrivileges = [
-          "VIEW_USER_DASHBOARD",
-          "VIEW_SHIPMENT_UPLOAD",
-          "VIEW_CONTAINER_PLANNING",
-          "VIEW_ASSIGNMENT_RESULTS",
-          "VIEW_VALIDATION_SUMMARY",
-          "VIEW_REPOSITIONING_SUMMARY",
-          "VIEW_CONTAINER_TYPES",
-          "VIEW_CONTAINER_THRESHOLDS",
-          "VIEW_CONTAINER_PRIORITY"
+        // Regular user with LIMITED privileges from static modules - NO DELETE permissions for POL data
+        const userPrivileges = [  
+          // User Management (Module 20) - Limited access
+          "VIEW_USER", "UPDATE_USER",
+          
+          // Container Management (Module 30) - View only
+          "VIEW_CONTAINER_TYPES", "VIEW_CONTAINER_THRESHOLDS", "VIEW_CONTAINER_PRIORITY", "VIEW_CONTAINER_PLANNING",
+          
+          // Port & Customer Management (Module 40) - View and Edit only (NO DELETE privileges)
+          "VIEW_PORT_CUSTOMER_MASTER", "VIEW_POL_PORTS", "VIEW_POD_PORTS", "VIEW_CUSTOMERS",
+          "CREATE_PORT", "UPDATE_PORT", "CREATE_CUSTOMER", "UPDATE_CUSTOMER",
+          "CREATE_POL", "UPDATE_POL", "CREATE_POD", "UPDATE_POD",
+          // Notice: NO DELETE_PORT, DELETE_POL, DELETE_POD, DELETE_CUSTOMER privileges
+          
+          // Shipment Operations (Module 50) - Limited access
+          "VIEW_SHIPMENT_UPLOAD", "VIEW_SHIPMENT_HISTORY", "VIEW_UPLOADS_HISTORY", "VIEW_INPUT_FILE", "VIEW_OUTPUT_FILE",
+          
+          // Analytics & Reports (Module 60) - View only
+          "VIEW_ASSIGNMENT_RESULTS", "VIEW_VALIDATION_SUMMARY", "VIEW_REPOSITIONING_SUMMARY",
+          
+          // Dashboard (Module 80)
+          "VIEW_DASHBOARD", "VIEW_USER_DASHBOARD"
         ];
 
         const mockUser: User = {
-          id: "2",
+          id: "3",
           email: "user@company.com",
           name: "Regular User",
           role: "user",
-          company: "Company Name",
+          company: "Company",
           is_superuser: false,
-          role_id: 0,
+          role_id: 3,
           privileges: userPrivileges,
-          privilege_version: `user_${Date.now()}_${userPrivileges.length}`,
-          accessControl: [
-            "user/dashboard",
-            "user/shipment-upload",
-            "user/container-planning",
-            "user/assignment-results",
-            "user/validation-summary",
-            "user/repositioning-summary",
-          ]
+          privilege_version: `user_static_${Date.now()}_${userPrivileges.length}`
         };
 
-        // Create RBAC user object for Redux store
-        const rbacUser: RBACUser = {
-          id: 2,
-          email: mockUser.email,
-          name: mockUser.name,
-          role_id: 0,
-          role_name: "User",
-          is_superuser: false,
-          privileges: userPrivileges,
-          privilege_version: mockUser.privilege_version!
-        };
+        console.log('🔐 Login: user@company.com - Setting role_id:', mockUser.role_id);
+        console.log('🔐 Login: user@company.com - Privileges count:', mockUser.privileges?.length || 0);
+        console.log('🔐 Login: user@company.com - Has VIEW_POL_PORTS:', mockUser.privileges?.includes('VIEW_POL_PORTS') || false);
 
-        const mockToken = "mock_jwt_token_" + Date.now();
-        
-        setUser(mockUser);
-        setToken(mockToken);
-        
+        const mockToken = `mock_token_${Date.now()}`;
+
         // Store in session storage
         sessionStorage.setItem("auth_token", mockToken);
         sessionStorage.setItem("auth_user", JSON.stringify(mockUser));
+
+        // Create RBAC user and store
+        const rbacUser: RBACUser = {
+          id: parseInt(mockUser.id),
+          email: mockUser.email,
+          name: mockUser.name,
+          role_id: mockUser.role_id || 0,
+          role_name: mockUser.role === 'admin' ? 'Admin' : 'User',
+          is_superuser: mockUser.is_superuser,
+          privileges: mockUser.privileges || [],
+          privilege_version: mockUser.privilege_version || `v1_${Date.now()}`
+        };
+
         sessionStorage.setItem("rbac_user", JSON.stringify(rbacUser));
-        
+
+        // Dispatch to Redux
+        dispatch(loginSuccess({
+          user: {
+            id: parseInt(mockUser.id),
+            first_name: mockUser.name.split(' ')[0] || mockUser.name,
+            last_name: mockUser.name.split(' ').slice(1).join(' ') || '',
+            email: mockUser.email,
+            organisation_name: mockUser.company || 'Company',
+            role: mockUser.role,
+            role_id: mockUser.role_id || 0,
+            is_superuser: mockUser.is_superuser,
+            is_active: true,
+            status: true,
+            created_on: new Date().toISOString(),
+            updated_on: new Date().toISOString(),
+            phone_number: null,
+            country_code: null,
+            country: null,
+            timezone: null
+          },
+          token: mockToken
+        }));
+
+        setLoading(false);
         return { success: true };
       } else {
+        setLoading(false);
         return { success: false, error: "Invalid credentials" };
       }
     } catch (error) {
-      return { success: false, error: "Login failed. Please try again." };
-    } finally {
       setLoading(false);
+      return { success: false, error: "Login failed" };
     }
   };
 
   const logout = () => {
-    setUser(null);
-    setToken(null);
+    // Clear session storage
     sessionStorage.removeItem("auth_token");
     sessionStorage.removeItem("auth_user");
     sessionStorage.removeItem("rbac_user");
     sessionStorage.removeItem("rbac_initialized");
+
+    // Dispatch logout to Redux
+    dispatch(logoutAction());
+
+    setLoading(false);
   };
+
+  // Use Redux state for authentication status
+  const isAuthenticated = reduxIsAuthenticated;
+  const user = reduxUser ? {
+    id: reduxUser.id.toString(),
+    email: reduxUser.email,
+    name: `${reduxUser.first_name} ${reduxUser.last_name}`.trim(),
+    role: reduxUser.role as UserRole,
+    company: reduxUser.organisation_name,
+    is_superuser: reduxUser.is_superuser,
+    role_id: reduxUser.role_id,
+    privileges: [], // Will be loaded from RBAC system
+    privilege_version: `redux_${Date.now()}`
+  } : null;
 
   const value: AuthContextType = {
     user,
-    token,
-    isAuthenticated: !!user && !!token,
+    token: null, // Token is managed by Redux
+    isAuthenticated,
     login,
     logout,
     loading

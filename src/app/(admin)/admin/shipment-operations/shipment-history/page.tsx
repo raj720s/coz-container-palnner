@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -501,4 +501,6 @@ function ShipmentHistoryPage() {
   );
 }
 
-export default withAdminAuth(ShipmentHistoryPage);
+export default withSimpleRBAC(ShipmentHistoryPage, {
+  route: "/admin/shipment-operations/shipment-history"
+});

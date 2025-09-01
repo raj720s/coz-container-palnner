@@ -1,6 +1,4 @@
 "use client";
-import Image from "next/image";
-import Link from "next/link";
 import React, { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
@@ -17,12 +15,18 @@ export default function UserDropdown() {
   const { user: contextUser, logout } = useAuth();
   const router = useRouter();
 
-  
-
-
   const { userProfile, isLoading: profileLoading } = useProfileSync();
-  
   const reduxUser = useSelector(selectUser);
+
+  // Use Redux user as primary source, fallback to context user
+  const user = reduxUser || contextUser;
+  
+  // Get role information consistently
+  const userRole = reduxUser?.role_id || 0;
+  const isSuperUser = reduxUser?.is_superuser || false;
+  const roleName = isSuperUser ? "Administrator" : 
+                   userRole === 1 ? "Admin" : 
+                   userRole === 2 ? "Manager" : "User";
 
   function toggleDropdown(e: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     e.stopPropagation();
@@ -60,7 +64,10 @@ export default function UserDropdown() {
         </span> */}
 
         <span className="block mr-1 font-medium text-theme-sm">
-          {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : contextUser.name}
+          {reduxUser?.first_name && reduxUser?.last_name ? 
+            `${reduxUser.first_name} ${reduxUser.last_name}` : 
+            contextUser?.name || 'User'
+          }
         </span>
 
         <svg
@@ -90,17 +97,20 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            {userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : contextUser.name}
+            {reduxUser?.first_name && reduxUser?.last_name ? 
+              `${reduxUser.first_name} ${reduxUser.last_name}` : 
+              contextUser?.name || 'User'
+            }
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {userProfile?.email || contextUser.email}
+            {reduxUser?.email || contextUser?.email}
           </span>
           <span className="mt-1 block text-theme-xs text-gray-400 dark:text-gray-500">
-            Role: {userProfile?.role?.[0]?.role_name || (reduxUser?.is_superuser ? "Administrator" : "User")}
+            Role: {roleName}
           </span>
-          {userProfile?.organisation_name && (
+          {reduxUser?.organisation_name && (
             <span className="mt-1 block text-theme-xs text-gray-400 dark:text-gray-500">
-              {userProfile.organisation_name}
+              {reduxUser.organisation_name}
             </span>
           )}
         </div>

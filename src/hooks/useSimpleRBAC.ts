@@ -1,134 +1,256 @@
-import { useEffect, useMemo, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import { useEffect, useMemo, useCallback, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  setRBACUser,
-  selectRBACUser,
-  selectUserPrivileges,
-  selectUserRole,
-  selectIsSuperUser,
-  clearError
-} from '@/store/slices/userInfoSlice';
-import { RBACUser } from '@/store/slices/userInfoSlice';
+import { selectUser } from '@/store/slices/authSlice';
+import staticModuleDefinitions from '@/config/staticModules';
 
 /**
  * Simplified RBAC Hook - All RBAC functionality in one place
- * This replaces useEnhancedRBAC, useRoutePermission, useActionPermission
+ * Now works with static modules and server-provided privileges
  */
 export const useSimpleRBAC = () => {
-  const dispatch = useDispatch();
   const { user: authUser, isAuthenticated, logout } = useAuth();
   
-  const rbacUserData = useSelector(selectRBACUser);
-  const userPrivileges = useSelector(selectUserPrivileges);
-  const userRole = useSelector(selectUserRole);
-  const isSuperUser = useSelector(selectIsSuperUser);
+  // Use Redux auth state as single source of truth
+  const reduxUser = useSelector(selectUser);
+  
+  // Get user information from Redux auth state
+  const userRole = reduxUser?.role_id || 0;
+  console.log('🔐 useSimpleRBAC - Redux user state:', {
+    userRole,
+    isSuperUser: reduxUser?.is_superuser,
+    userId: reduxUser?.id,
+    email: reduxUser?.email,
+    reduxUserData: reduxUser
+  });
+  const isSuperUser = reduxUser?.is_superuser || false;
+  
+  // Get privileges from session storage (set by AuthContext)
+  const [userPrivileges, setUserPrivileges] = useState<string[]>([]);
+  const [privilegesLoaded, setPrivilegesLoaded] = useState(false);
+  
+  // Initialize privileges from session storage
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      const storedUser = sessionStorage.getItem("auth_user");
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          console.log('🔐 Session storage user data:', userData);
+          console.log('🔐 Session storage privileges:', userData.privileges);
+          console.log('🔐 Redux user data:', reduxUser);
+          console.log('🔐 Role comparison - Session:', userData.role_id, 'Redux:', reduxUser?.role_id);
+          setUserPrivileges(userData.privileges || []);
+          setPrivilegesLoaded(true);
+          console.log('🔐 RBAC privileges loaded from session storage:', userData.privileges?.length || 0);
+        } catch (error) {
+          console.error('Failed to load privileges from session storage:', error);
+          setUserPrivileges([]);
+          setPrivilegesLoaded(true);
+        }
+      } else {
+        setPrivilegesLoaded(true);
+      }
+    } else {
+      setUserPrivileges([]);
+      setPrivilegesLoaded(true);
+    }
+  }, [isAuthenticated, authUser, reduxUser]);
+  
+  // Function to clear everything when user is not authenticated
+  const clearEverything = useCallback(() => {
+    console.log('🚪 useSimpleRBAC: User not authenticated, clearing everything');
+    
+    // Clear all session storage
+    sessionStorage.clear();
+    
+    // Clear Redux store
+    logout();
+  }, [logout]);
 
   // Initialize RBAC from session storage when user is authenticated
   useEffect(() => {
-    if (isAuthenticated && authUser?.id && !rbacUserData.data) {
-      const storedRBACUser = sessionStorage.getItem("rbac_user");
-      if (storedRBACUser) {
-        try {
-          const rbacUser: RBACUser = JSON.parse(storedRBACUser);
-          dispatch(setRBACUser(rbacUser));
-          console.log('🔐 RBAC initialized for user:', rbacUser.email);
-        } catch (error) {
-          console.error('Failed to initialize RBAC:', error);
-        }
-      }
+    if (!isAuthenticated) {
+      // User is not authenticated, clear everything
+      clearEverything();
+      return;
     }
-  }, [isAuthenticated, authUser?.id, rbacUserData.data, dispatch]);
+
+    // Check if session storage still has valid data
+    const storedToken = sessionStorage.getItem("auth_token");
+    const storedUser = sessionStorage.getItem("auth_user");
+    
+    if (!storedToken || !storedUser) {
+      console.log('🚪 useSimpleRBAC: Session storage data missing, clearing everything');
+      clearEverything();
+      return;
+    }
+
+    // No need to initialize RBAC user separately anymore
+    console.log('🔐 RBAC using Redux auth state and session storage privileges');
+  }, [isAuthenticated, authUser?.id, reduxUser, clearEverything]);
 
   // Memoized permission functions
-  const permissions = useMemo(() => {
-    const privileges = userPrivileges || [];
-
-    return {
-      /**
-       * Check if user has a specific privilege
-       */
-      hasPrivilege: (privilege: string): boolean => {
-        if (isSuperUser) return true; // Superusers have all privileges
-        return privileges.includes(privilege);
-      },
-
-      /**
-       * Check if user has any of the required privileges
-       */
-      hasAnyPrivilege: (requiredPrivileges: string[]): boolean => {
-        if (isSuperUser) return true;
-        return requiredPrivileges.some(privilege => privileges.includes(privilege));
-      },
-
-      /**
-       * Check if user has all required privileges
-       */
-      hasAllPrivileges: (requiredPrivileges: string[]): boolean => {
-        if (isSuperUser) return true;
-        return requiredPrivileges.every(privilege => privileges.includes(privilege));
-      },
-
-      /**
-       * Check if user can access a specific route
-       */
-      canAccessRoute: (route: string): boolean => {
-        if (isSuperUser) return true;
-        // Simple route-based access control
-        const routePrivileges: Record<string, string[]> = {
-          '/admin/dashboard': ['VIEW_ADMIN_DASHBOARD'],
-          '/admin/user-management': ['VIEW_USER_LIST'],
-          '/admin/role-management': ['VIEW_ROLE_LIST'],
-          '/admin/container-types': ['VIEW_CONTAINER_TYPES'],
-          '/admin/container-priority': ['VIEW_CONTAINER_PRIORITY'],
-          '/admin/container-thresholds': ['VIEW_CONTAINER_THRESHOLDS'],
-          '/admin/port-customer-master': ['VIEW_PORT_CUSTOMER_MASTER'],
-          '/user/dashboard': ['VIEW_USER_DASHBOARD'],
-          '/user/container-planning': ['VIEW_CONTAINER_PLANNING'],
-        };
-        
-        const requiredPrivileges = routePrivileges[route] || [];
-        return requiredPrivileges.length === 0 || permissions.hasAnyPrivilege(requiredPrivileges);
-      },
-
-      /**
-       * Check if user can perform a specific action
-       */
-      canPerformAction: (action: string, module?: string): boolean => {
-        if (isSuperUser) return true;
-        
-        // Action-based permission mapping
-        const actionPrivileges: Record<string, string[]> = {
-          'create_role': ['CREATE_ROLE'],
-          'update_role': ['UPDATE_ROLE'],
-          'delete_role': ['DELETE_ROLE'],
-          'view_role': ['VIEW_ROLE'],
-          'create_user': ['CREATE_USER'],
-          'update_user': ['UPDATE_USER'],
-          'delete_user': ['DELETE_USER'],
-          'view_user': ['VIEW_USER'],
-          'create_priority': ['CREATE_PRIORITY'],
-          'update_priority': ['UPDATE_PRIORITY'],
-          'delete_priority': ['DELETE_PRIORITY'],
-          'view_priority': ['VIEW_CONTAINER_PRIORITY'],
-          'create_threshold': ['CREATE_THRESHOLD'],
-          'update_threshold': ['UPDATE_THRESHOLD'],
-          'delete_threshold': ['DELETE_THRESHOLD'],
-          'view_threshold': ['VIEW_CONTAINER_THRESHOLDS'],
-          'export_data': ['EXPORT_DATA'],
-          'import_data': ['IMPORT_DATA'],
-        };
-        
-        const requiredPrivileges = actionPrivileges[action] || [];
-        return requiredPrivileges.length === 0 || permissions.hasAnyPrivilege(requiredPrivileges);
+  const permissions = useMemo(() => ({
+    /**
+     * Check if user has a specific privilege
+     * Now works with static privileges from AuthContext
+     */
+    hasPrivilege: (privilegeName: string): boolean => {
+      if (!isAuthenticated) return false;
+      if (isSuperUser) return true;
+      
+      // Wait for privileges to be loaded
+      if (!privilegesLoaded) {
+        console.log(`⏳ Privileges not yet loaded, waiting...`);
+        return false;
       }
-    };
-  }, [userPrivileges, isSuperUser]);
+      
+      // Check user privileges (now provided statically from AuthContext)
+      if (userPrivileges && userPrivileges.length > 0) {
+        const hasPrivilege = userPrivileges.includes(privilegeName);
+        console.log(`🔐 Privilege check: ${privilegeName} = ${hasPrivilege ? '✅' : '❌'} (User has: ${userPrivileges.length} privileges)`);
+        console.log(`🔐 Available privileges:`, userPrivileges);
+        console.log(`🔐 Checking for: ${privilegeName}`);
+        return hasPrivilege;
+      }
+      
+      console.log(`⚠️ No privileges available for user, denying: ${privilegeName}`);
+      return false;
+    },
+
+    /**
+     * Check if user has any of the specified privileges
+     */
+    hasAnyPrivilege: (privilegeNames: string[]): boolean => {
+      if (!isAuthenticated) return false;
+      if (isSuperUser) return true;
+      
+      // Wait for privileges to be loaded
+      if (!privilegesLoaded) {
+        console.log(`⏳ Privileges not yet loaded for ANY check, waiting...`);
+        return false;
+      }
+      
+      // Check user privileges (now provided statically from AuthContext)
+      if (userPrivileges && userPrivileges.length > 0) {
+        const hasAny = privilegeNames.some(privilegeName => 
+          userPrivileges.includes(privilegeName)
+        );
+        console.log(`🔐 Privilege check (ANY): ${privilegeNames.join(', ')} = ${hasAny ? '✅' : '❌'} (User has: ${userPrivileges.length} privileges)`);
+        return hasAny;
+      }
+      
+      console.log(`⚠️ No privileges available for ANY check: ${privilegeNames.join(', ')}`);
+      return false;
+    },
+
+    /**
+     * Check if user has all of the specified privileges
+     */
+    hasAllPrivileges: (privilegeNames: string[]): boolean => {
+      if (!isAuthenticated) return false;
+      if (isSuperUser) return true;
+      
+      // Wait for privileges to be loaded
+      if (!privilegesLoaded) {
+        console.log(`⏳ Privileges not yet loaded for ALL check, waiting...`);
+        return false;
+      }
+      
+      // Check user privileges (now provided statically from AuthContext)
+      if (userPrivileges && userPrivileges.length > 0) {
+        const hasAll = privilegeNames.every(privilegeName => 
+          userPrivileges.includes(privilegeName)
+        );
+        console.log(`🔐 Privilege check (ALL): ${privilegeNames.join(', ')} = ${hasAll ? '✅' : '❌'} (User has: ${userPrivileges.length} privileges)`);
+        return hasAll;
+      }
+      
+      console.log(`⚠️ No privileges available for ALL check: ${privilegeNames.join(', ')}`);
+      return false;
+    },
+
+    /**
+     * Check if user can access a specific route
+     */
+    canAccessRoute: (route: string): boolean => {
+      if (!isAuthenticated) return false;
+      if (isSuperUser) return true;
+      
+      // Wait for privileges to be loaded
+      if (!privilegesLoaded) {
+        console.log(`⏳ Privileges not yet loaded for route check, waiting...`);
+        return false;
+      }
+      
+      // Find which module this route belongs to
+      const moduleEntry = Object.entries(staticModuleDefinitions.modules).find(([_, module]) => {
+        return module.routes.some(moduleRoute => route.startsWith(moduleRoute));
+      });
+
+      if (!moduleEntry) {
+        // Route not defined in any module, allow access for now
+        console.log(`🔐 Route access check: ${route} -> Not in modules, allowing access`);
+        return true;
+      }
+
+      const [moduleId, module] = moduleEntry;
+      
+      // Check if user has any privileges for this module
+      if (userPrivileges && userPrivileges.length > 0) {
+        const hasModuleAccess = userPrivileges.some(privilege => {
+          return module.privileges.includes(privilege);
+        });
+        
+        console.log(`🔐 Route access check: ${route} -> Module ${moduleId} = ${hasModuleAccess ? '✅' : '❌'} (User has: ${userPrivileges.length} privileges)`);
+        return hasModuleAccess;
+      }
+      
+      console.log(`⚠️ Route access check: ${route} -> Module ${moduleId} = ❌ (no privileges available)`);
+      
+      // If module has no privileges required, allow access
+      if (module.privileges.length === 0) { 
+        console.log(`🔐 Route access check: ${route} -> Module ${moduleId} = ✅ (no privileges required)`);
+        return true; 
+      }
+
+      return false;
+    },
+
+    /**
+     * Check if user can perform a specific action
+     */
+    canPerformAction: (actionName: string): boolean => {
+      if (!isAuthenticated) return false;
+      if (isSuperUser) return true;
+      
+      // Wait for privileges to be loaded
+      if (!privilegesLoaded) {
+        console.log(`⏳ Privileges not yet loaded for action check, waiting...`);
+        return false;
+      }
+      
+      // Check if user has the specific action privilege
+      if (userPrivileges && userPrivileges.length > 0) {
+        const hasActionPrivilege = userPrivileges.includes(actionName);
+        console.log(`🔐 Action check: ${actionName} = ${hasActionPrivilege ? '✅' : '❌'} (User has: ${userPrivileges.length} privileges)`);
+        return hasActionPrivilege;
+      }
+      
+      console.log(`⚠️ No privileges available for action: ${actionName}`);
+      return false;
+    }
+  }), [userPrivileges, isSuperUser, isAuthenticated, privilegesLoaded]);
 
   // Role-based functions
   const roles = useMemo(() => ({
-    getUserRole: (): number => userRole || 0,
+    getUserRole: (): number => {
+      if (!isAuthenticated) return 0;
+      return userRole || 0;
+    },
     getRoleName: (): string => {
+      if (!isAuthenticated) return 'Unauthenticated';
       if (isSuperUser) return 'Superuser';
       switch (userRole) {
         case 1: return 'Admin';
@@ -136,49 +258,133 @@ export const useSimpleRBAC = () => {
         default: return 'User';
       }
     },
-    isAdmin: (): boolean => userRole === 1 || isSuperUser,
-    isManager: (): boolean => userRole === 2 || isSuperUser,
-    isUser: (): boolean => userRole === 0 && !isSuperUser,
-    isSuperUser: (): boolean => isSuperUser,
-  }), [userRole, isSuperUser]);
+    isAdmin: (): boolean => {
+      if (!isAuthenticated) return false;
+      return userRole === 1 || isSuperUser;
+    },
+    isManager: (): boolean => {
+      if (!isAuthenticated) return false;
+      return userRole === 2 || isSuperUser;
+    },
+    isUser: (): boolean => {
+      if (!isAuthenticated) return false;
+      return userRole === 0 && !isSuperUser;
+    },
+    isSuperUser: (): boolean => {
+      if (!isAuthenticated) return false;
+      return isSuperUser;
+    },
+  }), [userRole, isSuperUser, isAuthenticated]);
 
   // Utility functions
   const utils = useMemo(() => ({
-    clearRBACError: () => dispatch(clearError()),
-    getUserPrivileges: () => userPrivileges || [],
-    getRBACUser: () => rbacUserData.data,
-  }), [userPrivileges, rbacUserData.data, dispatch]);
+    getAccessibleModules: (): number[] => {
+      if (!isAuthenticated) return [];
+      if (isSuperUser) {
+        return Object.keys(staticModuleDefinitions.modules).map(Number);
+      }
+      
+      // Wait for privileges to be loaded
+      if (!privilegesLoaded) {
+        console.log(`⏳ Privileges not yet loaded for modules check, waiting...`);
+        return [];
+      }
+      
+      const accessibleModules = new Set<number>();
+      
+      Object.values(staticModuleDefinitions.modules).forEach(module => {
+        // Check if user has any of the module's privileges
+        const hasModuleAccess = userPrivileges.some(privilege => 
+          module.privileges.includes(privilege)
+        );
+        
+        if (hasModuleAccess || module.privileges.length === 0) {
+          accessibleModules.add(module.id);
+        }
+      });
+      
+      console.log(`🔐 Accessible modules: ${Array.from(accessibleModules).length} modules accessible (User has: ${userPrivileges.length} privileges)`);
+      return Array.from(accessibleModules);
+    },
+    
+    getAccessibleRoutes: (): string[] => {
+      if (!isAuthenticated) return [];
+      if (isSuperUser) {
+        const allRoutes: string[] = [];
+        Object.values(staticModuleDefinitions.modules).forEach(module => {
+          allRoutes.push(...module.routes);
+        });
+        return allRoutes;
+      }
+      
+      const accessibleRoutes: string[] = [];
+      Object.values(staticModuleDefinitions.modules).forEach(module => {
+        const hasModuleAccess = userPrivileges.some(privilege => 
+          module.privileges.includes(privilege)
+        );
+        
+        if (hasModuleAccess || module.privileges.length === 0) {
+          // Add all routes for the module
+          accessibleRoutes.push(...module.routes);
+        }
+      });
+      
+      console.log(`🔐 Accessible routes: ${accessibleRoutes.length} routes accessible (User has: ${userPrivileges.length} privileges)`);
+      return accessibleRoutes;
+    },
+    
+    getModuleInfo: (moduleId: number) => {
+      if (!isAuthenticated) return null;
+      return staticModuleDefinitions.modules[moduleId];
+    },
+    
+    // New function to get module routes based on user role
+    getModuleRoutes: (moduleId: number) => {
+      if (!isAuthenticated) return [];
+      const module = staticModuleDefinitions.modules[moduleId];
+      if (!module) return [];
+      
+      return module.routes;
+    },
+    
+    // New function to get module privileges
+    getModulePrivileges: (moduleId: number) => {
+      if (!isAuthenticated) return [];
+      const module = staticModuleDefinitions.modules[moduleId];
+      return module ? module.privileges : [];
+    },
+    
+    // New function to check if user can access a specific module route
+    canAccessModuleRoute: (moduleId: number, route: string): boolean => {
+      if (!isAuthenticated) return false;
+      if (isSuperUser) return true;
+      
+      const module = staticModuleDefinitions.modules[moduleId];
+      if (!module) return false;
+      
+      // Check if route exists in the module routes
+      return module.routes.includes(route);
+    }
+  }), [userPrivileges, isSuperUser, isAuthenticated, userRole, privilegesLoaded]);
 
   return {
-    // User data
-    user: rbacUserData.data,
-    userPrivileges: userPrivileges || [],
-    userRole: userRole || 0,
-    
     // Permission functions
-    hasPrivilege: permissions.hasPrivilege,
-    hasAnyPrivilege: permissions.hasAnyPrivilege,
-    hasAllPrivileges: permissions.hasAllPrivileges,
-    canAccessRoute: permissions.canAccessRoute,
-    canPerformAction: permissions.canPerformAction,
+    ...permissions,
     
     // Role functions
-    getUserRole: roles.getUserRole,
-    getRoleName: roles.getRoleName,
-    isAdmin: roles.isAdmin,
-    isManager: roles.isManager,
-    isUser: roles.isUser,
-    isSuperUser: roles.isSuperUser,
+    ...roles,
     
     // Utility functions
-    clearRBACError: utils.clearRBACError,
-    getUserPrivileges: utils.getUserPrivileges,
-    getRBACUser: utils.getRBACUser,
+    ...utils,
     
     // State
-    loading: rbacUserData.loading,
-    error: rbacUserData.error,
-    isInitialized: !!rbacUserData.data,
+    userPrivileges: isAuthenticated ? userPrivileges : [],
+    userRole: isAuthenticated ? userRole : 0,
+    isSuperUser: isAuthenticated ? isSuperUser : false,
+    privilegesLoaded: isAuthenticated ? privilegesLoaded : false,
+    loading: false, // Simplified for now
+    error: null, // Simplified for now
+    isInitialized: isAuthenticated // Simplified for now
   };
 };
 

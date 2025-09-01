@@ -8,7 +8,7 @@ import { ArrowLeftIcon, DownloadIcon, FileIcon, CheckCircleIcon } from "@/icons"
 import { getUploadedFiles } from "@/utils/clientShipmentService";
 import { formatFileSize } from "@/utils/formatUtils";
 import { type UploadedFile } from "@/utils/localStorageService";
-import withSimpleRBAC, { withRoleRBAC } from "@/components/auth/withSimpleRBAC";
+import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
 
 function UserOutputFileViewerPage() {
   const params = useParams();
@@ -204,5 +204,6 @@ function UserOutputFileViewerPage() {
 }
 
 export default withSimpleRBAC(UserOutputFileViewerPage, {
-  role: 0,
+  // role: 0,
+  route: "/user/output-file",
 });

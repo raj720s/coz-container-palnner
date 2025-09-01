@@ -20,17 +20,24 @@ import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmatio
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimpleRBAC, RBACContextValue } from "@/components/auth/withSimpleRBAC";
 import Pagination from "@/components/tables/Pagination";
 import { PODResponse, PODListRequest, CreatePODRequest, UpdatePODRequest } from "@/types/api";
 import { podService } from "@/services";
 
 const columnHelper = createColumnHelper<PODResponse>();
 
-function PodDataManager() {
+interface PodDataManagerProps {
+  rbacContext?: RBACContextValue;
+}
+
+function PodDataManager({ rbacContext }: PodDataManagerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
+  
+  // Use RBAC context from withSimpleRBAC instead of duplicate hooks
+  const { hasPrivilege, isAdmin, isSuperUser } = rbacContext || {};
   
   // Local state for data management
   const [pods, setPods] = useState<PODResponse[]>([]);
@@ -59,6 +66,9 @@ function PodDataManager() {
     closeModal,
     setLoading: setModalLoading,
   } = useFormModal<PODResponse>();
+
+  // Check if user can delete POD data using RBAC context
+  const canDeletePOD = hasPrivilege?.("DELETE_POD") || isAdmin?.() || isSuperUser;
 
   // Auto-open modal if action=add
   useEffect(() => {
@@ -211,21 +221,25 @@ function PodDataManager() {
           >
             <PencilIcon className="w-4 h-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setDeletingItem(info.row.original);
-              setDeleteModalOpen(true);
-            }}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
+          
+          {/* Only show delete button if user has permission */}
+          {canDeletePOD && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setDeletingItem(info.row.original);
+                setDeleteModalOpen(true);
+              }}
+              className="p-1 text-red-600 hover:text-red-700"
+            >
+              <TrashBinIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     }),
-  ], [openModal]);
+  ], [openModal, canDeletePOD]);
 
   const table = useReactTable<PODResponse>({
     data: pods,
@@ -298,6 +312,14 @@ function PodDataManager() {
 
   const handleDelete = async () => {
     if (!deletingItem) return;
+    
+    // Check permission before allowing delete
+    if (!canDeletePOD) {
+      toast.error("You don't have permission to delete POD data");
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      return;
+    }
     
     try {
       setLoading(true);
@@ -390,6 +412,20 @@ function PodDataManager() {
         <p className="text-gray-600 dark:text-gray-400">
           Manage Port of Destination (POD) ports and their configurations
         </p>
+        
+        {/* Permission indicator */}
+        {!canDeletePOD && (
+          <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-md">
+            <div className="flex items-center">
+              <svg className="h-5 w-5 text-yellow-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm">
+                <strong>Read-only mode:</strong> You can view and edit POD data, but cannot delete records.
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Error Display */}
@@ -543,5 +579,8 @@ function PodDataManager() {
 }
 
 export default withSimpleRBAC(PodDataManager, {
-  route: "/admin/port-customer-master/pod-ports"
+  privilege: "VIEW_POD_PORTS", // Minimum required privilege to access
+  role: [1, 2, 3], // Admin users (role 1), Manager users (role 2), and Regular users (role 3) can access
+  allowSuperUserBypass: true, // Superusers can always access
+  redirectTo: "/user/dashboard" // Redirect if no access
 });

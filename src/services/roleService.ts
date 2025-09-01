@@ -25,6 +25,61 @@ export interface RoleResponse {
   modified_by?: number;
 }
 
+// NEW: Enhanced role interfaces for module-based privilege management
+export interface CreateRoleRequestV2 {
+  role_name: string;
+  role_description: string;
+  privilege_names: string[];
+  application_id?: string;
+  application_name?: string;
+}
+
+export interface UpdateRoleRequestV2 {
+  role_name?: string;
+  role_description?: string;
+  privilege_names?: string[];
+  application_id?: string;
+  application_name?: string;
+}
+
+export interface RoleResponseV2 {
+  id: string;
+  application_id: string;
+  role_name: string;
+  role_description: string;
+  application_name: string;
+  privilege_names: string[];
+  modified_on: string;
+  modified_by: number;
+  created_on: string;
+  created_by: number;
+}
+
+// NEW: Privilege interfaces matching server format
+export interface PrivilegeItemV2 {
+  id: string;
+  privilege_name: string;
+  privilege_desc: string;
+  module_id: number;
+}
+
+export interface PrivilegeResponseV2 {
+  count: number;
+  results: PrivilegeItemV2[];
+}
+
+// NEW: Module privilege mapping for role management
+export interface ModulePrivilegeMapping {
+  module_id: number;
+  module_name: string;
+  module_description: string;
+  module_icon: string;
+  module_color: string;
+  available_privileges: PrivilegeItemV2[];
+  selected_privileges: string[];
+  is_expanded: boolean;
+}
+
 // Extended role response with detailed privilege data
 export interface RoleResponseWithPrivileges extends RoleResponse {
   privileges?: PrivilegeItem[];

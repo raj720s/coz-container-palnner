@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createSelector } from '@reduxjs/toolkit';
+import { RootState } from '@/store';
 
 export interface User {
   id: number;
@@ -19,7 +20,7 @@ export interface User {
   timezone?: string | null;
 }
 
-interface AuthState {
+export interface AuthState {
   user: User | null;
   token: string | null;
   refreshToken: string | null;
@@ -97,6 +98,8 @@ const authSlice = createSlice({
     updateProfileFromAPI: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         // Map API response fields to local user state
+        // IMPORTANT: Preserve critical login information (role_id, is_superuser) 
+        // as these are set during login and should not be overridden by API
         const apiData = action.payload;
         state.user = {
           ...state.user,
@@ -104,9 +107,10 @@ const authSlice = createSlice({
           last_name: apiData.last_name || state.user.last_name,
           email: apiData.email || state.user.email,
           organisation_name: apiData.organisation_name || state.user.organisation_name,
-          role: apiData.role || state.user.role,
-          role_id: apiData.role_id || state.user.role_id,
-          is_superuser: apiData.is_superuser !== undefined ? apiData.is_superuser : state.user.is_superuser,
+          // Preserve login role information - DO NOT override from API
+          role: state.user.role, // Keep login role
+          role_id: state.user.role_id, // Keep login role_id
+          is_superuser: state.user.is_superuser, // Keep login superuser status
           status: apiData.status !== undefined ? apiData.status : state.user.status,
           created_on: apiData.created_on || state.user.created_on,
           phone_number: apiData.phone_number !== undefined ? apiData.phone_number : state.user.phone_number,
@@ -114,6 +118,12 @@ const authSlice = createSlice({
           country: apiData.country !== undefined ? apiData.country : state.user.country,
           timezone: apiData.timezone !== undefined ? apiData.timezone : state.user.timezone,
         };
+        
+        console.log('🔐 Profile updated from API - preserved login role info:', {
+          role: state.user.role,
+          role_id: state.user.role_id,
+          is_superuser: state.user.is_superuser
+        });
       }
     },
     
@@ -144,12 +154,35 @@ export const {
   clearError,
 } = authSlice.actions;
 
-// Selectors
-export const selectAuth = (state: { auth: AuthState }) => state.auth;
-export const selectUser = (state: { auth: AuthState }) => state.auth.user;
-export const selectToken = (state: { auth: AuthState }) => state.auth.token;
-export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
-export const selectAuthLoading = (state: { auth: AuthState }) => state.auth.isLoading;
-export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
+// Selectors with proper memoization
+export const selectAuth = createSelector(
+  [(state: RootState) => state.auth],
+  (auth) => auth
+);
+
+export const selectUser = createSelector(
+  [(state: RootState) => state.auth.user],
+  (user) => user
+);
+
+export const selectToken = createSelector(
+  [(state: RootState) => state.auth.token],
+  (token) => token
+);
+
+export const selectIsAuthenticated = createSelector(
+  [(state: RootState) => state.auth.isAuthenticated],
+  (isAuthenticated) => isAuthenticated
+);
+
+export const selectAuthLoading = createSelector(
+  [(state: RootState) => state.auth.isLoading],
+  (loading) => loading
+);
+
+export const selectAuthError = createSelector(
+  [(state: RootState) => state.auth.error],
+  (error) => error
+);
 
 export default authSlice.reducer;

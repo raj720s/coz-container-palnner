@@ -250,5 +250,7 @@ function UserDashboard() {
 }
 
 export default withSimpleRBAC(UserDashboard, {
-  privilege: "VIEW_USER_DASHBOARD"
+  privilege: "VIEW_USER_DASHBOARD",
+  route: "/user/dashboard",
+  role: [2, 3],
 }); 

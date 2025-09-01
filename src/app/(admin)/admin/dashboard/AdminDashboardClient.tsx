@@ -249,4 +249,9 @@ function AdminDashboard() {
   );
 }
 
-export default withSimpleRBAC(AdminDashboard); 
+export default withSimpleRBAC(AdminDashboard, {
+  privilege: "VIEW_ADMIN_DASHBOARD",
+  // role: [1],
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
+}); 
