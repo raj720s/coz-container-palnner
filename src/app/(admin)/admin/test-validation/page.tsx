@@ -1,6 +1,6 @@
 "use client";
 
-import { withAdminAuth } from "@/components/auth/withAuth";
+import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
 import Button from "@/components/ui/button/Button";
 import { useRouter } from "next/navigation";
 
@@ -54,4 +54,6 @@ function TestValidationPage() {
   );
 }
 
-export default withAdminAuth(TestValidationPage);
+export default withSimpleRBAC(TestValidationPage, {
+  route: "/admin/test-validation"
+});

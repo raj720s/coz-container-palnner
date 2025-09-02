@@ -179,6 +179,6 @@ function UserInputFileViewerPage() {
 }
 
 export default withSimpleRBAC(UserInputFileViewerPage, {
-  module: "input-file",
+  // module: "input-file",
   route: "/user/input-file",
 });
