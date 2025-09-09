@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
 import { toast } from "react-hot-toast";
 import {
   useReactTable,
@@ -24,23 +22,13 @@ import { useFormModal } from "@/hooks/useFormModal";
 import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import Pagination from "@/components/tables/Pagination";
 
-import {
-  fetchContainerTypes,
-  createContainerType,
-  updateContainerType,
-  deleteContainerType,
-  selectContainerTypes,
-  selectContainerTypesLoading,
-  selectContainerTypesError,
-  selectContainerTypesTotal,
-  selectContainerTypesPageSize,
-  clearError,
-} from "@/store/slices/containerTypeSlice";
+import { containerTypeService } from "@/services";
 
 import { ContainerTypeResponse } from "@/types/api";
 import { ContainerTypeFormData } from "@/components/forms/ContainerTypeForm";
 import { ContainerTypeForm } from "@/components/forms/ContainerTypeForm";
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
+import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
 
 interface TableMeta<T> {
   editRow: (row: T) => void;
@@ -54,14 +42,14 @@ interface ContainerTypesManagerProps {
 const columnHelper = createColumnHelper<ContainerTypeResponse>();
 
 export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mode }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { can } = useSimplifiedRBAC();
   
-  // Redux state
-  const containerTypes = useSelector(selectContainerTypes);
-  const loading = useSelector(selectContainerTypesLoading);
-  const error = useSelector(selectContainerTypesError);
-  const total = useSelector(selectContainerTypesTotal);
-  const pageSize = useSelector(selectContainerTypesPageSize);
+  // Local state for data management
+  const [containerTypes, setContainerTypes] = useState<ContainerTypeResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const totalPages = Math.ceil(total / pageSize);
   
   // Local state
@@ -86,14 +74,27 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
     setLoading: setModalLoading,
   } = useFormModal<ContainerTypeResponse>();
 
+  // Load container types function
+  const loadContainerTypes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await containerTypeService.getContainerTypes(filters);
+      setContainerTypes(response.results || []);
+      setTotal(response.count || 0);
+      setPageSize(filters.page_size);
+    } catch (error: any) {
+      console.error('Error loading container types:', error);
+      setError(error.message || 'Failed to load container types');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load container types on component mount and when filters change
   useEffect(() => {
-    try {
-      dispatch(fetchContainerTypes(filters));
-    } catch (error) {
-      console.error('Error dispatching fetchContainerTypes:', error);
-    }
-  }, [dispatch, filters]);
+    loadContainerTypes();
+  }, [filters]);
 
   // Sync table sorting with API filters
   useEffect(() => {
@@ -111,11 +112,11 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
-        dispatch(clearError());
+        setError(null);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [error, dispatch]);
+  }, [error]);
 
   const columns = [
     columnHelper.accessor("code", {
@@ -225,14 +226,16 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
           >
             <PencilIcon className="w-4 h-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => (info.table.options.meta as TableMeta<ContainerTypeResponse>)?.deleteRow(info.row.original.id)}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
+          {can("DELETE_CONTAINER_TYPE") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => (info.table.options.meta as TableMeta<ContainerTypeResponse>)?.deleteRow(info.row.original.id)}
+              className="p-1 text-red-600 hover:text-red-700"
+            >
+              <TrashBinIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     }),
@@ -256,6 +259,10 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
         openModal(row);
       },
       deleteRow: async (id: number) => {
+        if (!can("DELETE_CONTAINER_TYPE")) {
+          toast.error("You don't have permission to delete container types");
+          return;
+        }
         const item = containerTypes.find(ct => ct.id === id);
         if (item) {
           setDeletingItem(item);
@@ -267,34 +274,52 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
 
   const handleSubmit = async (formData: ContainerTypeFormData) => {
     try {
+      setModalLoading(true);
       if (editingItem) {
         // Update existing container type
-        await dispatch(updateContainerType({ id: editingItem.id, containerTypeData: formData }));
+        await containerTypeService.updateContainerType(editingItem.id, formData);
         toast.success('Container type updated successfully');
       } else {
         // Create new container type
-        await dispatch(createContainerType(formData));
+        await containerTypeService.createContainerType(formData);
         toast.success('Container type created successfully');
       }
       
+      // Refresh the list
+      await loadContainerTypes();
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving container type:', error);
-      toast.error('Failed to save container type');
+      toast.error(error.message || 'Failed to save container type');
+    } finally {
+      setModalLoading(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingItem) return;
     
+    if (!can("DELETE_CONTAINER_TYPE")) {
+      toast.error("You don't have permission to delete container types");
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      return;
+    }
+    
     try {
-      await dispatch(deleteContainerType(deletingItem.id));
+      setModalLoading(true);
+      await containerTypeService.deleteContainerType(deletingItem.id);
       toast.success('Container type deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
-    } catch (error) {
+      
+      // Refresh the list
+      await loadContainerTypes();
+    } catch (error: any) {
       console.error('Error deleting container type:', error);
-      toast.error('Failed to delete container type');
+      toast.error(error.message || 'Failed to delete container type');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -308,7 +333,7 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Container Type Management
+          Container Type Master
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Manage container types and their configurations
@@ -382,13 +407,27 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6">
+      {total > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {((filters.page || 1) - 1) * (filters.page_size || 10) + 1} to{" "}
+            {Math.min(
+              (filters.page || 1) * (filters.page_size || 10),
+              total
+            )}{" "}
+            of {total} results
+          </div>
           <Pagination
             currentPage={filters.page || 1}
             totalPages={totalPages}
             onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
           />
+        </div>
+      )}
+
+      {total === 0 && !loading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No container types found matching your search criteria.
         </div>
       )}
 
@@ -427,6 +466,9 @@ export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mo
   );
 };
 
-export default withSimpleRBAC(ContainerTypesManager, {
-  privilege: "VIEW_CONTAINER_TYPES"
+export default withSimplifiedRBAC(ContainerTypesManager, {
+  privilege: "VIEW_CONTAINER_TYPES",
+  module: [50], // Container Management module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 });

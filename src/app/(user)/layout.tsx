@@ -3,10 +3,9 @@
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { RBACProvider } from "@/providers/RBACProvider";
 import { LocalStorageInitializer } from "@/components/providers/LocalStorageInitializer";
 import { MessageProvider } from "@/components/ui/MessageBox";
-import { UserRouteGuard } from "@/components/auth/UserRouteGuard";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 export default function UserLayout({
   children,
@@ -15,17 +14,15 @@ export default function UserLayout({
 }>) {
   return (
     <AuthProvider>
-      <RBACProvider>
-        <ThemeProvider>
-          <SidebarProvider>
-            <MessageProvider>
-              <UserRouteGuard>
-                {children}
-              </UserRouteGuard>
-            </MessageProvider>
-          </SidebarProvider>
-        </ThemeProvider>
-      </RBACProvider>
+      <ThemeProvider>
+        <SidebarProvider>
+          <MessageProvider>
+            <AuthGuard requireUser={true}>
+              {children}
+            </AuthGuard>
+          </MessageProvider>
+        </SidebarProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 } 

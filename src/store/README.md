@@ -10,13 +10,12 @@ src/store/
 ├── hooks.ts              # Typed Redux hooks
 ├── api/
 │   └── apiSlice.ts       # RTK Query API slice
-├── slices/
-│   ├── authSlice.ts      # Authentication state
-│   ├── uiSlice.ts        # UI/Theme state
-│   ├── userSlice.ts      # User management state
-│   └── roleSlice.ts      # Role management state
-└── thunks/
-    └── authThunks.ts     # Complex auth operations
+└── slices/
+    ├── consolidatedUserSlice.ts  # Unified user/auth/profile state
+    ├── uiSlice.ts        # UI/Theme state
+    ├── userSlice.ts      # User list management state
+    ├── userInfoSlice.ts  # User info and RBAC state
+    └── roleSlice.ts      # Role management state
 ```
 
 ## 🚀 Quick Start
@@ -67,25 +66,41 @@ function ThemeToggle() {
 
 ## 📊 State Slices
 
-### Auth Slice (`authSlice.ts`)
-Manages user authentication state.
+### Consolidated User Slice (`consolidatedUserSlice.ts`)
+Unified state management for authentication, user profile, and RBAC.
 
 **State:**
-- `user`: Current user object
-- `token`: JWT token
+- `user`: Complete user object with profile and RBAC data
+- `token`: JWT access token
+- `refreshToken`: JWT refresh token
 - `isAuthenticated`: Authentication status
-- `isLoading`: Loading state
-- `error`: Error messages
+- `isLoading`: General loading state
+- `profileLoading`: Profile data loading state
+- `privilegesLoading`: Privileges loading state
+- `error`: General error messages
+- `profileError`: Profile-specific errors
+- `privilegesError`: Privileges-specific errors
+- `isInitialized`: State initialization status
 
 **Actions:**
 ```typescript
-import { loginSuccess, logout, updateProfile } from '@/store/slices/authSlice';
+import { 
+  loginSuccess, 
+  logout, 
+  updateProfile, 
+  initializeUserState,
+  fetchUserProfile,
+  fetchUserPrivileges
+} from '@/store/slices/consolidatedUserSlice';
 
 // Login user
 dispatch(loginSuccess({ user, token, refreshToken }));
 
 // Logout user
 dispatch(logout());
+
+// Initialize complete user state (profile + privileges)
+dispatch(initializeUserState());
 
 // Update profile
 dispatch(updateProfile({ first_name: 'John' }));
@@ -95,7 +110,9 @@ dispatch(updateProfile({ first_name: 'John' }));
 ```typescript
 const user = useAppSelector(selectUser);
 const isAuthenticated = useAppSelector(selectIsAuthenticated);
-const authLoading = useAppSelector(selectAuthLoading);
+const userProfile = useAppSelector(selectUserProfile);
+const userPrivileges = useAppSelector(selectUserPrivileges);
+const loading = useAppSelector(selectUserLoadingStates);
 ```
 
 ### UI Slice (`uiSlice.ts`)
@@ -219,25 +236,25 @@ const [deleteRole] = useDeleteRoleMutation();
 const [assignPrivileges] = useAssignPrivilegesToRoleMutation();
 ```
 
-## 🔄 Complex Operations with Thunks
+## 🔄 Complex Operations with Async Thunks
 
-For operations requiring multiple API calls or complex logic:
+For operations requiring multiple API calls or complex logic, use async thunks in the consolidated user slice:
 
 ```typescript
-import { loginUser, logoutUser, verifyToken } from '@/store/thunks/authThunks';
+import { 
+  initializeUserState, 
+  fetchUserProfile, 
+  fetchUserPrivileges 
+} from '@/store/slices/consolidatedUserSlice';
 
-// Login with automatic token storage
-dispatch(loginUser({ 
-  email: 'user@example.com', 
-  password: 'password',
-  rememberMe: true 
-}));
+// Initialize complete user state (profile + privileges)
+dispatch(initializeUserState());
 
-// Logout with cleanup
-dispatch(logoutUser());
+// Fetch user profile only
+dispatch(fetchUserProfile());
 
-// Verify token on app start
-dispatch(verifyToken());
+// Fetch privileges for specific role
+dispatch(fetchUserPrivileges(roleId));
 ```
 
 ## 🎣 Custom Hooks

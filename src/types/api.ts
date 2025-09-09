@@ -6,6 +6,7 @@ export interface CreateUserRequest {
   email: string;
   organisation_name: string;
   role: number;
+  password?: string;
 }
 
 export interface UserResponse {

@@ -13,7 +13,14 @@ export interface PrivilegeListRequest {
 
 export interface PrivilegeListResponse {
   count: number;
-  results: PrivilegeResponse[];
+  results: Array<{
+    module_id: string;
+    privileges: Array<{
+      id: number;
+      privilege_name: string;
+      privilege_desc: string;
+    }>;
+  }>;
 }
 
 class PrivilegeService {
@@ -25,6 +32,7 @@ class PrivilegeService {
   async getPrivileges(request: PrivilegeListRequest): Promise<PrivilegeListResponse> {
     try {
       const response = await superAxios.post('/admin/v1/privilege/list', request);
+      console.log('🔐 PrivilegeService: getPrivileges:', response.data);
       return response.data;
     } catch (error) {
       console.error('Error fetching privileges:', error);
@@ -34,11 +42,26 @@ class PrivilegeService {
 
   /**
    * Extract privilege names from privilege list response
-   * @param privileges - Array of privilege objects
+   * @param privilegeListResponse - Privilege list response with modules and privileges
    * @returns Array of privilege names (strings)
    */
-  extractPrivilegeNames(privileges: PrivilegeResponse[]): string[] {
-    return privileges.map(privilege => privilege.privilege_name);
+  extractPrivilegeNames(privilegeListResponse: PrivilegeListResponse): string[] {
+    const allPrivileges: string[] = [];
+    privilegeListResponse.results.forEach(module => {
+      module.privileges.forEach(privilege => {
+        allPrivileges.push(privilege.privilege_name);
+      });
+    });
+    return allPrivileges;
+  }
+
+  /**
+   * Extract module IDs from privilege list response
+   * @param privilegeListResponse - Privilege list response with modules and privileges
+   * @returns Array of module IDs (strings)
+   */
+  extractModuleIds(privilegeListResponse: PrivilegeListResponse): string[] {
+    return privilegeListResponse.results.map(module => module.module_id);
   }
 }
 

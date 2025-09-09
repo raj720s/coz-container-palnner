@@ -1,66 +1,88 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useGetUserProfileQuery } from '@/store/api/apiSlice';
-import { updateProfileFromAPI } from '@/store/slices/authSlice';
-import { fetchUserPrivileges } from '@/store/slices/userInfoSlice';
-import { UserProfileResponse } from '@/types/api';
+import { 
+  initializeUserState, 
+  selectUser, 
+  selectUserProfile, 
+  selectUserRole, 
+  selectUserPrivileges, 
+  selectUserLoadingStates, 
+  selectUserErrors, 
+  selectUserInitialized,
+  selectIsAuthenticated,
+  updateProfileFromAPI
+} from '@/store/slices/consolidatedUserSlice';
 import { RootState, AppDispatch } from '@/store';
 
 /**
- * Custom hook to sync user profile data from RTK Query with Redux auth state
- * This ensures the header and other components always have the latest profile data
- * Also fetches user privileges from the server API
+ * Custom hook to sync user profile data and build complete user state step by step
+ * This hook manages the centralized user state and syncs with auth state
  */
 export const useProfileSync = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { data: userProfile, isLoading, error } = useGetUserProfileQuery();
+  const hasUpdatedProfile = useRef(false);
   
-  // Get current auth state to check if we need to fetch privileges
-  const { user } = useSelector((state: RootState) => state.auth);
+  // Get user state from centralized store
+  const user = useSelector(selectUser);
+  const userProfile = useSelector(selectUserProfile);
+  const userRole = useSelector(selectUserRole);
+  const userPrivileges = useSelector(selectUserPrivileges);
+  const loading = useSelector(selectUserLoadingStates);
+  const errors = useSelector(selectUserErrors);
+  const isInitialized = useSelector(selectUserInitialized);
+  
+  // Get current auth state
+  const isAuthenticated = useSelector(selectIsAuthenticated);
 
+  // Initialize user state when authenticated
   useEffect(() => {
-    if (userProfile) {
-      // Only update non-critical profile data (name, email, org, etc.)
-      // Critical login info (role_id, is_superuser) is preserved in auth state
+    if (isAuthenticated && user && !isInitialized && !loading.profileLoading && !loading.privilegesLoading) {
+      console.log('🔐 Initializing user state for authenticated user');
+      // Reset the profile update flag when initializing for a new user
+      hasUpdatedProfile.current = false;
+      dispatch(initializeUserState()).unwrap().catch(error => {
+        console.error('❌ Failed to initialize user state:', error);
+      });
+    }
+  }, [isAuthenticated, user, isInitialized, loading.profileLoading, loading.privilegesLoading, dispatch]);
+
+  // Sync profile data with auth state when user state is updated
+  useEffect(() => {
+    if (userProfile && userProfile.id > 0 && user && !hasUpdatedProfile.current) {
+      // Update auth state with profile data while preserving critical login info
       dispatch(updateProfileFromAPI({
         first_name: userProfile.first_name,
         last_name: userProfile.last_name,
         email: userProfile.email,
         organisation_name: userProfile.organisation_name,
-        // DO NOT override role information - preserve login state
-        // role: userProfile.role?.[0]?.role_name || 'User',
-        // role_id: userProfile.role?.[0]?.id || 0,
-        // is_superuser: userProfile.is_superuser,
         status: userProfile.status,
         created_on: userProfile.created_on,
         phone_number: userProfile.phone_number,
         country_code: userProfile.country_code,
         country: userProfile.country,
         timezone: userProfile.timezone,
+        // Preserve critical login information
+        role: user.role,
+        role_id: user.role_id,
+        is_superuser: user.is_superuser,
       }));
-
-      // Use the login role_id for privilege fetching, not API role_id
-      const loginRoleId = user?.role_id;
-      if (loginRoleId && loginRoleId > 0) {
-        console.log('🔐 Profile sync: Fetching privileges for login role_id:', loginRoleId);
-        dispatch(fetchUserPrivileges({ role_id: loginRoleId })).unwrap().catch(error => {
-          console.error('❌ Failed to fetch privileges:', error);
-        });
-      } else {
-        console.warn('⚠️ Profile sync: No valid login role_id found, skipping privilege fetch');
-      }
+      
+      // Mark as updated to prevent infinite loops
+      hasUpdatedProfile.current = true;
     }
-  }, [userProfile, dispatch, user?.role_id]);
+  }, [userProfile, dispatch]);
 
-  // Also fetch privileges when user state changes (e.g., after login)
-  useEffect(() => {
-    if (user && user.role_id && user.role_id > 0) {
-      console.log('🔐 Auth state change: Fetching privileges for role_id:', user.role_id);
-      dispatch(fetchUserPrivileges({ role_id: user.role_id })).unwrap().catch(error => {
-        console.error('❌ Failed to fetch privileges:', error);
-      });
-    }
-  }, [user?.role_id, dispatch]);
-
-  return { userProfile, isLoading, error };
+  return { 
+    userProfile, 
+    userRole, 
+    userPrivileges, 
+    isLoading: loading.isLoading, 
+    profileLoading: loading.profileLoading,
+    privilegesLoading: loading.privilegesLoading,
+    error: errors.hasError ? (errors.profileError || errors.privilegesError) : null,
+    profileError: errors.profileError,
+    privilegesError: errors.privilegesError,
+    isInitialized,
+    user
+  };
 };

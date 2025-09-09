@@ -1,12 +1,13 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
 import React, { useState } from "react";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, SortingState, ColumnDef, } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, SortingState, PaginationState, ColumnDef, } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon } from "@/icons";
+import Pagination from "@/components/tables/Pagination";
 
 interface RepositioningSummary {
   id: string;
@@ -25,7 +26,17 @@ const columnHelper = createColumnHelper<RepositioningSummary>();
 
 const columns = [
   columnHelper.accessor("shipmentId", {
-    header: "Shipment ID",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Shipment ID
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm font-medium text-gray-900 dark:text-white">
         {info.getValue()}
@@ -33,7 +44,17 @@ const columns = [
     ),
   }),
   columnHelper.accessor("originalMode", {
-    header: "Original Mode",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Original Mode
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => (
       <span className={`px-2 py-1 text-xs rounded-full ${
         info.getValue() === "FCL" 
@@ -45,7 +66,17 @@ const columns = [
     ),
   }),
   columnHelper.accessor("reassignedMode", {
-    header: "Reassigned Mode",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Reassigned Mode
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => (
       <span className={`px-2 py-1 text-xs rounded-full ${
         info.getValue() === "FCL" 
@@ -57,7 +88,17 @@ const columns = [
     ),
   }),
   columnHelper.accessor("newContainerRef", {
-    header: "New Container Ref",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        New Container Ref
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => info.getValue() ? (
       <span className="font-mono text-sm text-blue-600 dark:text-blue-400">
         {info.getValue()}
@@ -67,7 +108,17 @@ const columns = [
     ),
   }),
   columnHelper.accessor("reason", {
-    header: "Reason",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Reason
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => (
       <span className="text-sm text-gray-600 dark:text-gray-400">
         {info.getValue()}
@@ -75,7 +126,17 @@ const columns = [
     ),
   }),
   columnHelper.accessor("costImpact", {
-    header: "Cost Impact",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Cost Impact
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => {
       const impact = info.getValue();
       const isPositive = impact > 0;
@@ -89,7 +150,17 @@ const columns = [
     },
   }),
   columnHelper.accessor("status", {
-    header: "Status",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Status
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => {
       const status = info.getValue();
       const statusConfig = {
@@ -109,7 +180,17 @@ const columns = [
     },
   }),
   columnHelper.accessor("date", {
-    header: "Date",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Date
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => new Date(info.getValue()).toLocaleDateString(),
   }),
 ];
@@ -178,6 +259,10 @@ function UserRepositioningSummaryPage() {
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   const filteredData = data.filter(item => {
     const matchesSearch = item.shipmentId.toLowerCase().includes(globalFilter.toLowerCase()) ||
@@ -192,9 +277,11 @@ function UserRepositioningSummaryPage() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    state: { globalFilter, sorting },
+    getPaginationRowModel: getPaginationRowModel(),
+    state: { globalFilter, sorting, pagination },
     onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
+    onPaginationChange: setPagination,
   });
 
   const handleMarkForReview = (id: string) => {
@@ -384,6 +471,25 @@ function UserRepositioningSummaryPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      {filteredData.length > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
+            {Math.min(
+              (pagination.pageIndex + 1) * pagination.pageSize,
+              filteredData.length
+            )}{" "}
+            of {filteredData.length} results
+          </div>
+          <Pagination
+            currentPage={pagination.pageIndex + 1}
+            totalPages={Math.ceil(filteredData.length / pagination.pageSize)}
+            onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
+          />
+        </div>
+      )}
+
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No repositioning data found matching your criteria.
@@ -411,7 +517,7 @@ function UserRepositioningSummaryPage() {
   );
 }
 
-export default withSimpleRBAC(UserRepositioningSummaryPage, {
+export default withSimplifiedRBAC(UserRepositioningSummaryPage, {
   module: "repositioning-summary",
   route: "/user/repositioning-summary",
 }); 

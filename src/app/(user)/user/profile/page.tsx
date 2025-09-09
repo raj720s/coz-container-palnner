@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useUpdateUserProfileMutation } from '@/store/api/apiSlice';
+import { userService } from '@/services/userService';
 import { useSelector } from 'react-redux';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUser } from '@/store/slices/consolidatedUserSlice';
 import { useProfileSync } from '@/hooks/useProfileSync';
 import { Button } from '@/components/ui/button/Button';
 import { InputField } from '@/components/form/input/InputField';
@@ -29,8 +29,8 @@ export default function ProfilePage() {
     phone_number: '',
   });
 
-  // Only use the update mutation, no need for get query
-  const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
+  // State for update loading
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Initialize form data when user data is available
   useEffect(() => {
@@ -57,13 +57,16 @@ export default function ProfilePage() {
     e.preventDefault();
     
     try {
-      await updateProfile(formData).unwrap();
+      setIsUpdating(true);
+      await userService.updateUserProfile(formData);
       toast.success('Profile updated successfully!');
       setIsEditing(false);
       // Note: The profile will be automatically synced by useProfileSync
       // No need to manually refetch
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update profile');
+      toast.error(error?.message || 'Failed to update profile');
+    } finally {
+      setIsUpdating(false);
     }
   };
 

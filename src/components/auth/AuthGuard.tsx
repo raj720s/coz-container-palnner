@@ -3,61 +3,93 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useSimplifiedRBAC } from '@/hooks/useSimplifiedRBAC';
 import { useDispatch } from 'react-redux';
-import { clearUserInfo } from '@/store/slices/userInfoSlice';
-import { logout as logoutAuth } from '@/store/slices/authSlice';
+import { logout as logoutAuth } from '@/store/slices/consolidatedUserSlice';
+import AppHeader from '@/layout/AppHeader';
+import AppSidebar from '@/layout/AppSidebar';
+import Backdrop from '@/layout/Backdrop';
+import { useSidebar } from '@/context/SidebarContext';
 
 interface AuthGuardProps {
   children: React.ReactNode;
   requireAuth?: boolean;
+  requireAdmin?: boolean;
+  requireUser?: boolean;
   redirectTo?: string;
+  showLayout?: boolean;
 }
 
 /**
- * Authentication Guard Component
- * Protects routes and handles unauthenticated users
+ * Comprehensive Authentication and Authorization Guard Component
+ * Handles authentication, role-based access control, and layout rendering
  */
 export const AuthGuard: React.FC<AuthGuardProps> = ({ 
   children, 
-  requireAuth = true, 
-  redirectTo = '/signin' 
+  requireAuth = true,
+  requireAdmin = false,
+  requireUser = false,
+  redirectTo,
+  showLayout = true
 }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
+  const { isSuperUser, userRole } = useSimplifiedRBAC();
   const router = useRouter();
   const dispatch = useDispatch();
+  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
 
   // Function to clear everything and redirect
-  const clearAndRedirect = () => {
-    console.log('🚪 AuthGuard: User not authenticated, clearing everything and redirecting');
+  const clearAndRedirect = (path: string = '/signin') => {
+    console.log('🚪 AuthGuard: Clearing everything and redirecting to', path);
     
     // Clear all session storage
     sessionStorage.clear();
     
     // Clear Redux store
-    dispatch(clearUserInfo());
     dispatch(logoutAuth());
     
-    // Redirect to signin page
-    router.push(redirectTo);
+    // Redirect to specified path
+    router.push(path);
   };
 
+  // Determine redirect path based on requirements
+  const getRedirectPath = () => {
+    if (redirectTo) return redirectTo;
+    
+    if (requireAdmin) return '/admin/dashboard';
+    if (requireUser) return '/user/dashboard';
+    return '/signin';
+  };
+
+  // Check authentication and authorization
   useEffect(() => {
     if (!loading) {
+      // Check authentication requirement
       if (requireAuth && !isAuthenticated) {
-        // Check if session storage still has valid data
-        const storedToken = sessionStorage.getItem("auth_token");
-        const storedUser = sessionStorage.getItem("auth_user");
-        
-        if (!storedToken || !storedUser) {
-          console.log('🚪 AuthGuard: Session storage data missing, clearing everything');
-          clearAndRedirect();
-        } else {
-          console.log('🚪 AuthGuard: User not authenticated, redirecting to signin');
-          router.push(redirectTo);
+        console.log('🚫 AuthGuard: User not authenticated, redirecting to signin');
+        clearAndRedirect();
+        return;
+      }
+
+      // Check admin requirement
+      if (requireAdmin && isAuthenticated) {
+        if (userRole !== 1 && !isSuperUser) {
+          console.log('🚫 AuthGuard: User not admin, redirecting to user dashboard');
+          router.push('/user/dashboard');
+          return;
+        }
+      }
+
+      // Check user requirement (non-admin)
+      if (requireUser && isAuthenticated) {
+        if (userRole === 1 || isSuperUser) {
+          console.log('🚫 AuthGuard: Admin user accessing user route, redirecting to admin dashboard');
+          router.push('/admin/dashboard');
+          return;
         }
       }
     }
-  }, [isAuthenticated, loading, requireAuth, redirectTo, router, dispatch]);
+  }, [isAuthenticated, loading, isSuperUser, userRole, router, requireAuth, requireAdmin, requireUser]);
 
   // Show loading state
   if (loading) {
@@ -65,7 +97,11 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Authenticating...</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            {requireAdmin ? 'Loading admin panel...' : 
+             requireUser ? 'Loading user panel...' : 
+             'Authenticating...'}
+          </p>
         </div>
       </div>
     );
@@ -76,20 +112,55 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     return <>{children}</>;
   }
 
-  // If user is not authenticated, show loading while redirecting
-  if (!isAuthenticated) {
+  // Show loading while redirecting
+  if (!isAuthenticated || 
+      (requireAdmin && userRole !== 1 && !isSuperUser) ||
+      (requireUser && (userRole === 1 || isSuperUser))) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-500 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Redirecting to signin...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Redirecting...</p>
         </div>
       </div>
     );
   }
 
-  // User is authenticated, render children
-  return <>{children}</>;
+  // If layout is not required, just render children
+  if (!showLayout) {
+    return <>{children}</>;
+  }
+
+  // Calculate main content margin based on sidebar state
+  const mainContentMargin = isMobileOpen
+    ? "ml-0"
+    : isExpanded || isHovered
+    ? "lg:ml-[290px]"
+    : "lg:ml-[90px]";
+
+  // User is authenticated and authorized - render layout
+  return (
+    <div className="min-h-screen xl:flex">
+      {/* Sidebar */}
+      <AppSidebar />
+      
+      {/* Main Content Area */}
+      <div
+        className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}
+      >
+        {/* Header */}
+        <AppHeader />
+        
+        {/* Page Content */}
+        <div className="p-4 mx-auto max-w-full md:p-6">
+          {children}
+        </div>
+      </div>
+      
+      {/* Mobile Backdrop */}
+      <Backdrop />
+    </div>
+  );
 };
 
 export default AuthGuard;

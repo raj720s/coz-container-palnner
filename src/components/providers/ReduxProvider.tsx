@@ -58,14 +58,10 @@ export function ReduxProvider({ children }: ReduxProviderProps) {
     // Check initial store state
     const initialState = store.getState();
     console.log('🔍 ReduxProvider: Initial store state:', {
-      auth: {
-        isAuthenticated: initialState.auth.isAuthenticated,
-        user: initialState.auth.user ? 'User exists' : 'No user',
-        token: initialState.auth.token ? 'Token exists' : 'No token'
-      },
-      userInfo: {
-        rbacUser: initialState.userInfo.rbacUser ? 'RBAC user exists' : 'No RBAC user',
-        isInitialized: initialState.userInfo.isInitialized
+      user: {
+        isAuthenticated: initialState.user.isAuthenticated,
+        user: initialState.user.user ? 'User exists' : 'No user',
+        token: initialState.user.token ? 'Token exists' : 'No token'
       }
     });
   }, []);
@@ -84,14 +80,10 @@ export function ReduxProvider({ children }: ReduxProviderProps) {
           // Check final store state
           const finalState = store.getState();
           console.log('✅ ReduxProvider: Final store state after rehydration:', {
-            auth: {
-              isAuthenticated: finalState.auth.isAuthenticated,
-              user: finalState.auth.user ? 'User exists' : 'No user',
-              token: finalState.auth.token ? 'Token exists' : 'No token'
-            },
-            userInfo: {
-              rbacUser: finalState.userInfo.rbacUser ? 'RBAC user exists' : 'No RBAC user',
-              isInitialized: finalState.userInfo.isInitialized
+            user: {
+              isAuthenticated: finalState.user.isAuthenticated,
+              user: finalState.user.user ? 'User exists' : 'No user',
+              token: finalState.user.token ? 'Token exists' : 'No token'
             }
           });
         }}

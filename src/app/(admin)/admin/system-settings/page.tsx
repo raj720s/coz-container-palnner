@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { CheckCircleIcon, AlertIcon, TimeIcon, SettingsIcon, ShieldIcon, DatabaseIcon, BellIcon, GlobeIcon } from "@/icons";
-import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 
 interface SystemSetting {
   id: string;
@@ -416,7 +416,7 @@ function AdminSystemSettingsPage() {
   );
 }
 
-export default withSimpleRBAC(AdminSystemSettingsPage, {
+export default withSimplifiedRBAC(AdminSystemSettingsPage, {
   
   route: "/admin/system-settings",
 }); 

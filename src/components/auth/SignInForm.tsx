@@ -12,7 +12,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import toast from "react-hot-toast";
-import { useSimpleRBAC } from "@/hooks/useSimpleRBAC";
+import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -30,7 +30,7 @@ export default function SignInForm() {
   const router = useRouter();
   
   // Get RBAC data for display
-  const { user: rbacUser, userPrivileges } = useSimpleRBAC();
+  const { permissions } = useSimplifiedRBAC();
 
   const {
     register,
@@ -55,7 +55,7 @@ export default function SignInForm() {
       const result = await login(data.email, data.password);
       
       if (result.success) {
-        // Special handling for superuser
+        // Special handling for mock users
         if (data.email === "admin@company.com") {
           toast.success("👑 Superuser login successful! Full system access granted.");
           console.log("🔐 Superuser authenticated with all privileges");
@@ -64,7 +64,8 @@ export default function SignInForm() {
           toast.success("Login successful! User access granted.");
           router.push("/user/dashboard");
         } else {
-          toast.success("Login successful!");
+          // API authenticated users
+          toast.success("Login successful! API authentication completed.");
           router.push("/");
         }
       } else {
@@ -237,26 +238,6 @@ export default function SignInForm() {
               </p>
             </div>
 
-            {/* RBAC Debug Information - Remove in production */}
-            {rbacUser && (
-              <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-                  🔐 RBAC Status
-                </h3>
-                <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                  <div><strong>User:</strong> {rbacUser.name} ({rbacUser.email})</div>
-                  <div><strong>Role:</strong> {rbacUser.role_name} (ID: {rbacUser.role_id})</div>
-                  <div><strong>Superuser:</strong> {rbacUser.is_superuser ? '✅ Yes' : '❌ No'}</div>
-                  <div><strong>Privileges:</strong> {userPrivileges.length} total</div>
-                  <div><strong>Version:</strong> {rbacUser.privilege_version}</div>
-                  {rbacUser.is_superuser && (
-                    <div className="mt-2 p-2 bg-green-100 dark:bg-green-900/30 rounded text-green-800 dark:text-green-200">
-                      👑 <strong>Superuser Access:</strong> Full system permissions granted
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

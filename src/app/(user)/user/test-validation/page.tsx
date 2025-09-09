@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import { useRouter } from "next/navigation";
 
@@ -54,7 +54,7 @@ function TestValidationPage() {
   );
 }
 
-export default withSimpleRBAC(TestValidationPage, {
+export default withSimplifiedRBAC(TestValidationPage, {
   module: "shipment-operations",
   route: "/user/test-validation",
 });

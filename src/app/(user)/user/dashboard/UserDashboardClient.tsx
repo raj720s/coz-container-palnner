@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -249,8 +249,8 @@ function UserDashboard() {
   );
 }
 
-export default withSimpleRBAC(UserDashboard, {
+export default withSimplifiedRBAC(UserDashboard, {
   privilege: "VIEW_USER_DASHBOARD",
   route: "/user/dashboard",
-  role: [2, 3],
+  module: [100],
 }); 

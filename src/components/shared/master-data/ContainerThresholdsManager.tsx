@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
 import { toast } from "react-hot-toast";
 import {
   useReactTable,
@@ -23,34 +21,14 @@ import { useFormModal } from "@/hooks/useFormModal";
 import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import Pagination from "@/components/tables/Pagination";
 
-import {
-  fetchContainerThresholds,
-  createContainerThreshold,
-  updateContainerThreshold,
-  deleteContainerThreshold,
-  selectContainerThresholds,
-  selectContainerThresholdsLoading,
-  selectContainerThresholdsError,
-  selectContainerThresholdsTotal,
-  selectContainerThresholdsTotalPages,
-  clearError,
-} from "@/store/slices/containerThresholdSlice";
+import { containerThresholdService, containerTypeService, polService, podService } from "@/services";
 
-import { 
-  fetchContainerTypes, 
-  selectContainerTypes 
-} from "@/store/slices/containerTypeSlice";
-
-import { 
-  selectPortOfLoading, 
-  selectPortOfDischarge, 
-  fetchPortOfLoading, 
-  fetchPortOfDischarge 
-} from "@/store/slices/commonDataSlice";
+// Port data will be loaded via direct API calls when needed
 
 import { ContainerThresholdResponse, ContainerThresholdListRequest } from "@/types/api";
 import { ContainerThresholdForm, ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
+import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
 
 interface TableMeta<T> {
   editRow: (row: T) => void;
@@ -64,19 +42,19 @@ interface ContainerThresholdsManagerProps {
 const columnHelper = createColumnHelper<ContainerThresholdResponse>();
 
 export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProps> = ({ mode }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { can } = useSimplifiedRBAC();
   
-  // Redux state
-  const containerThresholds = useSelector(selectContainerThresholds);
-  const loading = useSelector(selectContainerThresholdsLoading);
-  const error = useSelector(selectContainerThresholdsError);
-  const total = useSelector(selectContainerThresholdsTotal);
-  const totalPages = useSelector(selectContainerThresholdsTotalPages);
+  // Local state for data management
+  const [containerThresholds, setContainerThresholds] = useState<ContainerThresholdResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   
   // Additional data for form and table display
-  const containerTypes = useSelector(selectContainerTypes);
-  const portOfLoading = useSelector(selectPortOfLoading);
-  const portOfDischarge = useSelector(selectPortOfDischarge);
+  const [containerTypes, setContainerTypes] = useState<any[]>([]);
+  const [portOfLoading, setPortOfLoading] = useState<any[]>([]);
+  const [portOfDischarge, setPortOfDischarge] = useState<any[]>([]);
   
   // Local state for filtering and pagination
   const [filters, setFilters] = useState<ContainerThresholdListRequest>({
@@ -100,26 +78,63 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
     setLoading: setModalLoading,
   } = useFormModal<ContainerThresholdResponse>();
 
+  // Load container thresholds function
+  const loadContainerThresholds = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await containerThresholdService.getContainerThresholds(filters);
+      setContainerThresholds(response.results || []);
+      setTotal(response.count || 0);
+      setTotalPages(Math.ceil((response.count || 0) / filters.page_size));
+    } catch (error: any) {
+      console.error('Error loading container thresholds:', error);
+      setError(error.message || 'Failed to load container thresholds');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load additional data for form and table display
+  const loadAdditionalData = async () => {
+    try {
+      // Load container types
+      const containerTypesResponse = await containerTypeService.getContainerTypes({
+        page: 1,
+        page_size: 1000,
+        order_by: "created_on",
+        order_type: "desc"
+      });
+      setContainerTypes(containerTypesResponse.results || []);
+      
+      // Load port data
+      const polResponse = await polService.getPOLs({ page: 1, page_size: 1000 });
+      setPortOfLoading(polResponse.results || []);
+
+      console.log({polResponse});
+      
+      // Load POD data (assuming podService exists)
+      try {
+        const podResponse = await podService.getPODs({ page: 1, page_size: 1000 });
+        setPortOfDischarge(podResponse.results || []);
+      } catch (error) {
+        console.warn('POD service not available, skipping POD data load:', error);
+        setPortOfDischarge([]);
+      }
+    } catch (error: any) {
+      console.error('Error loading additional data:', error);
+    }
+  };
+
   // Load container thresholds on component mount and when filters change
   useEffect(() => {
-    try {
-      dispatch(fetchContainerThresholds(filters));
-    } catch (error) {
-      console.error('Error dispatching fetchContainerThresholds:', error);
-    }
-  }, [dispatch, filters]);
+    loadContainerThresholds();
+  }, [filters]);
 
   // Load additional data for form and table display
   useEffect(() => {
-    dispatch(fetchContainerTypes({
-      page: 1,
-      page_size: 1000,
-      order_by: "created_on",
-      order_type: "desc"
-    }));
-    dispatch(fetchPortOfLoading());
-    dispatch(fetchPortOfDischarge());
-  }, [dispatch]);
+    loadAdditionalData();
+  }, []);
 
   // Sync table sorting with API filters
   useEffect(() => {
@@ -137,15 +152,15 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
-        dispatch(clearError());
+        setError(null);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [error, dispatch]);
+  }, [error]);
 
   // Helper function to get container name by ID
   const getContainerName = (containerId: number) => {
-    const container = containerTypes.find(type => type.id === containerId);
+    const container = containerTypes.find((type: any) => type.id === containerId);
     return container ? `${container.code} - ${container.name}` : `ID: ${containerId}`;
   };
 
@@ -156,12 +171,12 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
       if (portOfLoading[0] && 'results' in portOfLoading[0]) {
         // It's POLListResponse[] structure
         for (const polResponse of portOfLoading) {
-          const port = polResponse.results?.find(p => p.id === portId);
+          const port = polResponse.results?.find((p: any) => p.id === portId);
           if (port) return port.name;
         }
       } else {
         // It's directly an array of port objects
-        const port = (portOfLoading as any[]).find(p => p.id === portId);
+        const port = (portOfLoading as any[]).find((p: any) => p.id === portId);
         if (port) return port.name;
       }
     }
@@ -317,14 +332,16 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
           >
             <PencilIcon className="w-4 h-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => (info.table.options.meta as TableMeta<ContainerThresholdResponse>)?.deleteRow(info.row.original.id)}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
+          {can("DELETE_THRESHOLD") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => (info.table.options.meta as TableMeta<ContainerThresholdResponse>)?.deleteRow(info.row.original.id)}
+              className="p-1 text-red-600 hover:text-red-700"
+            >
+              <TrashBinIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     }),
@@ -348,6 +365,10 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
         openModal(row);
       },
       deleteRow: async (id: number) => {
+        if (!can("DELETE_THRESHOLD")) {
+          toast.error("You don't have permission to delete container thresholds");
+          return;
+        }
         const item = containerThresholds.find(ct => ct.id === id);
         if (item) {
           setDeletingItem(item);
@@ -359,34 +380,52 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
 
   const handleSubmit = async (formData: ContainerThresholdFormData) => {
     try {
+      setModalLoading(true);
       if (editingItem) {
         // Update existing threshold
-        await dispatch(updateContainerThreshold({ id: editingItem.id, data: formData }));
+        await containerThresholdService.updateContainerThreshold(editingItem.id, formData);
         toast.success('Container threshold updated successfully');
       } else {
         // Create new threshold
-        await dispatch(createContainerThreshold(formData));
+        await containerThresholdService.createContainerThreshold(formData);
         toast.success('Container threshold created successfully');
       }
       
+      // Refresh the list
+      await loadContainerThresholds();
       closeModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving container threshold:', error);
-      toast.error('Failed to save container threshold');
+      toast.error(error.message || 'Failed to save container threshold');
+    } finally {
+      setModalLoading(false);
     }
   };
 
   const handleDelete = async () => {
     if (!deletingItem) return;
     
+    if (!can("DELETE_THRESHOLD")) {
+      toast.error("You don't have permission to delete container thresholds");
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      return;
+    }
+    
     try {
-      await dispatch(deleteContainerThreshold(deletingItem.id));
+      setModalLoading(true);
+      await containerThresholdService.deleteContainerThreshold(deletingItem.id);
       toast.success('Container threshold deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
-    } catch (error) {
+      
+      // Refresh the list
+      await loadContainerThresholds();
+    } catch (error: any) {
       console.error('Error deleting container threshold:', error);
-      toast.error('Failed to delete container threshold');
+      toast.error(error.message || 'Failed to delete container threshold');
+    } finally {
+      setModalLoading(false);
     }
   };
 
@@ -411,7 +450,7 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Container Threshold Management
+          Threshold Configuration
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Manage container capacity thresholds and constraints
@@ -485,13 +524,27 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6">
+      {total > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {((filters.page || 1) - 1) * (filters.page_size || 10) + 1} to{" "}
+            {Math.min(
+              (filters.page || 1) * (filters.page_size || 10),
+              total
+            )}{" "}
+            of {total} results
+          </div>
           <Pagination
             currentPage={filters.page || 1}
             totalPages={totalPages}
             onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
           />
+        </div>
+      )}
+
+      {total === 0 && !loading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No container thresholds found matching your search criteria.
         </div>
       )}
 
@@ -516,8 +569,8 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
           onCancel={closeModal}
           isLoading={isModalLoading}
           containerTypes={containerTypes}
-          portOfLoading={getPortDataForForm()}
-          portOfDischarge={[]}
+          portOfLoading={portOfLoading}
+          portOfDischarge={portOfDischarge}
         />
       </FormModal>
 
@@ -534,7 +587,9 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
   );
 };
 
-export default withSimpleRBAC(ContainerThresholdsManager, {
-  route: "/admin/container-thresholds",
-  privilege: "VIEW_CONTAINER_THRESHOLDS"
+export default withSimplifiedRBAC(ContainerThresholdsManager, {
+  privilege: "VIEW_CONTAINER_THRESHOLDS",
+  module: [50], // Container Management module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 });

@@ -78,8 +78,12 @@ export const deleteRole = createAsyncThunk(
   'roles/deleteRole',
   async (id: string, { rejectWithValue }) => {
     try {
-      await roleService.deleteRole(id);
-      return id;
+      const result = await roleService.deleteRole(id);
+      if (result.success) {
+        return id;
+      } else {
+        return rejectWithValue(result.message || 'Failed to delete role');
+      }
     } catch (error: any) {
       return rejectWithValue(error?.message || 'Failed to delete role');
     }

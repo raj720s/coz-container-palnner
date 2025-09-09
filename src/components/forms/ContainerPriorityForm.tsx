@@ -22,7 +22,7 @@ interface ContainerPriorityFormProps {
   onSubmit: (data: ContainerPriorityFormData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
-  containerTypes: Array<{ id: number; code: string; name: string }>;
+  containerTypes: Array<{ id: number; code: string; name: string; capacity?: string }>;
 }
 
 export const ContainerPriorityForm: React.FC<ContainerPriorityFormProps> = ({
@@ -62,7 +62,33 @@ export const ContainerPriorityForm: React.FC<ContainerPriorityFormProps> = ({
   };
 
   const handleContainerTypeChange = (value: string) => {
-    setValue('type', parseInt(value) || 0);
+    const containerTypeId = parseInt(value) || 0;
+    setValue('type', containerTypeId);
+    
+    // Auto-fill capacity fields based on selected container type
+    if (containerTypeId > 0) {
+      const selectedContainerType = containerTypes.find(ct => ct.id === containerTypeId);
+      if (selectedContainerType?.capacity) {
+        try {
+          // Parse capacity string (assuming format like "20.5,25.0" for max_capacity,max_weight)
+          const capacityParts = selectedContainerType.capacity.split(',');
+          if (capacityParts.length >= 1) {
+            const maxCapacity = parseFloat(capacityParts[0].trim());
+            if (!isNaN(maxCapacity)) {
+              setValue('max_capacity', maxCapacity);
+            }
+          }
+          if (capacityParts.length >= 2) {
+            const maxWeight = parseFloat(capacityParts[1].trim());
+            if (!isNaN(maxWeight)) {
+              setValue('max_weight', maxWeight);
+            }
+          }
+        } catch (error) {
+          console.warn('Error parsing container capacity:', error);
+        }
+      }
+    }
   };
 
   const currentType = watch('type');
@@ -81,6 +107,9 @@ export const ContainerPriorityForm: React.FC<ContainerPriorityFormProps> = ({
             placeholder="Select container type"
             error={errors.type?.message}
           />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Selecting a container type will auto-fill capacity and weight fields
+          </p>
         </div>
         
         <Input
@@ -97,7 +126,7 @@ export const ContainerPriorityForm: React.FC<ContainerPriorityFormProps> = ({
           type="number"
           {...register('max_capacity', { valueAsNumber: true })}
           error={errors.max_capacity?.message}
-          placeholder="Enter max capacity"
+          placeholder="Enter max capacity (auto-filled from container type)"
           required
         />
         
@@ -106,7 +135,7 @@ export const ContainerPriorityForm: React.FC<ContainerPriorityFormProps> = ({
           type="number"
           {...register('max_weight', { valueAsNumber: true })}
           error={errors.max_weight?.message}
-          placeholder="Enter max weight"
+          placeholder="Enter max weight (auto-filled from container type)"
           required
         />
       </div>

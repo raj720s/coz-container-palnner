@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
@@ -509,6 +509,6 @@ function DataBackupPageManager() {
   );
 }
 
-export default withSimpleRBAC(DataBackupPageManager, {
+export default withSimplifiedRBAC(DataBackupPageManager, {
   route: "/admin/data-backup"
 }); 

@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
@@ -860,7 +860,7 @@ function AdminUserManagementClient() {
     );
   }
 
-export default withSimpleRBAC(AdminUserManagementClient, {
+export default withSimplifiedRBAC(AdminUserManagementClient, {
   anyPrivileges: [
     "VIEW_USER_LIST", 
     "CREATE_USER", 

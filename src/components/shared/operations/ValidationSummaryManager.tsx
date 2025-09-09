@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import {
   useReactTable,
@@ -9,12 +9,15 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
+  PaginationState,
   ColumnDef,
 } from "@tanstack/react-table";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import Pagination from "@/components/tables/Pagination";
 
 interface ValidationError {
   id: string;
@@ -41,17 +44,47 @@ const columnHelper = createColumnHelper<ValidationError>();
 const columns: ColumnDef<ValidationError>[] = [
   {
     accessorKey: "rowNumber",
-    header: "Row #",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Row #
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => <span>{info.getValue() as number}</span>,
   },
   {
     accessorKey: "field",
-    header: "Field",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Field
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => <span>{info.getValue() as string}</span>,
   },
   {
     accessorKey: "value",
-    header: "Value",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Value
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => (
       <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded dark:bg-gray-700">
         {info.getValue() as string}
@@ -60,12 +93,32 @@ const columns: ColumnDef<ValidationError>[] = [
   },
   {
     accessorKey: "errorMessage",
-    header: "Error Message",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Error Message
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => <span>{info.getValue() as string}</span>,
   },
   {
     accessorKey: "severity",
-    header: "Severity",
+    header: ({ column }) => (
+      <button
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+      >
+        Severity
+        <span className="text-xs">
+          {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    ),
     cell: (info) => (
       <span
         className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -84,6 +137,10 @@ function ValidationSummaryManager() {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   console.log('ValidationSummaryPage: Component rendering');
 
@@ -188,10 +245,14 @@ function ValidationSummaryManager() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     state: {
       sorting,
       globalFilter,
+      pagination,
     },
   });
 
@@ -474,10 +535,27 @@ function ValidationSummaryManager() {
               </table>
             </div>
           </div>
+
+          {/* Pagination */}
+          {validationSummary.errors.length > 0 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-gray-700 dark:text-gray-300">
+                Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
+                {Math.min(
+                  (pagination.pageIndex + 1) * pagination.pageSize,
+                  validationSummary.errors.length
+                )}{" "}
+                of {validationSummary.errors.length} results
+              </div>
+              <Pagination
+                currentPage={pagination.pageIndex + 1}
+                totalPages={Math.ceil(validationSummary.errors.length / pagination.pageSize)}
+                onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
+              />
+            </div>
+          )}
         </div>
       )}
-
-
 
       {/* Action Buttons */}
       <div className="flex justify-center space-x-4">
@@ -494,6 +572,9 @@ function ValidationSummaryManager() {
   );
 }
 
-export default withSimpleRBAC(ValidationSummaryManager, {
-  route: "/admin/validation-summary"
+export default withSimplifiedRBAC(ValidationSummaryManager, {
+  privilege: "VIEW_VALIDATION_SUMMARY",
+  module: [80], // Analytics & Reports module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 }); 

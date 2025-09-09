@@ -17,7 +17,6 @@ import {
  */
 export const useRoles = () => {
   const dispatch = useDispatch<AppDispatch>();
-  
   // Selectors from Redux state
   const roles = useSelector(selectRoles);
   const rolesWithPrivileges = useSelector(selectRolesWithPrivileges);

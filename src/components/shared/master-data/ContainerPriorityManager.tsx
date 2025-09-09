@@ -1,6 +1,7 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
+import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
@@ -42,9 +43,7 @@ import Pagination from "@/components/tables/Pagination";
 import { ContainerPriorityResponse, ContainerPriorityListRequest, CreateContainerPriorityRequest, UpdateContainerPriorityRequest } from "@/types/api";
 import { ContainerPriorityForm, ContainerPriorityFormData } from "@/components/forms/ContainerPriorityForm";
 import { containerPriorityService } from "@/services";
-import { fetchContainerTypes, selectContainerTypes } from "@/store/slices/containerTypeSlice";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch } from "@/store";
+import { containerTypeService } from "@/services";
 
 interface TableMeta<T> {
   editRow: (row: T) => void;
@@ -82,7 +81,7 @@ function SortableDragHandle({ row }: { row: ContainerPriorityResponse }) {
 
 
 function ContainerPriorityManager() {
-  const dispatch = useDispatch<AppDispatch>();
+  const { can } = useSimplifiedRBAC();
   // Local state for data management
   const [containerPriorities, setContainerPriorities] = useState<ContainerPriorityResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +89,7 @@ function ContainerPriorityManager() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const containerTypes = useSelector(selectContainerTypes);
+  const [containerTypes, setContainerTypes] = useState<any[]>([]);
 
   // Helper function to get container name by ID
   const getContainerName = (containerId: number) => {
@@ -98,16 +97,26 @@ function ContainerPriorityManager() {
     return container ? `${container.code} - ${container.name}` : `ID: ${containerId}`;
   };
 
-  useEffect(() => {
-    if(!containerTypes.length){
-      dispatch(fetchContainerTypes({
+  // Load container types
+  const loadContainerTypes = async () => {
+    try {
+      const response = await containerTypeService.getContainerTypes({
         page: 1,
         page_size: 1000,
         order_by: "created_on",
         order_type: "desc"
-      }));
+      });
+      setContainerTypes(response.results);
+    } catch (error) {
+      console.error('Error loading container types:', error);
     }
-  }, [dispatch, containerTypes.length]);
+  };
+
+  useEffect(() => {
+    if(!containerTypes.length){
+      loadContainerTypes();
+    }
+  }, [containerTypes.length]);
   
   const columns = [
     columnHelper.display({
@@ -218,14 +227,16 @@ function ContainerPriorityManager() {
           >
             <PencilIcon className="w-4 h-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => (info.table.options.meta as TableMeta<ContainerPriorityResponse>)?.deleteRow(info.row.original.id)}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
+          {can("DELETE_PRIORITY") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => (info.table.options.meta as TableMeta<ContainerPriorityResponse>)?.deleteRow(info.row.original.id)}
+              className="p-1 text-red-600 hover:text-red-700"
+            >
+              <TrashBinIcon className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       ),
     }),
@@ -324,6 +335,10 @@ function ContainerPriorityManager() {
         openModal(row);
       },
       deleteRow: async (id: number) => {
+        if (!can("DELETE_PRIORITY")) {
+          toast.error("You don't have permission to delete container priorities");
+          return;
+        }
         setDeletingItem(containerPriorities.find(item => item.id === id) || null);
         setDeleteModalOpen(true);
       },
@@ -422,6 +437,13 @@ function ContainerPriorityManager() {
 
   const handleDelete = async () => {
     if (!deletingItem) return;
+    
+    if (!can("DELETE_PRIORITY")) {
+      toast.error("You don't have permission to delete container priorities");
+      setDeleteModalOpen(false);
+      setDeletingItem(null);
+      return;
+    }
     
     try {
       setModalLoading(true);
@@ -555,13 +577,27 @@ function ContainerPriorityManager() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-6">
+      {total > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {((filters.page || 1) - 1) * (filters.page_size || 10) + 1} to{" "}
+            {Math.min(
+              (filters.page || 1) * (filters.page_size || 10),
+              total
+            )}{" "}
+            of {total} results
+          </div>
           <Pagination
-            currentPage={filters.page}
+            currentPage={filters.page || 1}
             totalPages={totalPages}
             onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
           />
+        </div>
+      )}
+
+      {total === 0 && !loading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No container priorities found matching your search criteria.
         </div>
       )}
 
@@ -601,7 +637,9 @@ function ContainerPriorityManager() {
   );
 }
 
-export default withSimpleRBAC(ContainerPriorityManager, {
-  route: "/admin/container-priority",
-  privilege: "VIEW_CONTAINER_PRIORITY"
+export default withSimplifiedRBAC(ContainerPriorityManager, {
+  privilege: "VIEW_CONTAINER_PRIORITY",
+  module: [50], // Container Management module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 });

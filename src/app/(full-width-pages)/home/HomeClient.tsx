@@ -1,9 +1,9 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import React from "react";
+import React, { useEffect } from "react";
 import Button from "@/components/ui/button/Button";
 import { 
   UserCircleIcon, 
@@ -23,6 +23,16 @@ function HomePage() {
   const { isAuthenticated, user, logout } = useAuth();
   const router = useRouter();
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (user?.role === 'admin' || user?.is_superuser || user?.role_id === 1) {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/user/dashboard");
+      }
+    }
+  }, [isAuthenticated]);
+
   const handleLogout = () => {
     logout();
     router.push("/signin");
@@ -31,9 +41,7 @@ function HomePage() {
   const handleGetStarted = () => {
     if (isAuthenticated) {
       if (user?.role === 'admin') {
-        // router.push("/admin/dashboard");
-
-        console.log(user);
+        router.push("/admin/dashboard");
       } else {
         router.push("/user/dashboard");
       }
@@ -81,4 +89,4 @@ function HomePage() {
   );
 }
 
-export default withSimpleRBAC(HomePage);
+export default withSimplifiedRBAC(HomePage);

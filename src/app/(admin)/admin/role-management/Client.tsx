@@ -1,6 +1,6 @@
 "use client";
 
-import withSimpleRBAC from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
 import { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
@@ -14,7 +14,7 @@ import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon, EyeIcon, InformationCircleIcon } from "@/icons";
 import Pagination from "@/components/tables/Pagination";
 import { roleService } from "@/services/roleService";
-import { RoleResponse, CreateRoleRequest, UpdateRoleRequest, PrivilegeResponse } from "@/services/roleService";
+import { RoleResponse, CreateRoleRequest, UpdateRoleRequest } from "@/services/roleService";
 import { RoleForm } from "@/components/forms/RoleForm";
 import { useRoles } from "@/hooks/useRoles";
 import moduleDefinitions from "@/config/modules.json";
@@ -42,7 +42,7 @@ function AdminRoleManagementClient() {
   
 
   
-  const [privileges, setPrivileges] = useState<PrivilegeResponse | null>(null);
+  const [privileges, setPrivileges] = useState<{ count: number; results: any[] } | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -85,12 +85,7 @@ function AdminRoleManagementClient() {
 
   const fetchPrivileges = async () => {
     try {
-      const response = await roleService.getPrivileges({
-        page: 1,
-        page_size: 1000, // Get all privileges
-        order_by: 'privilege_name',
-        order_type: 'asc'
-      });
+      const response = await roleService.getPrivileges();
       console.log('🔍 Privileges API response:', response);
       
       console.log('📊 Response structure:', {
@@ -154,7 +149,7 @@ function AdminRoleManagementClient() {
 
   const handleDeleteRole = async (roleId: string) => {
     // Find the role by ID to show in the delete modal
-    const role = roles.find(r => r.id === roleId);
+    const role = roles.find(r => r.id.toString() === roleId);
     if (role) {
       openDeleteModal(role);
     }
@@ -171,14 +166,14 @@ function AdminRoleManagementClient() {
       console.log('✅ Delete result:', result);
       
       if (result.success) {
-        toast.success(`Role "${roleToDelete.role_name}" deleted successfully`);
+        toast.success(result.message || `Role "${roleToDelete.role_name}" deleted successfully`);
         setDeleteError(null); // Clear any errors on success
         closeDeleteModal();
         // Refresh the roles list
         await refreshRoles();
       } else {
         // Handle service response error - result only has success boolean
-        const errorMessage = 'Failed to delete role';
+        const errorMessage = result.message || 'Failed to delete role';
         setDeleteError(errorMessage);
         toast.error(errorMessage);
         console.error('❌ Service error response:', result);
@@ -713,9 +708,9 @@ function AdminRoleManagementClient() {
     );
   }
 
-  export default withSimpleRBAC(AdminRoleManagementClient,{
+  export default withSimplifiedRBAC(AdminRoleManagementClient,{
     privilege: "VIEW_ROLE_MANAGEMENT", // Minimum required privilege to access
-    role: 1, // Only admin users (role 1) can access
+    role: ["1"], // Only admin users (role 1) can access
     allowSuperUserBypass: true, // Superusers can always access
     redirectTo: "/admin/dashboard" // Redirect if no access  
-  } )
+  })

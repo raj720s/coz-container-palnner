@@ -1,5 +1,4 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { setupListeners } from '@reduxjs/toolkit/query';
 import { 
   persistStore, 
   persistReducer,
@@ -12,73 +11,49 @@ import {
 } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 
-import { apiSlice } from './api/apiSlice';
-
-
-import authReducer from './slices/authSlice';
+// Import reducers
+import userReducer from './slices/consolidatedUserSlice';
 import uiReducer from './slices/uiSlice';
-import userReducer from './slices/userSlice';
 import userInfoReducer from './slices/userInfoSlice';
 import roleReducer from './slices/roleSlice';
-
-import customerReducer from './slices/customerSlice';
-import containerTypeReducer from './slices/containerTypeSlice';
-import containerThresholdReducer from './slices/containerThresholdSlice';
 import commonDataReducer from './slices/commonDataSlice';
 
-// Persist config for auth
-const authPersistConfig = {
-  key: 'auth',
+// Persist config for user (consolidated auth + profile)
+const userPersistConfig = {
+  key: 'user',
   storage,
-  whitelist: ['token', 'user', 'isAuthenticated'],
+  whitelist: ['user', 'token', 'refreshToken', 'isAuthenticated']
 };
 
-// Persist config for UI preferences
+// Persist config for UI
 const uiPersistConfig = {
   key: 'ui',
   storage,
-  whitelist: ['theme', 'sidebarCollapsed', 'language'],
+  whitelist: ['theme', 'sidebarCollapsed', 'language']
 };
 
 // Configure the store
 export const store = configureStore({
   reducer: {
-    // RTK Query API slice
-    [apiSlice.reducerPath]: apiSlice.reducer,
-    
-    // Feature slices
-    auth: persistReducer(authPersistConfig, authReducer),
-    ui: persistReducer(uiPersistConfig, uiReducer),
-    users: userReducer,
+    // Essential slices only
+    user: persistReducer(userPersistConfig, userReducer) as any,
+    ui: persistReducer(uiPersistConfig, uiReducer) as any,
     userInfo: userInfoReducer,
     roles: roleReducer,
-    // pols: polReducer, // Removed
-    customers: customerReducer,
-    containerTypes: containerTypeReducer,
     commonData: commonDataReducer,
-    containerThresholds: containerThresholdReducer,
   },
-  
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-      // Add timeout to prevent middleware from hanging
-      immutableCheck: false,
-    }).concat(apiSlice.middleware),
-  
-  devTools: process.env.NODE_ENV !== 'production',
+    }),
 });
 
-// Setup listeners for RTK Query
-setupListeners(store.dispatch);
-
-// console.log(store.getState());
 // Create persistor
 export const persistor = persistStore(store);
 
-// Export types
+// Infer the `RootState` and `AppDispatch` types from the store itself
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 

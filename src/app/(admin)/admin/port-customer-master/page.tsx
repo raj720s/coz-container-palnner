@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -195,6 +195,6 @@ function PortCustomerMasterPage() {
   );
 }
 
-export default withSimpleRBAC(PortCustomerMasterPage, {
+export default withSimplifiedRBAC(PortCustomerMasterPage, {
   privilege: "VIEW_PORT_CUSTOMER_MASTER"
 }); 

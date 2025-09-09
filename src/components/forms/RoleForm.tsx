@@ -7,7 +7,9 @@ import { z } from "zod";
 import Label from "@/components/form/Label";
 import Input from "@/components/form/input/InputField";
 import Button from "@/components/ui/button/Button";
-import { CreateRoleRequest, UpdateRoleRequest, PrivilegeResponse, PrivilegeItem, roleService } from "@/services/roleService";
+import { CreateRoleRequest, UpdateRoleRequest, ModulePrivileges, roleService } from "@/services/roleService";
+import { staticModuleDefinitions, StaticModule } from "@/config/staticModules";
+import { simplifiedRBACService } from "@/services/simplifiedRBACService";
 import toast from "react-hot-toast";
 
 const roleSchema = z.object({
@@ -18,14 +20,19 @@ const roleSchema = z.object({
 
 type RoleFormData = z.infer<typeof roleSchema>;
 
+interface PrivilegeApiResponse {
+  count: number;
+  results: ModulePrivileges[];
+}
+
 interface RoleFormProps {
   initialData?: {
-    id: string;
+    id: string | number;
     role_name: string;
     role_description: string;
-    privilege_names: string[];
+    privilege_names?: string[];
   };
-  privileges: PrivilegeResponse | null;
+  privileges: PrivilegeApiResponse | null;
   rolesWithPrivileges?: any[]; // Preloaded roles with privilege data
   onSubmit: (data: CreateRoleRequest | UpdateRoleRequest) => void;
   isLoading?: boolean;
@@ -41,10 +48,10 @@ export function RoleForm({
   onCancel 
 }: RoleFormProps) {
   const [selectedPrivileges, setSelectedPrivileges] = useState<string[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedModule, setSelectedModule] = useState<string>("all");
-  const [privileges, setPrivileges] = useState<PrivilegeResponse | null>(null);
+  const [privileges, setPrivileges] = useState<PrivilegeApiResponse | null>(null);
   const [privilegesLoading, setPrivilegesLoading] = useState(false);
+  const [modulePrivileges, setModulePrivileges] = useState<ModulePrivileges[]>([]);
 
   const {
     register,
@@ -66,6 +73,7 @@ export function RoleForm({
   const roleName = watch("role_name");
   const roleDescription = watch("role_description");
 
+
   // Helper function to get current role's privileges from preloaded data
   const getCurrentRolePrivileges = useMemo(() => {
     if (!initialData || !rolesWithPrivileges) return null;
@@ -78,14 +86,14 @@ export function RoleForm({
   const fetchPrivileges = async () => {
     try {
       setPrivilegesLoading(true);
-      const response = await roleService.getPrivileges({
-        page: 1,
-        page_size: 1000, // Get all privileges
-        order_by: 'privilege_name',
-        order_type: 'asc'
-      });
+      const response = await roleService.getPrivileges();
       console.log('🔍 RoleForm: Privileges fetched:', response);
       setPrivileges(response);
+      
+      // The API response already has the correct module structure
+      const modulePrivileges = response.results || [];
+      console.log('🔍 RoleForm: Module privileges from API:', modulePrivileges);
+      setModulePrivileges(modulePrivileges);
     } catch (error) {
       console.error('❌ RoleForm: Error fetching privileges:', error);
       toast.error('Failed to fetch privileges');
@@ -94,46 +102,36 @@ export function RoleForm({
     }
   };
 
-  // Fetch privileges on component mount or when external privileges change
+  // Get unique modules from static modules with API privilege data
+  const modules = useMemo(() => {
+    const staticModules = staticModuleDefinitions.modules;
+    return Object.values(staticModules).map(staticModule => {
+      // Find corresponding API data for this module
+      const apiModuleData = modulePrivileges.find(mp => mp.module_id === staticModule.id.toString());
+      return {
+        module_id: staticModule.id.toString(),
+        module_name: staticModule.name,
+        privileges: apiModuleData ? apiModuleData.privileges : []
+      };
+    }).filter(module => module.privileges.length > 0); // Only show modules that have privileges
+  }, [modulePrivileges]);
+
+  // Fetch privileges on component mount
   useEffect(() => {
     if (externalPrivileges) {
       // Use external privileges if provided
       setPrivileges(externalPrivileges);
+      
+      // The external privileges should already have the correct module structure
+      const modulePrivileges = externalPrivileges.results || [];
+      console.log('🔍 RoleForm: External module privileges:', modulePrivileges);
+      setModulePrivileges(modulePrivileges);
       setPrivilegesLoading(false);
-    } else if (rolesWithPrivileges && rolesWithPrivileges.length > 0) {
-      // Try to use preloaded privilege data if available
-      console.log('🔍 RoleForm: Using preloaded privilege data from rolesWithPrivileges');
-      
-      // Extract all unique privileges from the preloaded roles data
-      const allPrivileges = new Map<string, any>();
-      rolesWithPrivileges.forEach(role => {
-        if (role.privileges) {
-          role.privileges.forEach((privilege: any) => {
-            if (!allPrivileges.has(privilege.privilege_name)) {
-              allPrivileges.set(privilege.privilege_name, privilege);
-            }
-          });
-        }
-      });
-      
-      if (allPrivileges.size > 0) {
-        // Convert to the expected format
-        const privilegeResponse: PrivilegeResponse = {
-          count: allPrivileges.size,
-          results: Array.from(allPrivileges.values())
-        };
-        setPrivileges(privilegeResponse);
-        setPrivilegesLoading(false);
-        console.log('🔍 RoleForm: Created privilege response from preloaded data:', privilegeResponse);
-      } else {
-        // Fallback to fetching privileges
-        fetchPrivileges();
-      }
     } else {
-      // Fetch privileges ourselves
+      // Fetch privileges from API
       fetchPrivileges();
     }
-  }, [externalPrivileges, rolesWithPrivileges]);
+  }, [externalPrivileges]);
 
   // Set initial values when editing
   useEffect(() => {
@@ -141,7 +139,7 @@ export function RoleForm({
       reset({
         role_name: initialData.role_name,
         role_description: initialData.role_description,
-        privilege_names: initialData.privilege_names,
+        privilege_names: initialData.privilege_names || [],
       });
       
       // Set selected privileges from initial data
@@ -159,6 +157,7 @@ export function RoleForm({
           console.log('🔍 RoleForm: Setting initial privileges from preloaded data:', privilegeNames);
         }
       }
+
     }
   }, [initialData, reset, getCurrentRolePrivileges]);
 
@@ -167,11 +166,14 @@ export function RoleForm({
     setValue("privilege_names", selectedPrivileges || []);
   }, [selectedPrivileges, setValue]);
 
+
   // Set selected privileges when privileges data is loaded and we have initial data
   useEffect(() => {
     if (privileges && privileges.results && initialData && initialData.privilege_names) {
       // Check if the privileges we have match the initial data
-      const availablePrivilegeNames = privileges.results.map(p => p.privilege_name);
+      const availablePrivilegeNames = privileges.results.flatMap(module => 
+        module.privileges.map((p: any) => p.privilege_name)
+      );
       const initialPrivileges = initialData.privilege_names;
       
       // Only set if we haven't already set them and if they're different
@@ -188,27 +190,12 @@ export function RoleForm({
     }
   }, [privileges, initialData]); // Removed selectedPrivileges from dependencies to prevent infinite loop
 
-  const handleFormSubmit = (formData: RoleFormData) => {
-    if (!selectedPrivileges || selectedPrivileges.length === 0) {
-      toast.error("Please select at least one privilege");
-      return;
-    }
-
-    const finalData = {
-      ...formData,
-      privilege_names: selectedPrivileges,
-    };
-
-    onSubmit(finalData);
-  };
 
   const togglePrivilege = (privilegeName: string) => {
     console.log('🔍 RoleForm: Toggling privilege:', privilegeName);
-    console.log('🔍 RoleForm: Current selected privileges:', selectedPrivileges);
     
     setSelectedPrivileges(prev => {
       if (!prev) {
-        console.log('🔍 RoleForm: No previous privileges, adding:', privilegeName);
         return [privilegeName];
       }
       
@@ -221,60 +208,57 @@ export function RoleForm({
     });
   };
 
-  const selectAllPrivileges = () => {
-    if (!privileges || !privileges.results) {
+  const selectAllPrivileges = (e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevent form submission
+    if (!modules.length) {
       toast.error('Privileges not loaded yet');
       return;
     }
     
-    const allPrivilegeNames = allPrivileges.map(privilege => privilege.privilege_name);
-    setSelectedPrivileges(allPrivilegeNames || []);
+    const allPrivilegeNames = modules.flatMap(module => 
+      module.privileges.map((privilege: any) => privilege.privilege_name)
+    );
+    setSelectedPrivileges(allPrivilegeNames);
     toast.success(`Selected ${allPrivilegeNames.length} privileges`);
   };
 
-  const clearAllPrivileges = () => {
+  const clearAllPrivileges = (e?: React.MouseEvent) => {
+    e?.preventDefault(); // Prevent form submission
     setSelectedPrivileges([]);
   };
 
-    // Get all available privileges
-  const allPrivileges = useMemo(() => {
-    if (!privileges || !privileges.results) return [];
-    return privileges.results;
-  }, [privileges]);
-  
-  // Get unique modules
-  const modules = useMemo(() => {
-    if (!privileges || !privileges.results) return [];
+  // Form submission handler
+  const handleFormSubmit = (data: RoleFormData) => {
+    console.log('🔍 RoleForm: Form submitted with data:', data);
     
-    const uniqueModules = new Set(allPrivileges.map(privilege => privilege.module_id));
-    return Array.from(uniqueModules);
-  }, [allPrivileges]);
-  
-  // Filter privileges based on search and module
+    if (isEditing && initialData) {
+      // Update existing role
+      const updateData: UpdateRoleRequest = {
+        role_name: data.role_name,
+        role_description: data.role_description,
+        privilege_names: data.privilege_names,
+      };
+      onSubmit(updateData);
+    } else {
+      // Create new role
+      const createData: CreateRoleRequest = {
+        role_name: data.role_name,
+        role_description: data.role_description,
+        privilege_names: data.privilege_names,
+      };
+      onSubmit(createData);
+    }
+  };
+
+    // Filter privileges based on search and module
   const filteredPrivileges = useMemo(() => {
-    return allPrivileges.filter(privilege => {
-      const matchesSearch = privilege.privilege_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           privilege.privilege_desc.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesModule = selectedModule === "all" || privilege.module_id === selectedModule;
-      return matchesSearch && matchesModule;
+    if (!modules.length) return [];
+    
+    return modules.filter(module => {
+      const matchesModule = selectedModule === "all" || module.module_id === selectedModule;
+      return matchesModule;
     });
-  }, [allPrivileges, searchTerm, selectedModule]);
-  
-  // Group privileges by module for display
-  const groupedPrivileges = useMemo(() => {
-    if (!privileges || !privileges.results) return [];
-    
-    const grouped = allPrivileges.reduce((acc, privilege) => {
-      const moduleId = privilege.module_id;
-      if (!acc[moduleId]) {
-        acc[moduleId] = [];
-      }
-      acc[moduleId].push(privilege);
-      return acc;
-    }, {} as Record<string, PrivilegeItem[]>);
-    
-    return Object.entries(grouped);
-  }, [allPrivileges]);
+  }, [modules, selectedModule]);
 
          return (
      <div className="h-full flex flex-col">
@@ -307,7 +291,32 @@ export function RoleForm({
           </div>
         </div>
 
-                 {/* Privilege Selection */}
+         {/* Module Selection */}
+         <div className="space-y-4">
+           <div className="flex items-center justify-between">
+             <Label className="text-base font-semibold">Select Module</Label>
+           </div>
+           
+           <div>
+             <Label htmlFor="module-select" className="text-sm font-medium mb-2 block">Filter by Module</Label>
+             <select
+               id="module-select"
+               value={selectedModule}
+               onChange={(e) => setSelectedModule(e.target.value)}
+               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+               disabled={isLoading}
+             >
+               <option value="all">All Modules</option>
+               {modules.map((module) => (
+                 <option key={module.module_id} value={module.module_id}>
+                   {module.module_name}
+                 </option>
+               ))}
+             </select>
+           </div>
+         </div>
+
+         {/* Privilege Selection */}
          <div className="space-y-4">
            <div className="flex items-center justify-between">
              <Label className="text-base font-semibold">Privileges *</Label>
@@ -325,7 +334,7 @@ export function RoleForm({
                  size="sm"
                  variant="outline"
                  onClick={selectAllPrivileges}
-                 disabled={isLoading || !privileges}
+                 disabled={isLoading || !modules.length}
                  className="text-xs px-3 py-1.5"
                >
                  Select All
@@ -339,38 +348,6 @@ export function RoleForm({
                >
                  Clear All
                </Button>
-             </div>
-           </div>
-
-                     {/* Search and Filter */}
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             <div>
-               <Label htmlFor="privilege-search" className="text-sm font-medium mb-2 block">Search Privileges</Label>
-               <Input
-                 id="privilege-search"
-                 placeholder="Search privileges..."
-                 value={searchTerm}
-                 onChange={(e) => setSearchTerm(e.target.value)}
-                 disabled={isLoading}
-                 className="w-full"
-               />
-             </div>
-             <div>
-               <Label htmlFor="module-filter" className="text-sm font-medium mb-2 block">Filter by Module</Label>
-               <select
-                 id="module-filter"
-                 value={selectedModule}
-                 onChange={(e) => setSelectedModule(e.target.value)}
-                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                 disabled={isLoading}
-               >
-                 <option value="all">All Modules</option>
-                 {modules.map((moduleId) => (
-                   <option key={moduleId} value={moduleId}>
-                     Module {moduleId}
-                   </option>
-                 ))}
-               </select>
              </div>
            </div>
 
@@ -413,7 +390,8 @@ export function RoleForm({
              </div>
            )}
 
-           {/* Privilege List */}
+
+           {/* Privilege List - Module-wise Display */}
            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
              <div className="max-h-80 overflow-y-auto custom-scrollbar">
                {privilegesLoading ? (
@@ -421,55 +399,43 @@ export function RoleForm({
                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>
                    Loading privileges...
                  </div>
-               ) : groupedPrivileges.length > 0 ? (
-                 groupedPrivileges.map(([moduleId, modulePrivileges]) => {
-                   const filteredModulePrivileges = modulePrivileges.filter(privilege => 
-                     privilege.privilege_name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-                     (selectedModule === "all" || selectedModule === moduleId)
-                   );
-
-                   if (filteredModulePrivileges.length === 0) return null;
-
-                   return (
-                     <div key={moduleId} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                       <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-                         <h4 className="font-medium text-gray-900 dark:text-white text-sm">
-                           Module {moduleId} ({filteredModulePrivileges.length})
-                         </h4>
-                       </div>
-                       <div className="p-3 space-y-1">
-                         {filteredModulePrivileges.map((privilege) => (
-                           <label
-                             key={privilege.id}
-                             className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded transition-colors"
-                           >
-                             <input
-                               type="checkbox"
-                               checked={selectedPrivileges.includes(privilege.privilege_name)}
-                               onChange={() => togglePrivilege(privilege.privilege_name)}
-                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                               disabled={isLoading}
-                               data-privilege={privilege.privilege_name}
-                               data-selected={selectedPrivileges.includes(privilege.privilege_name)}
-                               data-selected-count={selectedPrivileges.length}
-                             />
-                             <div className="flex flex-col min-w-0 flex-1">
-                               <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                                 {privilege.privilege_name}
-                               </span>
-                               <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                                 {privilege.privilege_desc}
-                               </span>
-                             </div>
-                           </label>
-                         ))}
-                       </div>
+               ) : filteredPrivileges.length > 0 ? (
+                 filteredPrivileges.map((module) => (
+                   <div key={module.module_id} className="border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                     <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+                       <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                         {module.module_name} ({module.privileges.length} privileges)
+                       </h4>
                      </div>
-                   );
-                 })
+                     <div className="p-3 space-y-1">
+                       {module.privileges.map((privilege: any) => (
+                         <label
+                           key={privilege.id}
+                           className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 p-2 rounded transition-colors"
+                         >
+                           <input
+                             type="checkbox"
+                             checked={selectedPrivileges.includes(privilege.privilege_name)}
+                             onChange={() => togglePrivilege(privilege.privilege_name)}
+                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                             disabled={isLoading}
+                           />
+                           <div className="flex flex-col min-w-0 flex-1">
+                             <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                               {privilege.privilege_name}
+                             </span>
+                             <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                               {privilege.privilege_desc}
+                             </span>
+                           </div>
+                         </label>
+                       ))}
+                     </div>
+                   </div>
+                 ))
                ) : (
                  <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                   {privileges ? "No privileges available" : "No privileges loaded"}
+                   {modules.length > 0 ? "No privileges available for selected module" : "No privileges loaded"}
                  </div>
                )}
              </div>

@@ -16,7 +16,7 @@ import {
   AlertIcon,
   TimeIcon
 } from "@/icons";
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 
 function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -249,7 +249,7 @@ function AdminDashboard() {
   );
 }
 
-export default withSimpleRBAC(AdminDashboard, {
+export default withSimplifiedRBAC(AdminDashboard, {
   privilege: "VIEW_ADMIN_DASHBOARD",
   // role: [1],
   allowSuperUserBypass: true,

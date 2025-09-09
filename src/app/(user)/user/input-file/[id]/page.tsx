@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Button from "@/components/ui/button/Button";
@@ -178,7 +178,7 @@ function UserInputFileViewerPage() {
   );
 }
 
-export default withSimpleRBAC(UserInputFileViewerPage, {
+export default withSimplifiedRBAC(UserInputFileViewerPage, {
   // module: "input-file",
   route: "/user/input-file",
 });

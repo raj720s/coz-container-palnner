@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useProfileSync } from '@/hooks/useProfileSync';
 import { useSelector } from 'react-redux';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUser } from '@/store/slices/consolidatedUserSlice';
 
 
 export default function UserDropdown() {

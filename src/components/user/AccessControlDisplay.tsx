@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store';
 import { fetchRolesV2, selectRolesV2, selectRolesLoading, selectRolesError } from '@/store/slices/roleSlice';
-import { useGetRolesQuery } from '@/store/api/apiSlice';
+// Removed RTK Query import - using service instead
 import { roleService } from '@/services';
 import { RoleListRequest, RoleListResponseV2 } from '@/types/api';
 
@@ -21,7 +21,7 @@ const AccessControlDisplay: React.FC = () => {
     include_privilege_data: true,
   });
   
-  const { data: rolesRTK, isLoading: loadingRTK, error: errorRTK, refetch: refetchRTK } = useGetRolesQuery(filters);
+  // Removed RTK Query usage - using service instead
   
   // Redux state
   const rolesV2 = useSelector(selectRolesV2);
@@ -33,15 +33,20 @@ const AccessControlDisplay: React.FC = () => {
     dispatch(fetchRolesV2(filters));
   };
 
-  // Example 2: Using RTK Query
-  const handleFetchRolesRTK = () => {
-    refetchRTK();
-  };
-
-  // Example 3: Using service directly
+  // Example 2: Using Service (replaced RTK Query)
   const handleFetchRolesService = async () => {
     try {
-      const result = await roleService.getRolesV2(filters);
+      const result = await roleService.getRoles(filters);
+      console.log('Service result:', result);
+    } catch (error) {
+      console.error('Service error:', error);
+    }
+  };
+
+  // Example 3: Using service directly (alternative method)
+  const handleFetchRolesServiceDirect = async () => {
+    try {
+      const result = await roleService.getRoles(filters);
       console.log('Service result:', result);
     } catch (error) {
       console.error('Service error:', error);
@@ -85,7 +90,7 @@ const AccessControlDisplay: React.FC = () => {
     };
     
     try {
-      const result = await roleService.getRolesV2(exportFilters);
+      const result = await roleService.getRoles(exportFilters);
       console.log('Export data:', result);
       // Here you would typically trigger download or send to export service
     } catch (error) {
@@ -126,10 +131,10 @@ const AccessControlDisplay: React.FC = () => {
           </button>
           
           <button
-            onClick={handleFetchRolesRTK}
+            onClick={handleFetchRolesServiceDirect}
             className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
           >
-            Fetch Roles (RTK Query)
+            Fetch Roles (Service Direct)
           </button>
           
           <button

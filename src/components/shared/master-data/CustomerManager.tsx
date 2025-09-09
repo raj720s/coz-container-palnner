@@ -21,46 +21,24 @@ import { useFormModal } from "@/hooks/useFormModal";
 import toast from "react-hot-toast";
 
 import Pagination from "@/components/tables/Pagination";
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/store";
-import {
-  fetchCustomers,
-  createCustomer,
-  updateCustomer,
-  patchCustomer,
-  deleteCustomer,
-  exportCustomers,
-  selectCustomers,
-  selectCustomersLoading,
-  selectCustomersError,
-  selectCustomersTotal,
-  clearError,
-} from "@/store/slices/customerSlice";
-import {
-  useGetCustomersQuery,
-  useCreateCustomerMutation,
-  useUpdateCustomerMutation,
-  usePatchCustomerMutation,
-  useDeleteCustomerMutation,
-} from "@/store/api/apiSlice";
+import { customerService } from "@/services";
 import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
-import withSimpleRBAC, { RBACContextValue } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 
 const columnHelper = createColumnHelper<CustomerResponse>();
 
 interface CustomerManagerProps {
-  rbacContext?: RBACContextValue;
+  rbacContext?: SimplifiedRBACProps['rbacContext'];
 }
 
 function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
-  const dispatch = useDispatch<AppDispatch>();
   
-  // Use RBAC context from withSimpleRBAC instead of duplicate hooks
-  const { hasPrivilege, isAdmin, isSuperUser } = rbacContext || {};
+  // Use RBAC context from withSimplifiedRBAC instead of duplicate hooks
+  const { can, isAdmin, isSuperUser } = rbacContext || {};
   
   // Local state for filtering and pagination
   const [filters, setFilters] = useState<CustomerListRequest>({
@@ -76,35 +54,44 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const [deletingItem, setDeletingItem] = useState<CustomerResponse | null>(null);
 
   // Check if user can delete customer data using RBAC context
-  const canDeleteCustomer = hasPrivilege?.("DELETE_CUSTOMER") || isAdmin?.() || isSuperUser;
+  const canDeleteCustomer = can?.("DELETE_CUSTOMER") || isAdmin?.() || isSuperUser;
 
-  // Redux state
-  const customers = useSelector(selectCustomers);
-  const loading = useSelector(selectCustomersLoading);
-  const error = useSelector(selectCustomersError);
-  const total = useSelector(selectCustomersTotal);
-
-  // RTK Query hooks (alternative approach)
-  // const { data: customersRTK, isLoading: loadingRTK, error: errorRTK } = useGetCustomersQuery(filters);
-  const [createCustomerMutation] = useCreateCustomerMutation();
-  const [updateCustomerMutation] = useUpdateCustomerMutation();
-  const [patchCustomerMutation] = usePatchCustomerMutation();
-  const [deleteCustomerMutation] = useDeleteCustomerMutation();
+  // Local state for customers data
+  const [customers, setCustomers] = useState<CustomerResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
 
   // Load customers on component mount and when filters change
   useEffect(() => {
-    dispatch(fetchCustomers(filters));
-  }, [dispatch, filters]);
+    loadCustomers();
+  }, [filters]);
 
   // Auto-clear errors after 5 seconds
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
-        dispatch(clearError());
+        setError(null);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [error, dispatch]);
+  }, [error]);
+
+  // Load customers function
+  const loadCustomers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await customerService.getCustomers(filters);
+      setCustomers(response.results);
+      setTotal(response.count);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to load customers');
+      console.error('Error loading customers:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const {
     isOpen: isModalOpen,
@@ -358,13 +345,13 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
     try {
       setModalLoading(true);
-      await dispatch(deleteCustomer(deletingItem.id)).unwrap();
+      await customerService.deleteCustomer(deletingItem.id);
       toast.success('Customer deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
       
       // Refresh the list
-      dispatch(fetchCustomers(filters));
+      await loadCustomers();
     } catch (error: any) {
         console.error('Error deleting customer:', error);
       toast.error(error.message || 'Failed to delete customer');
@@ -392,16 +379,16 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       
       if (editingItem) {
         // Update existing customer
-        await dispatch(updateCustomer({ id: editingItem.id, customerData })).unwrap();
+        await customerService.updateCustomer(editingItem.id, customerData);
         toast.success('Customer updated successfully');
       } else {
         // Create new customer
-        await dispatch(createCustomer(customerData as CreateCustomerRequest)).unwrap();
+        await customerService.createCustomer(customerData as CreateCustomerRequest);
         toast.success('Customer created successfully');
       }
       
       // Refresh the list
-      dispatch(fetchCustomers(filters));
+      await loadCustomers();
       closeModal();
     } catch (error: any) {
       console.error('Error saving customer:', error);
@@ -413,17 +400,16 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
   const handleExport = async () => {
     try {
-      const exportData = await dispatch(exportCustomers({
+      const exportData = await customerService.getCustomers({
         ...filters,
-        export: true,
         page_size: 1000
-      })).unwrap();
+      });
       
       // Create CSV content
       const headers = ['Code', 'Company Name', 'Contact Person', 'Email', 'Phone', 'Address', 'Country', 'Tax ID', 'Status', 'Created On'];
       const csvRows = [
         headers.join(','),
-        ...exportData.map(customer => [
+        ...exportData.results.map((customer: CustomerResponse) => [
           customer.customer_code,
           customer.name,
           customer.contact_person,
@@ -487,7 +473,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Customer Master
+          Customer Records
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Manage customer information and their configurations
@@ -615,6 +601,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       </div>
 
       {/* Pagination */}
+      {filteredData.length > 0 && (
         <div className="mt-6 flex items-center justify-between">
           <div className="text-sm text-gray-700 dark:text-gray-300">
             Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
@@ -629,7 +616,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             totalPages={table.getPageCount()}
             onPageChange={(page) => table.setPageIndex(page - 1)}
           />
-      </div>
+        </div>
+      )}
 
       {filteredData.length === 0 && !loading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -681,9 +669,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
 
 
-export default withSimpleRBAC(CustomerManager, {
-  privilege: "VIEW_PORT_CUSTOMER_MASTER", // Minimum required privilege to access
-  role: [1, 2, 3], // Admin users (role 1), Manager users (role 2), and Regular users (role 3) can access
+export default withSimplifiedRBAC(CustomerManager, {
+  privilege: "VIEW_CUSTOMERS", // Minimum required privilege to access
+  module: [60], // Port & Customer Management module
   allowSuperUserBypass: true, // Superusers can always access
   redirectTo: "/user/dashboard" // Redirect if no access
 });

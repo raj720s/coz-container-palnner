@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction, createSelector } from '@reduxjs/toolkit';
 import superAxios from '@/utils/superAxios';
 import { RootState } from '@/store';
-import { rbacService } from '@/services/rbacService';
+import { simplifiedRBACService } from '@/services/simplifiedRBACService';
 import { privilegeService } from '@/services/privilegeService';
 
 // User Info API Response Interface
@@ -100,7 +100,7 @@ export const fetchUserRBACInfo = createAsyncThunk(
       // TODO: Re-enable when server integration is ready
       /*
       // Then get privileges
-      const privilegeInfo = await rbacService.getUserPrivileges(userId);
+      const privilegeInfo = await simplifiedRBACService.getRolePrivilegesFromServer(userId);
       const privilegeResponse = await privilegeService.getPrivileges({ role_id: roleId });
       const roleId = privilegeInfo.role_id || userInfo.role_id;
       const privilegeNames = privilegeService.extractPrivilegeNames(privilegeResponse.results);
@@ -132,7 +132,7 @@ export const checkPrivilegeChanges = createAsyncThunk(
         throw new Error('No current user found');
       }
 
-      const privilegeInfo = await rbacService.getUserPrivileges(currentUser.id);
+      const privilegeInfo = await simplifiedRBACService.getRolePrivilegesFromServer(currentUser.id);
       
       return {
         hasChanged: privilegeInfo.privilege_version !== currentUser.privilege_version,

@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -516,6 +516,6 @@ function ShipmentHistoryPage() {
   );
 }
 
-export default withSimpleRBAC(ShipmentHistoryPage, {
+export default withSimplifiedRBAC(ShipmentHistoryPage, {
   route: "/user/shipment-operations/shipment-history",
 });

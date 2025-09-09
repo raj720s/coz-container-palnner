@@ -2,10 +2,9 @@
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { RBACProvider } from "@/providers/RBACProvider";
 import { LocalStorageInitializer } from "@/components/providers/LocalStorageInitializer";
 import { MessageProvider } from "@/components/ui/MessageBox";
-import { AdminRouteGuard } from "@/components/auth/AdminRouteGuard";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
 export default function AdminLayout({
   children,
@@ -14,17 +13,15 @@ export default function AdminLayout({
 }>) {
   return (
     <AuthProvider>
-      <RBACProvider>
-        <ThemeProvider>
-          <SidebarProvider>
-            <MessageProvider>
-              <AdminRouteGuard>
-                {children}
-              </AdminRouteGuard>
-            </MessageProvider>
-          </SidebarProvider>
-        </ThemeProvider>
-      </RBACProvider>
+      <ThemeProvider>
+        <SidebarProvider>
+          <MessageProvider>
+            <AuthGuard requireAdmin={true}>
+              {children}
+            </AuthGuard>
+          </MessageProvider>
+        </SidebarProvider>
+      </ThemeProvider>
     </AuthProvider>
   );
 } 

@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import toast from "react-hot-toast";
 import React, { useState, useMemo } from "react";
@@ -11,12 +11,14 @@ import {
   createColumnHelper,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   SortingState,
-
+  PaginationState,
 } from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon } from "@/icons";
 import { getStoredOptimizationResults } from '@/services/cargoOptimizationService';
+import Pagination from "@/components/tables/Pagination";
 
 interface AssignmentResult {
   id: string;
@@ -42,6 +44,14 @@ interface AssignmentResult {
 const columnHelper = createColumnHelper<AssignmentResult>();
 
 function AssignmentResultsManager() {
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
   // Get planning results from session storage, optimization results, or use mock data
   const getAssignmentData = (): AssignmentResult[] => {
     try {
@@ -177,22 +187,48 @@ function AssignmentResultsManager() {
 
   const [data] = useState<AssignmentResult[]>(getAssignmentData());
 
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sorting, setSorting] = useState<SortingState>([]);
-
   // Define columns inside the component to avoid infinite re-renders
   const columns = useMemo(() => [
     columnHelper.accessor("customer", { 
-      header: "Customer", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Customer
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
     columnHelper.accessor("shipment", { 
-      header: "Shipment", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Shipment
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="font-mono text-sm">{info.getValue()}</span>
     }),
     columnHelper.accessor("optimizedContainerRef", { 
-      header: "Optimized Container Ref", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Optimized Container Ref
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => (
         <span className="font-mono text-sm text-blue-600 dark:text-blue-400">
           {info.getValue() || "-"}
@@ -200,7 +236,17 @@ function AssignmentResultsManager() {
       )
     }),
     columnHelper.accessor("containerType", { 
-      header: "Cont. Type", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Cont. Type
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => (
         <span className="px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
           {info.getValue()}
@@ -208,47 +254,157 @@ function AssignmentResultsManager() {
       )
     }),
     columnHelper.accessor("minThreshold", { 
-      header: "Min. Threshold", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Min. Threshold
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue().toFixed(1)}</span>
     }),
     columnHelper.accessor("maxThreshold", { 
-      header: "Max. Threshold", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Max. Threshold
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue().toFixed(1)}</span>
     }),
     columnHelper.accessor("totalCBM", { 
-      header: "Total CBM", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Total CBM
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue().toFixed(2)}</span>
     }),
     columnHelper.accessor("cbm", { 
-      header: "CBM", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          CBM
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue().toFixed(2)}</span>
     }),
     columnHelper.accessor("pol", { 
-      header: "POL", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          POL
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
     columnHelper.accessor("destination", { 
-      header: "Destination", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Destination
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
     }),
     columnHelper.accessor("pugDate", { 
-      header: "PUG Date", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          PUG Date
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue()}</span>
     }),
     columnHelper.accessor("pucDate", { 
-      header: "Ship Date (PUG+5)", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Ship Date (PUG+5)
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue()}</span>
     }),
     columnHelper.accessor("qty", { 
-      header: "Qty", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Qty
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="text-sm">{info.getValue().toLocaleString()}</span>
     }),
     columnHelper.accessor("totalQty", { 
-      header: "Total Qty", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Total Qty
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => <span className="font-medium">{info.getValue().toLocaleString()}</span>
     }),
     columnHelper.accessor("groupMixStatus", { 
-      header: "GroupMix Status", 
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          GroupMix Status
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => (
         <span className="px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-700 text-blue-700 dark:text-blue-300">
           {info.getValue()}
@@ -256,7 +412,17 @@ function AssignmentResultsManager() {
       )
     }),
     columnHelper.accessor("status", {
-      header: "Status",
+      header: ({ column }) => (
+        <button
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        >
+          Status
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
+        </button>
+      ),
       cell: (info) => (
         <span className={`px-2 py-1 text-xs rounded-full ${
           info.getValue() === "assigned"
@@ -290,10 +456,15 @@ function AssignmentResultsManager() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
     state: {
+      globalFilter,
       sorting,
+      pagination,
     },
+    onGlobalFilterChange: setGlobalFilter,
     onSortingChange: setSorting,
+    onPaginationChange: setPagination,
   });
 
   const exportToExcel = () => {
@@ -346,7 +517,7 @@ function AssignmentResultsManager() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Container Assignment Results
+          Assignment Results
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           View and manage container assignment results from the latest planning run
@@ -442,6 +613,25 @@ function AssignmentResultsManager() {
         </div>
       </div>
 
+      {/* Pagination */}
+      {filteredData.length > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
+            {Math.min(
+              (pagination.pageIndex + 1) * pagination.pageSize,
+              filteredData.length
+            )}{" "}
+            of {filteredData.length} results
+          </div>
+          <Pagination
+            currentPage={pagination.pageIndex + 1}
+            totalPages={Math.ceil(filteredData.length / pagination.pageSize)}
+            onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
+          />
+        </div>
+      )}
+
       {filteredData.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           No assignment results found matching your filters.
@@ -451,7 +641,9 @@ function AssignmentResultsManager() {
   );
 }
 
-export default withSimpleRBAC(AssignmentResultsManager, {
-  route: "/admin/assignment-results",
-  privilege: "VIEW_ASSIGNMENT_RESULTS"
+export default withSimplifiedRBAC(AssignmentResultsManager, {
+  privilege: "VIEW_ASSIGNMENT_RESULTS",
+  module: [80], // Analytics & Reports module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 }); 

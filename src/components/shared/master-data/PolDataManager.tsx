@@ -23,12 +23,12 @@ import toast from "react-hot-toast";
 import Pagination from "@/components/tables/Pagination";
 import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
 import { polService } from "@/services";
-import { withSimpleRBAC, RBACContextValue } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 
 const columnHelper = createColumnHelper<POLResponse>();
 
 interface PolDataManagerProps {
-  rbacContext?: RBACContextValue;
+  rbacContext?: SimplifiedRBACProps['rbacContext'];
 }
 
 function PolDataManager({ rbacContext }: PolDataManagerProps) {
@@ -36,8 +36,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   
-  // Use RBAC context from withSimpleRBAC instead of duplicate hooks
-  const { hasPrivilege, isAdmin, isSuperUser } = rbacContext || {};
+  // Use RBAC context from withSimplifiedRBAC instead of duplicate hooks
+  const { can, isAdmin, isSuperUser } = rbacContext || {};
   
   // Local state for data management
   const [pols, setPols] = useState<POLResponse[]>([]);
@@ -68,7 +68,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   } = useFormModal<POLResponse>();
 
   // Check if user can delete POL data using RBAC context
-  const canDeletePOL = hasPrivilege?.("DELETE_POL") || isAdmin?.() || isSuperUser;
+  const canDeletePOL = can?.("DELETE_POL") || isAdmin?.() || isSuperUser;
 
   // Auto-open modal if action=add
   useEffect(() => {
@@ -584,21 +584,23 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       </div>
 
       {/* Pagination */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-gray-700 dark:text-gray-300">
-          Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-          {Math.min(
-            (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-            table.getFilteredRowModel().rows.length
-          )}{" "}
-          of {table.getFilteredRowModel().rows.length} results
+      {filteredData.length > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+            {Math.min(
+              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
+              table.getFilteredRowModel().rows.length
+            )}{" "}
+            of {table.getFilteredRowModel().rows.length} results
+          </div>
+          <Pagination
+            currentPage={table.getState().pagination.pageIndex + 1}
+            totalPages={table.getPageCount()}
+            onPageChange={(page) => table.setPageIndex(page - 1)}
+          />
         </div>
-        <Pagination
-          currentPage={table.getState().pagination.pageIndex + 1}
-          totalPages={table.getPageCount()}
-          onPageChange={(page) => table.setPageIndex(page - 1)}
-        />
-      </div>
+      )}
 
       {filteredData.length === 0 && !loading && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -647,11 +649,11 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   );
 }
 
-export default withSimpleRBAC(PolDataManager, {
-  privilege: "VIEW_POL_PORTS", // Minimum required privilege to access
-  role: [1, 2, 3], // Admin users (role 1), Manager users (role 2), and Regular users (role 3) can access
-  allowSuperUserBypass: true, // Superusers can always access
-  redirectTo: "/user/dashboard" // Redirect if no access
+export default withSimplifiedRBAC(PolDataManager, {
+  privilege: "VIEW_POL_PORTS",
+  module: [60], // Port & Customer Management module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 });
 
 // DEBUG: This component should have role [1, 2, 3] - if you see [2, 3], there's a caching issue

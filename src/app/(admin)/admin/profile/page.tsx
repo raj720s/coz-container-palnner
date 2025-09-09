@@ -1,8 +1,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { useUpdateUserProfileMutation } from '@/store/api/apiSlice';
+import { userService } from '@/services/userService';
 import { useSelector } from 'react-redux';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUser } from '@/store/slices/consolidatedUserSlice';
 import { useProfileSync } from '@/hooks/useProfileSync';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/button/Button';
@@ -28,8 +28,8 @@ export default function AdminProfilePage() {
     phone_number: '',
   });
 
-  // Only use the update mutation, no need for get query
-  const [updateProfile, { isLoading: isUpdating }] = useUpdateUserProfileMutation();
+  // State for update loading
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Initialize form data when user data is available
   useEffect(() => {
@@ -56,13 +56,16 @@ export default function AdminProfilePage() {
     e.preventDefault();
     
     try {
-      await updateProfile(formData).unwrap();
+      setIsUpdating(true);
+      await userService.updateUserProfile(formData);
       toast.success('Profile updated successfully!');
       setIsEditing(false);
       // Note: The profile will be automatically synced by useProfileSync
       // No need to manually refetch
     } catch (error: any) {
-      toast.error(error?.data?.message || 'Failed to update profile');
+      toast.error(error?.message || 'Failed to update profile');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -245,13 +248,13 @@ export default function AdminProfilePage() {
               <Label className="text-sm font-medium text-gray-500">Role</Label>
               <p className="mt-1 text-sm text-gray-900 dark:text-white">
                 {(() => {
-                  if (reduxUser?.role) {
-                    return reduxUser.role; // Redux user has string role
+                  if (reduxUser?.is_superuser) {
+                    return "Administrator";
                   }
                   if (userProfile?.role?.[0]?.role_name) {
                     return userProfile.role[0].role_name; // API profile has array role
                   }
-                  return reduxUser?.is_superuser ? "Administrator" : "User";
+                  return "User";
                 })()}
               </p>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";      
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";      
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -413,7 +413,7 @@ function UploadsHistoryManager() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            View History Page
+            Uploads History
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             View and manage all shipment file uploads and their processing results. Shows last 10 upload records per user from the past 3 months.
@@ -673,6 +673,9 @@ function UploadsHistoryManager() {
   );
 }
 
-export default withSimpleRBAC(UploadsHistoryManager, {
-  route: "/admin/shipment-operations/uploads-history"
+export default withSimplifiedRBAC(UploadsHistoryManager, {
+  privilege: "VIEW_UPLOADS_HISTORY",
+  module: [70], // Shipment Operations module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 });

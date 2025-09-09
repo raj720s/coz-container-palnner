@@ -11,23 +11,44 @@ import { CreateUserRequest } from "@/types/api";
 import { useRoles } from "@/hooks/useRoles";
 import { userService } from "@/services/userService";
 import { roleService } from "@/services/roleService";
+// import { userCustomerMappingService } from "@/services/userCustomerMappingService";
+import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
+// import CustomerSelector from "@/components/forms/CustomerSelector";
+// import ConditionalRender from "@/components/shared/ConditionalRender";
+
 import toast from "react-hot-toast";
 
-const userSchema = z.object({
+const createUserSchema = (isEditing: boolean) => z.object({
   first_name: z.string().min(2, "First name must be at least 2 characters"),
   last_name: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   role: z.string().min(1, "Please select a role"),
   status: z.string(),
   organisation_name: z.string().min(1, "Organisation name is required"),
-  password: z.string().optional(),
-  confirmPassword: z.string().optional(),
+  password: isEditing ? z.string().optional() : z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: isEditing ? z.string().optional() : z.string().min(6, "Confirm password must be at least 6 characters"),
 }).superRefine((data, ctx) => {
-  // Password validation is now optional since the API doesn't require it
-  // The form will still show password fields for new users but won't enforce them
+  // Password validation for new users only
+  if (!isEditing) {
+    if (data.password && data.password.length < 6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Password must be at least 6 characters",
+        path: ["password"],
+      });
+    }
+    
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Passwords do not match",
+        path: ["confirmPassword"],
+      });
+    }
+  }
 });
 
-type UserFormData = z.infer<typeof userSchema>;
+type UserFormData = z.infer<ReturnType<typeof createUserSchema>>;
 
 interface UserFormProps {
   initialData?: {
@@ -52,7 +73,11 @@ export const UserForm: React.FC<UserFormProps> = ({
 }) => {
   // Use the roles hook to get roles from Redux state
   const { roles, loading: rolesLoading, roleOptions } = useRoles();
+  const { user: currentUser } = useSimplifiedRBAC();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Customer assignment state - commented out for next version
+  // const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   console.log("🔄 UserForm rendered with:", {
     initialData,
     isEditing,
@@ -68,7 +93,7 @@ export const UserForm: React.FC<UserFormProps> = ({
     setValue,
     watch,
   } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+    resolver: zodResolver(createUserSchema(isEditing)),
     defaultValues: {
       first_name: "",
       last_name: "",
@@ -84,6 +109,13 @@ export const UserForm: React.FC<UserFormProps> = ({
   const role = watch("role");
   const status = watch("status");
 
+  // Load existing customer assignments when editing - commented out for next version
+  // useEffect(() => {
+  //   if (isEditing && initialData?.id) {
+  //     loadExistingCustomerAssignments(parseInt(initialData.id));
+  //   }
+  // }, [isEditing, initialData?.id]);
+
   // Set initial values when editing
   useEffect(() => {
     if (initialData) {
@@ -97,8 +129,20 @@ export const UserForm: React.FC<UserFormProps> = ({
         password: "",
         confirmPassword: "",
       });
+
+
     }
-  }, [initialData, reset]);
+  }, [initialData, reset, isEditing]);
+
+  // Load existing customer assignments for editing - commented out for next version
+  // const loadExistingCustomerAssignments = async (userId: number) => {
+  //   try {
+  //     const assignedCustomers = await userCustomerMappingService.getAssignedCustomers(userId);
+  //     setSelectedCustomers(assignedCustomers);
+  //   } catch (error) {
+  //     console.error('Error loading customer assignments:', error);
+  //   }
+  // };
 
   const handleFormSubmit = async (formData: UserFormData) => {
     console.log("🎯 Form submitted with data:", formData);
@@ -121,9 +165,11 @@ export const UserForm: React.FC<UserFormProps> = ({
       first_name: formData.first_name,
       last_name: formData.last_name,
       email: formData.email,
-      role: parseInt(selectedRole.id), // Convert string ID to number for API
+      role: selectedRole.id, // Use the role ID directly
       status: formData.status === "true",
       organisation_name: formData.organisation_name,
+      // Add password for new users
+      ...(formData.password && { password: formData.password }),
     };
     
     console.log("📦 Transformed API data:", apiData);
@@ -141,6 +187,24 @@ export const UserForm: React.FC<UserFormProps> = ({
         
         const response = await userService.updateUser(parseInt(initialData.id as any), apiData);
         console.log("✅ User updated successfully:", response);
+        
+        // Update customer assignments if any changes - commented out for next version
+        // if (selectedCustomers.length > 0 || (initialData.id && selectedCustomers.length === 0)) {
+        //   try {
+        //     const userId = parseInt(initialData.id!);
+        //     await userCustomerMappingService.replaceCustomerAssignments(
+        //       userId, 
+        //       selectedCustomers, 
+        //       parseInt(currentUser?.id || '1')
+        //     );
+        //     
+        //     console.log("✅ Customer assignments updated successfully");
+        //   } catch (customerError) {
+        //     console.error("❌ Customer assignment update failed:", customerError);
+        //     toast.error("User updated successfully, but customer assignment update failed. Please update customer assignments manually.");
+        //   }
+        // }
+        
         toast.success("User updated successfully");
         
       } else {
@@ -166,11 +230,26 @@ export const UserForm: React.FC<UserFormProps> = ({
             throw new Error("Could not extract user ID from response");
           }
           
-          console.log("🔗 Assigning role to user:", { roleId: selectedRole.id, userId });
+          console.log("🔗 User created with role:", { roleId: selectedRole.id, userId });
           
-          // Assign the role to the user
-          await roleService.assignUsersToRole(selectedRole.id, [userId]);
-          console.log("✅ Role assigned successfully to user:", userId);
+          // Note: Role assignment is handled by the API during user creation
+          console.log("✅ User created with role successfully:", userId);
+          
+          // Step 3: Assign customers to user (if any selected) - commented out for next version
+          // if (selectedCustomers.length > 0) {
+          //   try {
+          //     console.log("🔗 Assigning customers to user:", { userId, customerIds: selectedCustomers });
+          //     await userCustomerMappingService.assignCustomersToUser(
+          //       userId, 
+          //       selectedCustomers, 
+          //       parseInt(currentUser?.id || '1')
+          //     );
+          //     console.log("✅ Customers assigned successfully to user:", userId);
+          //   } catch (customerError) {
+          //     console.error("❌ Customer assignment failed:", customerError);
+          //     toast.error("User created and role assigned, but customer assignment failed. Please assign customers manually.");
+          //   }
+          // }
           
           toast.success("User created and role assigned successfully");
           
@@ -255,7 +334,7 @@ export const UserForm: React.FC<UserFormProps> = ({
               options={[
                 { value: "", label: "Select a role" },
                 ...roleOptions.map((roleOption) => ({
-                  value: roleOption.value,
+                  value: roleOption.value.toString(),
                   label: roleOption.label
                 }))
               ]}
@@ -306,33 +385,60 @@ export const UserForm: React.FC<UserFormProps> = ({
           </div>
         </div>
 
+        {/* Customer Assignment Section - commented out for next version */}
+        {/* <ConditionalRender privilege="ASSIGN_CUSTOMERS_TO_USER">
+          <div className="space-y-4">
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+                Customer Assignments
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Select customers to assign to this user. Users can only see data for their assigned customers.
+              </p>
+              
+              <CustomerSelector
+                selectedCustomers={selectedCustomers}
+                onSelectionChange={setSelectedCustomers}
+              />
+              
+              {selectedCustomers.length > 0 && (
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>{selectedCustomers.length}</strong> customer{selectedCustomers.length > 1 ? 's' : ''} selected
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </ConditionalRender> */}
+
         {!isEditing && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label htmlFor="password">Password (Optional)</Label>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 {...register("password")}
                 type="password"
-                placeholder="Enter password (optional)"
+                placeholder="Enter password"
                 className="w-full"
               />
-              <p className="mt-1 text-sm text-gray-500">Password is not required by the API</p>
+              <p className="mt-1 text-sm text-gray-500">Password is required for new users</p>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password (Optional)</Label>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 {...register("confirmPassword")}
                 type="password"
-                placeholder="Confirm password (optional)"
+                placeholder="Confirm password"
                 className="w-full"
               />
-              <p className="mt-1 text-sm text-gray-500">Password is not required by the API</p>
+              <p className="mt-1 text-sm text-gray-500">Confirm your password</p>
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}

@@ -95,11 +95,11 @@ export const FormModal: React.FC<FormModalProps> = ({
   const childrenWithoutActions = removeFormActions(children);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size as keyof typeof sizeClasses]}`}>
-      <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl">
+    <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size as keyof typeof sizeClasses]} max-h-[80vh]`}>
+      <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-xl flex flex-col max-h-[80vh]">
         {/* Header */}
         {showHeader && (
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
               {title}
             </h2>
@@ -113,14 +113,14 @@ export const FormModal: React.FC<FormModalProps> = ({
           </div>
         )}
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Content - Scrollable area */}
+        <div className="p-6 flex-1 overflow-y-auto">
           {childrenWithoutActions}
         </div>
 
         {/* Footer - Render form actions from children */}
         {showFooter && formActions.length > 0 && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex-shrink-0">
             {formActions}
           </div>
         )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
@@ -625,7 +625,7 @@ function ContainerPlanningPage() {
   );
 }
 
-export default withSimpleRBAC(ContainerPlanningPage, {
+export default withSimplifiedRBAC(ContainerPlanningPage, {
   route: "/admin/container-planning",
   privilege: "VIEW_CONTAINER_PLANNING"
 }); 

@@ -1,6 +1,6 @@
 "use client";
 
-import { withSimpleRBAC } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -273,6 +273,6 @@ function ShipmentUploadManager() {
   );
 }
 
-export default withSimpleRBAC(ShipmentUploadManager, {
+export default withSimplifiedRBAC(ShipmentUploadManager, {
   route: "/admin/shipment-upload"
 }); 

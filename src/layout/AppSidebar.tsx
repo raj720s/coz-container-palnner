@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
 import { useSelector } from 'react-redux';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUser } from '@/store/slices/consolidatedUserSlice';
 import staticModuleDefinitions from '@/config/staticModules';
 
 import { 
@@ -22,7 +22,7 @@ import {
   HiOutlineCheckCircle,
   HiOutlineExclamationCircle
 } from "react-icons/hi";
-import useSimpleRBAC from "@/hooks/useSimpleRBAC";
+import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
 
 // Icon mapping for modules
 const moduleIcons: Record<string, React.ReactNode> = {
@@ -59,7 +59,8 @@ const AppSidebar: React.FC = () => {
   const { user: contextUser } = useAuth();
   const reduxUser = useSelector(selectUser);
   const pathname = usePathname();
-  const { canAccessRoute, userRole, isAdmin, getAccessibleModules, getModuleInfo, userPrivileges } = useSimpleRBAC();
+  // Only get the values we actually need from the hook
+  const { userRole, isAdmin } = useSimplifiedRBAC();
   
   // Use Redux user if available, fallback to context user
   const user = reduxUser || contextUser;
@@ -68,7 +69,10 @@ const AppSidebar: React.FC = () => {
   
   // Helper function to check if user is admin (legacy support)
   const isUserAdmin = (user: any): boolean => {
+
+    console.log("reduxUser", reduxUser);
     if (reduxUser?.is_superuser !== undefined) {
+      console.log("reduxUser.is_superuser", reduxUser.is_superuser);
       return reduxUser.is_superuser;
     }
     return user?.role === 'admin' || isAdmin();
@@ -85,8 +89,7 @@ const AppSidebar: React.FC = () => {
     const navItems: NavItem[] = [];
     
     // Admin Menu (Role 1)
-    console.log("userRole", userRole);
-    if (userRole === 1) {
+    if (userRole === 1 || reduxUser?.is_superuser) {
       // Dashboard
       navItems.push({
         icon: <HiOutlineChartBar className="w-5 h-5" />,
@@ -149,8 +152,6 @@ const AppSidebar: React.FC = () => {
       });
     } else {
       // User Menu (Role 2+ and other roles)
-
-      console.log({userRole})
       
       // Dashboard
       navItems.push({
@@ -205,7 +206,6 @@ const AppSidebar: React.FC = () => {
     return navItems;
   }, [userRole]);
 
-  console.log("navItems", generateNavItems());
 
   
 
@@ -213,31 +213,12 @@ const AppSidebar: React.FC = () => {
   const filteredNavItems = useMemo(() => {
     if (!user) return [];
 
-    
     const navItems = generateNavItems();
     
-    // Filter items based on RBAC and legacy role checks
-    return navItems.filter(item => {
-      
-      
-      // RBAC route access check
-      // if (!canAccessRoute(item.path)) return false;
-      
-      if (item.subItems) {
-        const filteredSubItems = item.subItems.filter(subItem => {
-          
-          // RBAC route access check
-          // return canAccessRoute(subItem.path);
-          return true;
-        });
-        
-        // Only show parent item if it has accessible sub-items
-        return filteredSubItems.length > 0;
-      }
-      
-      return true;
-    });
-  }, [user, userRole, isAdmin, canAccessRoute, generateNavItems, userIsAdmin]);
+    // For now, return all nav items since sidebar doesn't handle roleID dynamically
+    // This prevents unnecessary re-renders
+    return navItems;
+  }, [user, userRole, generateNavItems]);
 
   // Track which submenus are open
   const [openSubmenus, setOpenSubmenus] = useState<Set<number>>(new Set());
@@ -254,7 +235,6 @@ const AppSidebar: React.FC = () => {
     });
   }, []);
 
-  console.log("filteredNavItems", filteredNavItems);
 
   const renderMenuItems = useCallback((
     navItems: NavItem[],

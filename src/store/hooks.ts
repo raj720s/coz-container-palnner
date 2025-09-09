@@ -11,15 +11,15 @@ export const useAppStore = () => useStore<RootState>();
 
 // Auth hooks
 export const useAuth = () => {
-  return useAppSelector((state) => state.auth);
+  return useAppSelector((state) => state.user);
 };
 
 export const useUser = () => {
-  return useAppSelector((state) => state.auth.user);
+  return useAppSelector((state) => state.user.user);
 };
 
 export const useIsAuthenticated = () => {
-  return useAppSelector((state) => state.auth.isAuthenticated);
+  return useAppSelector((state) => state.user.isAuthenticated);
 };
 
 // UI hooks

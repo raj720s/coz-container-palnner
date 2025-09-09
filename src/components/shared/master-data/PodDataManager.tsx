@@ -20,7 +20,7 @@ import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmatio
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
-import { withSimpleRBAC, RBACContextValue } from "@/components/auth/withSimpleRBAC";
+import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 import Pagination from "@/components/tables/Pagination";
 import { PODResponse, PODListRequest, CreatePODRequest, UpdatePODRequest } from "@/types/api";
 import { podService } from "@/services";
@@ -28,7 +28,7 @@ import { podService } from "@/services";
 const columnHelper = createColumnHelper<PODResponse>();
 
 interface PodDataManagerProps {
-  rbacContext?: RBACContextValue;
+  rbacContext?: SimplifiedRBACProps['rbacContext'];
 }
 
 function PodDataManager({ rbacContext }: PodDataManagerProps) {
@@ -36,8 +36,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   
-  // Use RBAC context from withSimpleRBAC instead of duplicate hooks
-  const { hasPrivilege, isAdmin, isSuperUser } = rbacContext || {};
+  // Use RBAC context from withSimplifiedRBAC instead of duplicate hooks
+  const { can, isAdmin, isSuperUser } = rbacContext || {};
   
   // Local state for data management
   const [pods, setPods] = useState<PODResponse[]>([]);
@@ -68,7 +68,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   } = useFormModal<PODResponse>();
 
   // Check if user can delete POD data using RBAC context
-  const canDeletePOD = hasPrivilege?.("DELETE_POD") || isAdmin?.() || isSuperUser;
+  const canDeletePOD = can?.("DELETE_POD") || isAdmin?.() || isSuperUser;
 
   // Auto-open modal if action=add
   useEffect(() => {
@@ -529,13 +529,27 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       </div>
 
       {/* Pagination */}
-      {Math.ceil(total / (filters.page_size || 10)) > 1 && (
-        <div className="mt-6">
+      {total > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Showing {((filters.page || 1) - 1) * (filters.page_size || 10) + 1} to{" "}
+            {Math.min(
+              (filters.page || 1) * (filters.page_size || 10),
+              total
+            )}{" "}
+            of {total} results
+          </div>
           <Pagination
             currentPage={filters.page || 1}
             totalPages={Math.ceil(total / (filters.page_size || 10))}
             onPageChange={handlePageChange}
           />
+        </div>
+      )}
+
+      {total === 0 && !loading && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          No POD ports found matching your search criteria.
         </div>
       )}
 
@@ -578,9 +592,9 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   );
 }
 
-export default withSimpleRBAC(PodDataManager, {
-  privilege: "VIEW_POD_PORTS", // Minimum required privilege to access
-  role: [1, 2, 3], // Admin users (role 1), Manager users (role 2), and Regular users (role 3) can access
-  allowSuperUserBypass: true, // Superusers can always access
-  redirectTo: "/user/dashboard" // Redirect if no access
+export default withSimplifiedRBAC(PodDataManager, {
+  privilege: "VIEW_POD_PORTS",
+  module: [60], // Port & Customer Management module
+  allowSuperUserBypass: true,
+  redirectTo: "/user/dashboard"
 });

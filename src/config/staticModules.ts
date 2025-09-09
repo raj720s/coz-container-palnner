@@ -2,17 +2,8 @@ export interface StaticModule {
   id: number;
   name: string;
   description: string;
-  icon: string;
-  color: string;
   routes: string[]; // Unified array of all routes (admin + user)
   privileges: string[]; // Unified array of all privileges for this module
-  subModules?: {
-    id: number;
-    name: string;
-    description: string;
-    routes: string[]; // Unified array of all routes
-    privileges: string[]; // Unified array of all privileges
-  }[];
 }
 
 export interface StaticModuleDefinitions {
@@ -26,11 +17,14 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
       id: 10,
       name: "Role Management",
       description: "Manage system roles and role configurations",
-      icon: "UserCircleIcon",
-      color: "blue",
       routes: [
         "/admin/role-management",
-        "/admin/role-permission-management"
+        "/admin/role-management/create",
+        "/admin/role-management/edit",
+        "/admin/role-management/view",
+        "/admin/role-permission-management",
+        "/admin/role-permission-management/assign",
+        "/admin/role-permission-management/remove"
       ],
       privileges: [
         "CREATE_ROLE",
@@ -45,35 +39,65 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
     
     20: {
       id: 20,
-      name: "User Management",
-      description: "Manage users, user profiles, and user operations",
-      icon: "UserCircleIcon",
-      color: "indigo",
+      name: "Privilege Management",
+      description: "Manage system privileges and permissions",
       routes: [
-        "/admin/user-management",
-        "/admin/profile",
-        "/user/profile"
+        "/admin/privilege-management",
+        "/admin/privilege-management/view",
+        "/admin/privilege-management/assign",
+        "/admin/privilege-management/revoke"
       ],
       privileges: [
-        "CREATE_USER",
-        "VIEW_USER_LIST",
-        "UPDATE_USER",
-        "UPDATE_USER_PROFILE",
-        "UPDATE_USER_PASSWORD",
-        "UPDATE_USER_STATUS",
-        "DELETE_USER",
-        "GET_USER_PROFILE",
-        "CREATE_USER_ROLE",
-        "VIEW_USER_ACTIVITY_LOGS"
+        "VIEW_PRIVILEGE_LIST"
       ]
     },
     
     30: {
       id: 30,
+      name: "Role Permission Management",
+      description: "Manage role-permission assignments and configurations",
+      routes: [
+        "/admin/role-permission-management",
+        "/admin/role-permission-management/assign",
+        "/admin/role-permission-management/remove",
+        "/admin/role-permission-management/view"
+      ],
+      privileges: [
+        "CREATE_ROLE_PERMISSION",
+        "VIEW_ROLE_PERMISSION_LIST"
+      ]
+    },
+    
+    40: {
+      id: 40,
+      name: "User Management",
+      description: "Manage users, user profiles, and user operations",
+      routes: [
+        "/admin/user-management",
+        "/admin/user-management/create",
+        "/admin/user-management/edit",
+        "/admin/user-management/view",
+        "/admin/user-management/delete",
+        "/admin/profile",
+        "/user/profile",
+        "/user/profile/edit"
+      ],
+      privileges: [
+        "CREATE_USER",
+        "UPDATE_USER",
+        "DELETE_USER",
+        "VIEW_USER",
+        "VIEW_USER_LIST",
+        "VIEW_USER_SHORT_INFO_LIST",
+        "UPDATE_USER_PASSWORD",
+        "UPDATE_USER_STATUS"
+      ]
+    },
+    
+    50: {
+      id: 50,
       name: "Container Management",
       description: "Manage container types, thresholds, and planning",
-      icon: "CubeIcon",
-      color: "yellow",
       routes: [
         "/admin/container-types",
         "/admin/container-thresholds",
@@ -104,12 +128,10 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
       ]
     },
     
-    40: {
-      id: 40,
+    60: {
+      id: 60,
       name: "Port & Customer Management",
       description: "Manage ports, customers, and port-customer relationships",
-      icon: "GlobeIcon",
-      color: "teal",
       routes: [
         "/admin/port-customer-master",
         "/admin/port-customer-master/customers",
@@ -134,65 +156,13 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
         "EXPORT_CUSTOMERS",
         "EXPORT_POL_PORTS",
         "EXPORT_POD_PORTS"
-      ],
-      subModules: [
-        {
-          id: 41,
-          name: "POL Master",
-          description: "Manage Port of Loading (POL) ports",
-          routes: [
-            "/admin/port-customer-master/pol-ports",
-            "/user/port-customer-master/pol-ports"
-          ],
-          privileges: [
-            "VIEW_POL_PORTS",
-            "CREATE_POL",
-            "UPDATE_POL",
-            "DELETE_POL",
-            "EXPORT_POL_PORTS"
-          ]
-        },
-        {
-          id: 42,
-          name: "POD Master",
-          description: "Manage Port of Destination (POD) ports",
-          routes: [
-            "/admin/port-customer-master/pod-ports",
-            "/user/port-customer-master/pod-ports"
-          ],
-          privileges: [
-            "VIEW_POD_PORTS",
-            "CREATE_POD",
-            "UPDATE_POD",
-            "DELETE_POD",
-            "EXPORT_POD_PORTS"
-          ]
-        },
-        {
-          id: 43,
-          name: "Customer Records",
-          description: "Manage customer information and configurations",
-          routes: [
-            "/admin/port-customer-master/customers",
-            "/user/port-customer-master/customers"
-          ],
-          privileges: [
-            "VIEW_CUSTOMERS",
-            "CREATE_CUSTOMER",
-            "UPDATE_CUSTOMER",
-            "DELETE_CUSTOMER",
-            "EXPORT_CUSTOMERS"
-          ]
-        }
       ]
     },
     
-    50: {
-      id: 50,
+    70: {
+      id: 70,
       name: "Shipment Operations",
       description: "Manage shipment uploads, processing, and operations",
-      icon: "DocumentIcon",
-      color: "red",
       routes: [
         "/admin/shipment-upload",
         "/admin/shipment-operations/input-file",
@@ -217,70 +187,13 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
         "UPLOAD_SHIPMENT_FILE",
         "PROCESS_SHIPMENT",
         "EXPORT_SHIPMENT_DATA"
-      ],
-      subModules: [
-        {
-          id: 51,
-          name: "Upload Shipments",
-          description: "Upload and process shipment files",
-          routes: [
-            "/admin/shipment-upload",
-            "/user/shipment-upload"
-          ],
-          privileges: [
-            "VIEW_SHIPMENT_UPLOAD",
-            "UPLOAD_SHIPMENT_FILE",
-            "PROCESS_SHIPMENT"
-          ]
-        },
-        {
-          id: 52,
-          name: "Shipment History",
-          description: "View shipment history and operations",
-          routes: [
-            "/admin/shipment-operations/shipment-history",
-            "/user/shipment-operations/shipment-history"
-          ],
-          privileges: [
-            "VIEW_SHIPMENT_HISTORY"
-          ]
-        },
-        {
-          id: 53,
-          name: "File Management",
-          description: "Manage input and output files",
-          routes: [
-            "/admin/shipment-operations/input-file",
-            "/admin/shipment-operations/output-file",
-            "/user/shipment-operations/input-file",
-            "/user/shipment-operations/output-file"
-          ],
-          privileges: [
-            "VIEW_INPUT_FILE",
-            "VIEW_OUTPUT_FILE"
-          ]
-        },
-        {
-          id: 54,
-          name: "Uploads History",
-          description: "View upload history and status",
-          routes: [
-            "/admin/shipment-operations/uploads-history",
-            "/user/shipment-operations/uploads-history"
-          ],
-          privileges: [
-            "VIEW_UPLOADS_HISTORY"
-          ]
-        }
       ]
     },
     
-    60: {
-      id: 60,
+    80: {
+      id: 80,
       name: "Analytics & Reports",
       description: "View analytics, validation results, and generate reports",
-      icon: "ChartIcon",
-      color: "pink",
       routes: [
         "/admin/assignment-results",
         "/admin/validation-summary",
@@ -302,15 +215,14 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
       ]
     },
     
-    70: {
-      id: 70,
+    90: {
+      id: 90,
       name: "System Administration",
       description: "System settings, data backup, and administrative tasks",
-      icon: "CogIcon",
-      color: "gray",
       routes: [
         "/admin/system-settings",
-        "/admin/data-backup"
+        "/admin/data-backup",
+        "/admin/module-management"
       ],
       privileges: [
         "VIEW_SYSTEM_SETTINGS",
@@ -323,15 +235,14 @@ export const staticModuleDefinitions: StaticModuleDefinitions = {
       ]
     },
     
-    80: {
-      id: 80,
+    100: {
+      id: 100,
       name: "Dashboard",
       description: "Main dashboard and overview",
-      icon: "HomeIcon",
-      color: "blue",
       routes: [
         "/admin/dashboard",
-        "/user/dashboard"
+        "/user/dashboard",
+        "/dashboard"
       ],
       privileges: [
         "VIEW_DASHBOARD",
