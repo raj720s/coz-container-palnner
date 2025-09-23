@@ -333,14 +333,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const canAccessRoute = useCallback((route: string): boolean => {
-    console.log('🔍 canAccessRoute: Checking access for route:', route, {
-      user: state.user ? { 
-        id: state.user.id, 
-        rbac_initialized: state.user.rbac_initialized, 
-        accessible_routes: state.user.accessible_routes?.length || 0,
-        is_superuser: state.user.is_superuser
-      } : null
-    });
 
     if (!state.user) return false;
     if (state.user.is_superuser) return true;
@@ -349,13 +341,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const basicRoutes = ['/dashboard', '/profile', '/settings', '/'];
       const unifiedRoute = getUnifiedRoute(route);
       const hasAccess = basicRoutes.includes(unifiedRoute) || basicRoutes.some(basicRoute => unifiedRoute.startsWith(basicRoute));
-      console.log('🔍 canAccessRoute: Basic route check result:', hasAccess, 'for route:', unifiedRoute);
       return hasAccess;
     }
 
     const unifiedRoute = getUnifiedRoute(route);
     const hasAccess = state.user.accessible_routes?.includes(unifiedRoute) || false;
-    console.log('🔍 canAccessRoute: RBAC route check result:', hasAccess, 'for route:', unifiedRoute, 'in routes:', state.user.accessible_routes);
     return hasAccess;
   }, [state.user, getUnifiedRoute]);
 
@@ -436,7 +426,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
              const staticModule = staticModules[moduleId];
             if (staticModule) {
-              console.log('🔍 AuthContext: Adding routes for module', moduleId, ':', staticModule.routes);
               accessibleRoutes.push(...staticModule.routes);
             } else {
               console.warn('⚠️ AuthContext: No static module definition found for module ID:', moduleId);
@@ -453,15 +442,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           rbac_initialized: true,
           rbac_last_updated: new Date().toISOString()
         };
-
-        console.log('🔍 AuthContext: Complete RBAC data loaded successfully', {
-          privileges: rolePrivileges.length,
-          modules: accessibleModules.length,
-          routes: accessibleRoutes.length,
-          accessible_routes: accessibleRoutes,
-          user_id: updatedUser.id,
-          role_id: updatedUser.role_id
-        });
 
         dispatch({ type: 'SET_USER', payload: updatedUser });
         StorageManager.saveUser(updatedUser);
@@ -544,7 +524,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Optimized logout function
   const logout = useCallback(() => {
-    console.log('🔍 AuthContext: Logout initiated');
     
     // Cancel any in-flight requests
     if (abortControllerRef.current) {
@@ -555,25 +534,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     StorageManager.clearAll();
     dispatch({ type: 'LOGOUT' });
     
-    console.log('✅ AuthContext: Logout completed');
   }, []);
 
   // Optimized initialization effect
   useEffect(() => {
-    console.log('🔍 AuthContext: Initialization effect triggered');
     
     // Don't run if unmounted
     if (!mountedRef.current) {
-      console.log('🔍 AuthContext: Component unmounted, skipping initialization');
       return;
     }
 
     if (initializationRef.current) {
-      console.log('🔍 AuthContext: Already initialized, skipping');
       return;
     }
     
-    console.log('🔍 AuthContext: Starting initialization...');
     initializationRef.current = true;
 
     const abortController = new AbortController();
@@ -586,12 +560,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         const storedToken = StorageManager.getToken();
         const userData = StorageManager.getUser();
-
-        console.log('🔍 AuthContext: Stored data check', {
-          hasToken: !!storedToken,
-          hasUser: !!userData,
-          userId: userData?.id
-        });
 
         if (storedToken && userData) {
           if (!mountedRef.current) return;
@@ -621,7 +589,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } finally {
         if (mountedRef.current) {
-          console.log('🔍 AuthContext: Setting initialization complete');
           dispatch({ type: 'SET_INITIALIZED', payload: true });
           dispatch({ type: 'SET_CONTEXT_AVAILABLE', payload: true });
           dispatch({ type: 'SET_LOADING', payload: { key: 'auth', value: false } });

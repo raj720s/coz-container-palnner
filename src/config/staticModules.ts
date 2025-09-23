@@ -6,197 +6,155 @@ export interface StaticModule {
   privileges: string[];
   icon?: string;
   color?: string;
+  group?: string;
+  adminOnly?: boolean;
+  userOnly?: boolean;
 }
 
 export const staticModules: Record<number, StaticModule> = {
+  // Module 10: Role Management
   10: {
     id: 10,
     name: "Role Management",
     description: "Manage system roles and role configurations",
-    routes: [
-      "/role-management",
-      "/admin/role-management",
-      "/user/role-management"
-    ],
-    privileges: [
-      "VIEW_ROLES",
-      "CREATE_ROLE",
-      "UPDATE_ROLE",
-      "DELETE_ROLE",
-      "MANAGE_ROLE_PERMISSIONS"
-    ],
+    routes: ["/role-management"],
+    privileges: ["CREATE_ROLE", "VIEW_ROLE_LIST", "VIEW_ROLE", "UPDATE_ROLE", "DELETE_ROLE"],
     icon: "shield-check",
-    color: "blue"
+    color: "blue",
+    group: "admin",
+    adminOnly: true
   },
+  
+  // Module 20: Privilege Management
   20: {
     id: 20,
     name: "Privilege Management",
     description: "Manage system privileges and permissions",
-    routes: [
-      "/privilege-management",
-      "/admin/privilege-management"
-    ],
-    privileges: [
-      "VIEW_PRIVILEGES",
-      "CREATE_PRIVILEGE",
-      "UPDATE_PRIVILEGE",
-      "DELETE_PRIVILEGE"
-    ],
+    routes: ["/privilege-management"],
+    privileges: ["VIEW_PRIVILEGE_LIST"],
     icon: "key",
-    color: "purple"
+    color: "purple",
+    group: "admin",
+    adminOnly: true
   },
+  
+  // Module 30: Role Permission Management
   30: {
     id: 30,
     name: "Role Permission Management",
     description: "Manage role-permission assignments and configurations",
-    routes: [
-      "/role-permission-management",
-      "/admin/role-permission-management"
-    ],
-    privileges: [
-      "VIEW_ROLE_PERMISSIONS",
-      "ASSIGN_ROLE_PERMISSIONS",
-      "REMOVE_ROLE_PERMISSIONS"
-    ],
+    routes: ["/role-permission-management"],
+    privileges: ["CREATE_ROLE_PERMISSION", "VIEW_ROLE_PERMISSION_LIST"],
     icon: "link",
-    color: "indigo"
+    color: "indigo",
+    group: "admin",
+    adminOnly: true
   },
+  
+  // Module 40: User Management
   40: {
     id: 40,
     name: "User Management",
     description: "Manage users, user profiles, and user operations",
-    routes: [
-      "/user-management",
-      "/admin/user-management",
-      "/user-management/users",
-      "/user-management/customer-mapping"
-    ],
-    privileges: [
-      "VIEW_USERS",
-      "CREATE_USER",
-      "UPDATE_USER",
-      "DELETE_USER",
-      "MANAGE_USER_ROLES",
-      "MANAGE_USER_CUSTOMERS"
-    ],
+    routes: ["/user-management"],
+    privileges: ["VIEW_USER_LIST", "CREATE_USER", "VIEW_USER", "VIEW_USER_SHORT_INFO_LIST", "UPDATE_USER", "DELETE_USER", "UPDATE_USER_PASSWORD", "UPDATE_USER_STATUS"],
     icon: "users",
-    color: "green"
+    color: "green",
+    group: "admin",
+    adminOnly: true
   },
+  
+  // Module 50: Container Management (Master Data)
   50: {
     id: 50,
     name: "Container Management",
     description: "Manage container types, thresholds, and planning",
-    routes: [
-      "/container-management",
-      "/admin/container-management",
-      "/container-priority",
-      "/container-thresholds",
-      "/container-types"
-    ],
+    routes: ["/container-types", "/container-thresholds", "/container-priority", "/container-planning"],
     privileges: [
-      "VIEW_CONTAINERS",
-      "MANAGE_CONTAINER_PRIORITIES",
-      "MANAGE_CONTAINER_THRESHOLDS",
-      "MANAGE_CONTAINER_TYPES"
+      "VIEW_CONTAINER_TYPES", "CREATE_CONTAINER_TYPE", "UPDATE_CONTAINER_TYPE", "DELETE_CONTAINER_TYPE",
+      "VIEW_CONTAINER_THRESHOLDS", "CREATE_THRESHOLD", "UPDATE_THRESHOLD", "DELETE_THRESHOLD",
+      "VIEW_CONTAINER_PRIORITY", "CREATE_PRIORITY", "UPDATE_PRIORITY", "DELETE_PRIORITY",
+      "VIEW_CONTAINER_PLANNING", "CREATE_PLAN", "UPDATE_PLAN", "DELETE_PLAN"
     ],
     icon: "box",
-    color: "orange"
+    color: "orange",
+    group: "master-data"
   },
+  
+  // Module 60: Port & Customer Management
   60: {
     id: 60,
     name: "Port & Customer Management",
     description: "Manage ports, customers, and port-customer relationships",
-    routes: [
-      "/port-customer-master",
-      "/port-customer-master/customers",
-      "/port-customer-master/pol-ports",
-      "/port-customer-master/pod-ports",
-      "/admin/port-customer-master"
-    ],
+    routes: ["/port-customer-master", "/port-customer-master/customers", "/port-customer-master/pol-ports", "/port-customer-master/pod-ports"],
     privileges: [
-      "VIEW_CUSTOMERS",
-      "VIEW_POL_PORTS",
-      "VIEW_POD_PORTS",
-      "MANAGE_CUSTOMERS",
-      "MANAGE_PORTS"
+      "VIEW_PORT_CUSTOMER_MASTER", "VIEW_POL_PORTS", "VIEW_POD_PORTS", "VIEW_CUSTOMERS",
+      "CREATE_PORT", "UPDATE_PORT", "DELETE_PORT", "CREATE_CUSTOMER", "UPDATE_CUSTOMER", "DELETE_CUSTOMER",
+      "EXPORT_CUSTOMERS", "EXPORT_POL_PORTS", "EXPORT_POD_PORTS"
     ],
     icon: "building-office",
-    color: "teal"
+    color: "teal",
+    group: "master-data"
   },
+  
+  // Module 70: Shipment Operations
   70: {
     id: 70,
     name: "Shipment Operations",
     description: "Manage shipment uploads, processing, and operations",
-    routes: [
-      "/shipment-operations",
-      "/admin/shipment-operations",
-      "/shipment-upload",
-      "/shipment-processing"
-    ],
+    routes: ["/shipment-upload", "/shipment-operations", "/shipment-operations/uploads-history"],
     privileges: [
-      "VIEW_SHIPMENTS",
-      "UPLOAD_SHIPMENTS",
-      "PROCESS_SHIPMENTS",
-      "MANAGE_SHIPMENT_OPERATIONS"
+      "VIEW_SHIPMENT_UPLOAD", "CREATE_SHIPMENT", "UPDATE_SHIPMENT", "DELETE_SHIPMENT",
+      "VIEW_SHIPMENT_HISTORY", "VIEW_UPLOADS_HISTORY", "VIEW_INPUT_FILE", "VIEW_OUTPUT_FILE",
+      "UPLOAD_SHIPMENT_FILE", "PROCESS_SHIPMENT", "EXPORT_SHIPMENT_DATA"
     ],
     icon: "truck",
-    color: "red"
+    color: "red",
+    group: "shipment"
   },
+  
+  // Module 80: Analytics & Reports
   80: {
     id: 80,
     name: "Analytics & Reports",
     description: "View analytics, validation results, and generate reports",
-    routes: [
-      "/analytics",
-      "/reports",
-      "/admin/analytics",
-      "/admin/reports",
-      "/validation-results"
-    ],
+    routes: ["/assignment-results", "/validation-summary"],
     privileges: [
-      "VIEW_ANALYTICS",
-      "VIEW_REPORTS",
-      "GENERATE_REPORTS",
-      "VIEW_VALIDATION_RESULTS"
+      "VIEW_ASSIGNMENT_RESULTS", "VIEW_VALIDATION_SUMMARY", "VIEW_REPOSITIONING_SUMMARY",
+      "VIEW_TEST_VALIDATION", "EXPORT_ASSIGNMENT_DATA", "EXPORT_VALIDATION_DATA",
+      "EXPORT_REPOSITIONING_DATA", "RUN_TEST_VALIDATION"
     ],
     icon: "chart-bar",
-    color: "yellow"
+    color: "yellow",
+    group: "shipment"
   },
+  
+  // Module 90: System Administration
   90: {
     id: 90,
     name: "System Administration",
     description: "System settings, data backup, and administrative tasks",
-    routes: [
-      "/system-admin",
-      "/admin/system-admin",
-      "/system-settings",
-      "/data-backup"
-    ],
+    routes: ["/system-admin"],
     privileges: [
-      "VIEW_SYSTEM_SETTINGS",
-      "MANAGE_SYSTEM_SETTINGS",
-      "MANAGE_DATA_BACKUP",
-      "SYSTEM_ADMINISTRATION"
+      "VIEW_SYSTEM_SETTINGS", "UPDATE_SYSTEM_SETTINGS", "DELETE_SYSTEM_SETTINGS",
+      "VIEW_DATA_BACKUP", "CREATE_DATA_BACKUP", "RESTORE_DATA_BACKUP", "DELETE_DATA_BACKUP"
     ],
     icon: "cog",
-    color: "gray"
+    color: "gray",
+    group: "admin",
+    adminOnly: true
   },
+  
+  // Module 100: Dashboard
   100: {
     id: 100,
     name: "Dashboard",
     description: "Main dashboard and overview",
-    routes: [
-      "/dashboard",
-      "/user/dashboard",
-      "/admin/dashboard"
-    ],
-    privileges: [
-      "VIEW_DASHBOARD",
-      "VIEW_USER_DASHBOARD",
-      "VIEW_ADMIN_DASHBOARD"
-    ],
+    routes: ["/dashboard"],
+    privileges: ["VIEW_DASHBOARD", "VIEW_USER_DASHBOARD", "VIEW_ADMIN_DASHBOARD"],
     icon: "home",
-    color: "blue"
+    color: "blue",
+    group: "main"
   }
 };
 

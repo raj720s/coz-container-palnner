@@ -44,17 +44,14 @@ export function withSimplifiedRBAC<P extends object>(
     useEffect(() => {
       // Handle authentication requirement
       if (requireAuthentication && !loading && !user) {
-        console.log('🚫 withSimplifiedRBAC: User not authenticated, redirecting to signin');
         router.push(redirectTo);
         return;
       }
 
       // Handle role-based access - if user has required role, allow access regardless of privilege/module
       if (role.length > 0 && user && !loading && hasAnyRole) {
-        console.log('🔍 withSimplifiedRBAC: Checking role access', { role, user, hasAnyRole: typeof hasAnyRole });
         const hasRequiredRole = hasAnyRole(role) || (allowSuperUserBypass && user.is_superuser);
         if (hasRequiredRole) {
-          console.log('✅ withSimplifiedRBAC: User has required role, allowing access');
           return; // Allow access if user has required role
         }
       }
@@ -65,7 +62,6 @@ export function withSimplifiedRBAC<P extends object>(
         if (privilege && user && !loading) {
           const hasRequiredPrivilege = can(privilege) || (allowSuperUserBypass && user.is_superuser);
           if (!hasRequiredPrivilege) {
-            console.log('🚫 withSimplifiedRBAC: User not privileged, redirecting to user dashboard');
             return;
           }
         }
@@ -74,7 +70,6 @@ export function withSimplifiedRBAC<P extends object>(
         if (route && user && !loading) {
           const hasRequiredRouteAccess = canVisit(route) || (allowSuperUserBypass && user.is_superuser);
           if (!hasRequiredRouteAccess) {
-            console.log('🚫 withSimplifiedRBAC: User not route access, redirecting to user dashboard');
             return;
           }
         }
@@ -83,35 +78,12 @@ export function withSimplifiedRBAC<P extends object>(
         if (module.length > 0 && user && !loading) {
           const hasRequiredModuleAccess = canAccessAnyModule(module) || (allowSuperUserBypass && user.is_superuser);
           if (!hasRequiredModuleAccess) {
-            console.log('🚫 withSimplifiedRBAC: User not module access, redirecting to user dashboard');
             return;
           }
         }
       }
     }, [user, loading, privilege, route, module, role, allowSuperUserBypass, redirectTo, requireAuthentication, router, can, canVisit, canAccessAnyModule, hasAnyRole]);
 
-    console.log('🔍 core: User', {
-      user: user ? {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        role_name: user.role_name,
-        is_superuser: user.is_superuser,
-        privileges: user.privileges,
-        accessible_routes: user.accessible_routes,
-        module_access: user.module_access,
-        assigned_customers: user.assigned_customers
-      } : null,
-      loading, 
-      error, 
-      privilege, 
-      route, 
-      module, 
-      role, 
-      allowSuperUserBypass, 
-      redirectTo, 
-      requireAuthentication
-    });
 
     // Show loading state
     if (loading) {
@@ -143,7 +115,6 @@ export function withSimplifiedRBAC<P extends object>(
 
     // Check access permissions and return detailed access info
     const getAccessInfo = () => {
-      console.log('🔍 withSimplifiedRBAC: Checking access', { user, role, privilege, route, module, allowSuperUserBypass });
       
       // If authentication is required and user is not authenticated, don't show access denied
       // The useEffect above should handle the redirect
@@ -189,12 +160,6 @@ export function withSimplifiedRBAC<P extends object>(
         const moduleNames = module.map(id => {
           const moduleDef = staticModuleDefinitions.modules[id];
           return moduleDef ? moduleDef.name : `Module ${id}`;
-        });
-        console.log('🔍 withSimplifiedRBAC: Module access denied', {
-          requiredModules: module,
-          userModules: user?.module_access || [],
-          canAccessAnyModule: canAccessAnyModule(module),
-          user: user ? { id: user.id, email: user.email, module_access: user.module_access } : null
         });
         return { 
           hasAccess: false, 

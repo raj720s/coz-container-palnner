@@ -18,9 +18,21 @@ const UnifiedAuthGuard: React.FC<Props> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
+  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
   
   const redirecting = useRef(false);
   const initializationTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Calculate mainMargin at the top to maintain hook order
+  const mainMargin = useMemo(
+    () =>
+      isMobileOpen
+        ? "ml-0"
+        : isExpanded || isHovered
+        ? "lg:ml-[290px]"
+        : "lg:ml-[90px]",
+    [isMobileOpen, isExpanded, isHovered]
+  );
 
   const authState = useMemo(
     () => ({
@@ -89,18 +101,7 @@ const UnifiedAuthGuard: React.FC<Props> = ({ children }) => {
     };
   }, []);
 
-  // Debug logging for state values
-  console.log('🔍 UnifiedAuthGuard: Render state check', {
-    loading: authState.loading,
-    contextAvailable: auth.contextAvailable,
-    isInitialized: auth.isInitialized,
-    contextReady: authState.contextReady,
-    isAuthenticated: authState.isAuthenticated,
-    hasUser: authState.hasUser
-  });
-
   if (authState.loading || !authState.contextReady) {
-    console.log('🔍 UnifiedAuthGuard: Showing initializing screen');
     return <FullScreenMessage text="Initializing..." spinnerColor="border-blue-500" />;
   }
 
@@ -111,17 +112,6 @@ const UnifiedAuthGuard: React.FC<Props> = ({ children }) => {
   }
 
   // Authenticated route - show layout with access control
-  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
-  const mainMargin = useMemo(
-    () =>
-      isMobileOpen
-        ? "ml-0"
-        : isExpanded || isHovered
-        ? "lg:ml-[290px]"
-        : "lg:ml-[90px]",
-    [isMobileOpen, isExpanded, isHovered]
-  );
-
   // Check route permissions
   if (!auth.canAccessRoute(pathname)) {
     return (
