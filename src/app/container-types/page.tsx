@@ -3,7 +3,7 @@ import { ContainerTypesManager } from "@/components/shared/master-data/Container
 
 
 export const metadata: Metadata = {
-  title: "Container Type Master | COZ",
+  title: "Container Type Master | Vendor Booking Tool",
   description: "Manage container types and their configurations",
 };
 

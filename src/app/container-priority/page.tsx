@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 
 export const metadata: Metadata = {
-  title: "Container Priority Master | COZ",
+  title: "Container Priority Master | Vendor Booking Tool",
   description: "Manage container priority and their configurations",
 };
 

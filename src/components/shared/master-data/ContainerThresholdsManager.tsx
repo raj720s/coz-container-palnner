@@ -68,6 +68,7 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
   });
   
   const [globalFilter, setGlobalFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<ContainerThresholdResponse | null>(null);
@@ -449,6 +450,14 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
     );
   }
 
+  // Calculate stats
+  const stats = {
+    total: containerThresholds.length,
+    active: containerThresholds.filter(ct => ct.status === true).length,
+    inactive: containerThresholds.filter(ct => ct.status === false).length,
+    highCapacity: containerThresholds.filter(ct => ct.max_capacity && ct.max_capacity > 50).length,
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -465,6 +474,54 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
         )}
       </div>
 
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Thresholds</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 dark:text-blue-400 text-sm font-bold">T</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.active}</p>
+            </div>
+            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <span className="text-green-600 dark:text-green-400 text-sm font-bold">✓</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Inactive</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.inactive}</p>
+            </div>
+            <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+              <span className="text-red-600 dark:text-red-400 text-sm font-bold">✗</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">High Capacity</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.highCapacity}</p>
+            </div>
+            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+              <span className="text-purple-600 dark:text-purple-400 text-sm font-bold">H</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Error Display */}
       {error && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:border-red-800">
@@ -473,62 +530,92 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
       )}
 
       {/* Filters and Controls */}
-      <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 flex-1">
-          <Input
-            placeholder="Search thresholds..."
-            value={globalFilter ?? ""}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="max-w-sm"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleAddNew} className="flex items-center gap-2">
-            <PlusIcon className="w-4 h-4" />
-            Add Threshold
-          </Button>
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Search */}
+            <div className="flex-1 min-w-0">
+              <Input
+                placeholder="Search thresholds..."
+                value={globalFilter ?? ""}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter ?? ""}
+              onChange={(e) => setStatusFilter(e.target.value === "" ? null : e.target.value)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
+            >
+              <option value="">All Status</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+
+            {/* Add Button */}
+            <Button 
+              onClick={handleAddNew} 
+              size="sm"
+              className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Add Threshold
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredData.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-6 py-4 whitespace-nowrap">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <th
+                      key={header.id}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    {loading ? 'Loading...' : 'No thresholds found'}
                   </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </tr>
+              ) : (
+                filteredData.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
       {total > 0 && (
-        <div className="mt-6 flex items-center justify-between">
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-sm text-gray-700 dark:text-gray-300">
             Showing {((filters.page || 1) - 1) * (filters.page_size || 10) + 1} to{" "}
             {Math.min(
@@ -546,8 +633,18 @@ export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProp
       )}
 
       {total === 0 && !loading && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No container thresholds found matching your search criteria.
+        <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+            <span className="text-2xl text-gray-400">⚖️</span>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No thresholds found</h3>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            Get started by creating your first threshold configuration.
+          </p>
+          <Button onClick={handleAddNew} className="bg-theme-purple-600 hover:bg-theme-purple-700">
+            <PlusIcon className="w-4 h-4 mr-2" />
+            Add Threshold
+          </Button>
         </div>
       )}
 

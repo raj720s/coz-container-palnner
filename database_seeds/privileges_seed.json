@@ -561,6 +561,86 @@
       "created_by": "system"
     },
     {
+      "id": 75,
+      "privilege_name": "VIEW_SHIPMENT_ORDERS",
+      "privilege_desc": "View shipment orders list",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 76,
+      "privilege_name": "CREATE_SHIPMENT_ORDER",
+      "privilege_desc": "Create new shipment order",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 77,
+      "privilege_name": "VIEW_SHIPMENT_ORDER",
+      "privilege_desc": "View shipment order details",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 78,
+      "privilege_name": "UPDATE_SHIPMENT_ORDER",
+      "privilege_desc": "Update existing shipment order",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 79,
+      "privilege_name": "DELETE_SHIPMENT_ORDER",
+      "privilege_desc": "Delete shipment order",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 80,
+      "privilege_name": "ASSIGN_CONTAINER",
+      "privilege_desc": "Assign container to shipment order",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 81,
+      "privilege_name": "UPDATE_SHIPMENT_STATUS",
+      "privilege_desc": "Update shipment order status",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
+      "id": 82,
+      "privilege_name": "EXPORT_SHIPMENT_ORDERS",
+      "privilege_desc": "Export shipment orders data",
+      "module_id": 75,
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": "system"
+    },
+    {
       "id": 57,
       "privilege_name": "VIEW_ASSIGNMENT_RESULTS",
       "privilege_desc": "View assignment results",

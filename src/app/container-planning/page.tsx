@@ -2,7 +2,7 @@ import ContainerPlanningManager from "@/components/shared/operations/ContainerPl
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Container Planning | COZ",
+  title: "Container Planning | Vendor Booking Tool",
   description: "View container planning",
 };
 

@@ -113,6 +113,21 @@ export const staticModules: Record<number, StaticModule> = {
     group: "shipment"
   },
   
+  // Module 75: Shipment Order Management
+  75: {
+    id: 75,
+    name: "Shipment Order Management",
+    description: "Manage vendor booking shipment orders and container assignments",
+    routes: ["/shipment-orders"],
+    privileges: [
+      "VIEW_SHIPMENT_ORDERS", "CREATE_SHIPMENT_ORDER", "VIEW_SHIPMENT_ORDER", "UPDATE_SHIPMENT_ORDER",
+      "DELETE_SHIPMENT_ORDER", "ASSIGN_CONTAINER", "UPDATE_SHIPMENT_STATUS", "EXPORT_SHIPMENT_ORDERS"
+    ],
+    icon: "clipboard-document-list",
+    color: "purple",
+    group: "shipment"
+  },
+  
   // Module 80: Analytics & Reports
   80: {
     id: 80,

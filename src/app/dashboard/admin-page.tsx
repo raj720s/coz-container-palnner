@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import AdminDashboardClient from "./AdminDashboardClient";
 
 export const metadata: Metadata = {
-  title: "Dashboard | COZ",
+  title: "Dashboard | Vendor Booking Tool",
   description: "System overview and operational metrics for administrators",
 };
 

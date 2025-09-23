@@ -25,6 +25,7 @@ import { customerService } from "@/services";
 import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
+import { getCustomerDynamicFieldsById } from "@/utils/customerDynamicFieldsUtils";
 
 const columnHelper = createColumnHelper<CustomerResponse>();
 
@@ -261,6 +262,43 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
         </span>
       ),
+    }),
+    // Dynamic Fields Column
+    columnHelper.display({
+      id: "dynamic_fields",
+      header: "Custom Fields",
+      cell: (info) => {
+        const customerId = info.row.original.id?.toString() || '';
+        const dynamicFields = getCustomerDynamicFieldsById(customerId);
+        
+        if (dynamicFields.length === 0) {
+          return (
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              No custom fields
+            </span>
+          );
+        }
+
+        return (
+          <div className="space-y-1">
+            {dynamicFields.slice(0, 2).map((field) => (
+              <div key={field.id} className="text-xs">
+                <span className="font-medium text-gray-600 dark:text-gray-300">
+                  {field.label}:
+                </span>
+                <span className="ml-1 text-gray-500 dark:text-gray-400">
+                  {field.value || 'N/A'}
+                </span>
+              </div>
+            ))}
+            {dynamicFields.length > 2 && (
+              <span className="text-xs text-theme-purple-600 dark:text-theme-purple-400">
+                +{dynamicFields.length - 2} more
+              </span>
+            )}
+          </div>
+        );
+      }
     }),
     columnHelper.display({
       id: "actions",
@@ -511,51 +549,94 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total Customers</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
-          </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Active Customers</div>
-          <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {customers.filter(c => c.is_active).length}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(customers.map(c => c.country)).size}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Customers</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{total}</p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 dark:text-blue-400 text-sm font-bold">C</span>
+            </div>
           </div>
         </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">With Tax ID</div>
-          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {customers.filter(c => c.tax_id).length}
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {customers.filter(c => c.is_active).length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <span className="text-green-600 dark:text-green-400 text-sm font-bold">✓</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Countries</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {new Set(customers.map(c => c.country)).size}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+              <span className="text-purple-600 dark:text-purple-400 text-sm font-bold">🌍</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">With Tax ID</p>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {customers.filter(c => c.tax_id).length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+              <span className="text-orange-600 dark:text-orange-400 text-sm font-bold">📄</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-6">
-        <div className="flex-1">
-          <Input
-            placeholder="Search customers by code, name, contact person, email, or country..."
-            value={globalFilter}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="max-w-md"
-          />
-        </div>
+      {/* Filters and Controls */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Search */}
+            <div className="flex-1 min-w-0">
+              <Input
+                placeholder="Search customers..."
+                value={globalFilter}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
+              />
+            </div>
 
-        <div className="flex gap-3">
-          <Button onClick={handleExport} size="sm" variant="outline">
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button onClick={handleAddNew} size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add Customer
-          </Button>
+            {/* Export Button */}
+            <Button 
+              onClick={handleExport} 
+              size="sm" 
+              variant="outline"
+              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+            >
+              <DownloadIcon className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+
+            {/* Add Button */}
+            <Button 
+              onClick={handleAddNew} 
+              size="sm"
+              className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Add Customer
+            </Button>
+          </div>
         </div>
       </div>
 

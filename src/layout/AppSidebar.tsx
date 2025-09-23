@@ -97,6 +97,7 @@ const AppSidebar: React.FC = () => {
       path: "#",
       moduleId: 2,
       subItems: [
+        { name: "Shipment Orders", path: "/shipment-orders", moduleId: 75 },
         { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
         { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
         { name: "Container Planning", path: "/container-planning", moduleId: 50 },
@@ -156,19 +157,19 @@ const AppSidebar: React.FC = () => {
         ${isExpanded || isMobileOpen ? "w-[280px]" : "w-[80px]"}
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
     >
-      <div className={`py-6 flex ${!isExpanded ? "lg:justify-center" : "justify-start"}`}>
-        <Link href="/">
-          {isExpanded || isMobileOpen ? (
-            <h1 className="text-xl font-bold">
-              <span className="text-brand-500">Container</span>
-              <span className="text-gray-500">Planner</span>
-            </h1>
-          ) : (
-            <div className="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CP</span>
-            </div>
-          )}
-        </Link>
+      <div className={`py-6 flex ${!isExpanded ? "lg:justify-center" : "justify-center"}`}>
+         <Link href="/">
+           {isExpanded || isMobileOpen ? (
+             <h1 className="mx-auto text-center text-xl font-bold">
+               <span className="text-theme-purple-600 dark:text-theme-purple-400">Vendor</span>
+               <span className="text-gray-500 dark:text-gray-400">Booking Tool</span>
+             </h1>
+           ) : (
+             <div className="w-8 h-8 bg-theme-purple-600 dark:bg-theme-purple-500 rounded-lg flex items-center justify-center">
+               <span className="text-white font-bold text-sm">VB</span>
+             </div>
+           )}
+         </Link>
       </div>
 
       <nav className="flex-1 overflow-y-auto no-scrollbar px-3">
@@ -183,27 +184,28 @@ const AppSidebar: React.FC = () => {
         <ul className="flex flex-col gap-2">
           {navItems.map((nav) => {
             const expanded = openMenus.has(nav.moduleId);
+            const hasActiveChild = nav.subItems?.some((s) => isActive(s.path));
             if (nav.subItems) {
               return (
                 <li key={nav.moduleId}>
                   <button
                     onClick={() => toggleMenu(nav.moduleId)}
                     title={!isExpanded ? nav.name : undefined}
-                    className={`group w-full px-3 py-3 rounded-lg flex items-center transition-colors
-                      ${isExpanded ? "justify-start" : "lg:justify-center"}
-                      ${expanded ? "bg-gray-100 dark:bg-gray-800" : ""}
-                    `}
+                 className={`group w-full px-3 py-3 rounded-lg flex items-center transition-colors
+                   ${isExpanded ? "justify-start" : "lg:justify-center"}
+                   ${hasActiveChild ? "bg-theme-purple-50 text-theme-purple-600 dark:bg-theme-purple-900/20 dark:text-theme-purple-400" : ""}
+                 `}
                   >
-                    <span className="flex-shrink-0 text-gray-500 group-hover:text-gray-700 dark:text-gray-400">
+                    <span className={`flex-shrink-0 ${hasActiveChild ? "text-theme-purple-600 dark:text-theme-purple-400" : "text-gray-500 group-hover:text-gray-700 dark:text-gray-400"}`}>
                       {nav.icon}
                     </span>
                     {(isExpanded || isMobileOpen) && (
                       <>
-                        <span className="ml-3 text-sm font-medium truncate">{nav.name}</span>
+                        <span className={`ml-3 text-sm font-medium truncate ${hasActiveChild ? "text-theme-purple-600 dark:text-theme-purple-400" : ""}`}>{nav.name}</span>
                         <HiOutlineChevronDown
                           className={`ml-auto w-4 h-4 transition-transform ${
-                            expanded ? "rotate-180 text-brand-500" : "rotate-0 text-gray-400"
-                          }`}
+                            expanded ? "rotate-180" : "rotate-0"
+                          } ${hasActiveChild ? "text-theme-purple-600 dark:text-theme-purple-400" : "text-gray-400"}`}
                         />
                       </>
                     )}
@@ -217,11 +219,11 @@ const AppSidebar: React.FC = () => {
                         <li key={s.path}>
                           <Link
                             href={s.path}
-                            className={`block px-3 py-2 text-sm rounded-md transition-colors
-                              ${isActive(s.path)
-                                ? "bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400 font-medium"
-                                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                              }`}
+                           className={`block px-3 py-2 text-sm rounded-md transition-colors
+                             ${isActive(s.path)
+                               ? "bg-theme-purple-50 text-theme-purple-600 dark:bg-theme-purple-900/20 dark:text-theme-purple-400 font-medium"
+                               : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-theme-purple-50 dark:hover:bg-theme-purple-900/10"
+                             }`}
                           >
                             {s.name}
                             {s.pro && (
@@ -242,18 +244,18 @@ const AppSidebar: React.FC = () => {
                 <Link
                   href={nav.path}
                   title={!isExpanded ? nav.name : undefined}
-                  className={`group w-full px-3 py-3 rounded-lg flex items-center transition-colors
-                    ${isExpanded ? "justify-start" : "lg:justify-center"}
-                    ${isActive(nav.path)
-                      ? "bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-400"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}
-                  `}
+                   className={`group w-full px-3 py-3 rounded-lg flex items-center transition-colors
+                     ${isExpanded ? "justify-start" : "lg:justify-center"}
+                     ${isActive(nav.path)
+                       ? "bg-theme-purple-50 text-theme-purple-600 dark:bg-theme-purple-900/20 dark:text-theme-purple-400"
+                       : "text-gray-700 dark:text-gray-300 hover:bg-theme-purple-50 dark:hover:bg-theme-purple-900/10"}
+                   `}
                 >
-                  <span className="flex-shrink-0 text-gray-500 group-hover:text-gray-700 dark:text-gray-400">
+                  <span className={`flex-shrink-0 ${isActive(nav.path) ? "text-theme-purple-600 dark:text-theme-purple-400" : "text-gray-500 group-hover:text-gray-700 dark:text-gray-400"}`}>
                     {nav.icon}
                   </span>
                   {(isExpanded || isMobileOpen) && (
-                    <span className="ml-3 text-sm font-medium truncate">{nav.name}</span>
+                    <span className={`ml-3 text-sm font-medium truncate ${isActive(nav.path) ? "text-theme-purple-600 dark:text-theme-purple-400" : ""}`}>{nav.name}</span>
                   )}
                 </Link>
               </li>

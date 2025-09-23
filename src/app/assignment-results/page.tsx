@@ -2,7 +2,7 @@ import AssignmentResultsManager from "@/components/shared/operations/AssignmentR
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Assignment Results | COZ",
+  title: "Assignment Results | Vendor Booking Tool",
   description: "View assignment results",
 };
 
