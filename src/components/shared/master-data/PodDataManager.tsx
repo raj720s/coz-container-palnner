@@ -32,6 +32,9 @@ interface PodDataManagerProps {
 }
 
 function PodDataManager({ rbacContext }: PodDataManagerProps) {
+  // Note: Port data is managed by services, not localStorage
+  // useLocalStorageData('ports'); // Removed - ports managed by podService
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
@@ -596,5 +599,5 @@ export default withSimplifiedRBAC(PodDataManager, {
   privilege: "VIEW_POD_PORTS",
   module: [60], // Port & Customer Management module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 });

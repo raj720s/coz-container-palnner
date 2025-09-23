@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,11 +8,11 @@ import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
 import Button from "@/components/ui/button/Button";
 import { CreateUserRequest } from "@/types/api";
-import { useRoles } from "@/hooks/useRoles";
+// Removed useRoles - using roleService directly
 import { userService } from "@/services/userService";
-import { roleService } from "@/services/roleService";
+import { roleService, RoleResponse } from "@/services/roleService";
 // import { userCustomerMappingService } from "@/services/userCustomerMappingService";
-import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
+import { useAuth } from "@/context/AuthContext";
 // import CustomerSelector from "@/components/forms/CustomerSelector";
 // import ConditionalRender from "@/components/shared/ConditionalRender";
 
@@ -72,8 +72,35 @@ export const UserForm: React.FC<UserFormProps> = ({
   isEditing = false,
 }) => {
   // Use the roles hook to get roles from Redux state
-  const { roles, loading: rolesLoading, roleOptions } = useRoles();
-  const { user: currentUser } = useSimplifiedRBAC();
+  // State for roles
+  const [roles, setRoles] = useState<RoleResponse[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  
+  // Fetch roles
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        setRolesLoading(true);
+        const response = await roleService.getRoles();
+        setRoles(response);
+      } catch (error) {
+        console.error('Error fetching roles:', error);
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+    fetchRoles();
+  }, []);
+  
+  // Role options for dropdown
+  const roleOptions = useMemo(() => {
+    return roles.map(role => ({
+      value: role.id,
+      label: role.role_name,
+      description: role.role_description
+    }));
+  }, [roles]);
+  const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Customer assignment state - commented out for next version

@@ -91,7 +91,7 @@ class SimplifiedRBACService {
   // Get authentication token
   private getAuthToken(): string {
     if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token') || '';
+      return localStorage.getItem('auth_token') || '';
     }
     return '';
   }
@@ -180,7 +180,7 @@ class SimplifiedRBACService {
   // Helper method to get current user's role ID
   private getCurrentUserRoleId(): number | null {
     try {
-      const storedUser = sessionStorage.getItem('auth_user');
+      const storedUser = localStorage.getItem('auth_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         return user.role_id || null;
@@ -195,7 +195,7 @@ class SimplifiedRBACService {
   // Helper method to check if current user is a mock user
   private isMockUser(): boolean {
     try {
-      const storedUser = sessionStorage.getItem('auth_user');
+      const storedUser = localStorage.getItem('auth_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         return user.email === 'admin@company.com' || user.email === 'user@company.com';
@@ -882,7 +882,7 @@ class SimplifiedRBACService {
 
   // Helper method to get auth token
   private getAuthToken(): string {
-    return sessionStorage.getItem('auth_token') || '';
+    return localStorage.getItem('auth_token') || '';
   }
   */
 

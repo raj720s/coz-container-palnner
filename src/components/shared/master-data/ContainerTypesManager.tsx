@@ -28,7 +28,7 @@ import { ContainerTypeResponse } from "@/types/api";
 import { ContainerTypeFormData } from "@/components/forms/ContainerTypeForm";
 import { ContainerTypeForm } from "@/components/forms/ContainerTypeForm";
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
+import { useAuth } from "@/context/AuthContext";
 
 interface TableMeta<T> {
   editRow: (row: T) => void;
@@ -42,7 +42,7 @@ interface ContainerTypesManagerProps {
 const columnHelper = createColumnHelper<ContainerTypeResponse>();
 
 export const ContainerTypesManager: React.FC<ContainerTypesManagerProps> = ({ mode }) => {
-  const { can } = useSimplifiedRBAC();
+  const { can } = useAuth();
   
   // Local state for data management
   const [containerTypes, setContainerTypes] = useState<ContainerTypeResponse[]>([]);
@@ -470,5 +470,5 @@ export default withSimplifiedRBAC(ContainerTypesManager, {
   privilege: "VIEW_CONTAINER_TYPES",
   module: [50], // Container Management module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 });

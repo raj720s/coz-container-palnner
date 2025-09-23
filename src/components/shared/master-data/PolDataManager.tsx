@@ -32,6 +32,9 @@ interface PolDataManagerProps {
 }
 
 function PolDataManager({ rbacContext }: PolDataManagerProps) {
+  // Note: Port data is managed by services, not localStorage
+  // useLocalStorageData('ports'); // Removed - ports managed by polService
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
@@ -653,7 +656,7 @@ export default withSimplifiedRBAC(PolDataManager, {
   privilege: "VIEW_POL_PORTS",
   module: [60], // Port & Customer Management module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 });
 
 // DEBUG: This component should have role [1, 2, 3] - if you see [2, 3], there's a caching issue

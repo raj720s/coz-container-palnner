@@ -2,8 +2,7 @@ import { ContainerPriorityResponse } from '@/types/api';
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { ContainerTypeResponse, PODListResponse , POLListResponse } from '@/types/api';
 import superAxios from '@/utils/superAxios';
-import { fetchUserInfo } from './userInfoSlice';
-import { UserInfoResponse } from './userInfoSlice';
+// Removed userInfoSlice dependency - using AuthContext instead
 import { RootState } from '@reduxjs/toolkit/query/react';
 import podService, { PODService } from '@/services/podService';
 import { polService } from '@/services';
@@ -41,8 +40,6 @@ const  initialState: CommonDataState = {
           order_by: "created_on",
           order_type: "desc"
         });
-
-
 
         return response.results;
         // return response.data;

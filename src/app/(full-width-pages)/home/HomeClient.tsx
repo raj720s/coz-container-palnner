@@ -20,16 +20,12 @@ import {
 } from "@/icons";
 
 function HomePage() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout , contextAvailable , loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      if (user?.role === 'admin' || user?.is_superuser || user?.role_id === 1) {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/user/dashboard");
-      }
+    if (isAuthenticated && contextAvailable && !loading) {
+      router.push("/dashboard");
     }
   }, [isAuthenticated]);
 
@@ -39,12 +35,8 @@ function HomePage() {
   };
 
   const handleGetStarted = () => {
-    if (isAuthenticated) {
-      if (user?.role === 'admin') {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/user/dashboard");
-      }
+    if (isAuthenticated && contextAvailable && !loading) {
+      router.push("/dashboard");
     } else {
       router.push("/signin");
     }
@@ -60,7 +52,7 @@ function HomePage() {
           Efficient container logistics and planning solution
         </p>
         
-        {isAuthenticated ? (
+        {isAuthenticated && contextAvailable && !loading ? (
           <div className="space-y-4">
             <p className="text-gray-600 dark:text-gray-400">
               Welcome back, {user?.name || user?.email}!

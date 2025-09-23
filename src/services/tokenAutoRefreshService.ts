@@ -71,7 +71,7 @@ class TokenAutoRefreshService {
       
       if (newTokens.access) {
         // Update the stored access token with Bearer prefix
-        sessionStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
+        localStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
         
         console.log('✅ Token refreshed successfully');
         
@@ -101,7 +101,7 @@ class TokenAutoRefreshService {
       
       // If refresh fails, clear tokens and redirect to login
       authService.clearTokens();
-      sessionStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_user');
       
       // Dispatch a custom event to notify other parts of the app
       window.dispatchEvent(new CustomEvent('tokenRefreshFailed', {

@@ -3,6 +3,7 @@
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect } from "react";
+// Removed useLocalStorageData - localStorage managed by services
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { planContainers, savePlanningResults } from "@/utils/containerPlanningService";
@@ -24,6 +25,8 @@ interface PlanningStage {
 }
 
 function ContainerPlanningPage() {
+  // Removed useLocalStorageData - localStorage managed by services
+  
   const router = useRouter();
   const [isPlanning, setIsPlanning] = useState(false);
   const [currentStage, setCurrentStage] = useState(0);

@@ -5,21 +5,14 @@ import { ReduxProvider } from '@/components/providers/ReduxProvider';
 import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
-import { LocalStorageInitializer } from '@/components/providers/LocalStorageInitializer';
 import { MessageProvider } from '@/components/ui/MessageBox';
-import { AuthGuard } from '@/components/auth/AuthGuard';
+import UnifiedAuthGuard from '@/components/auth/UnifiedAuthGuard';
+
 
 const outfit = Outfit({
   subsets: ["latin"],
 });
 
-// Simple loading debug component
-function LoadingDebug() {
-  if (typeof window !== 'undefined') {
-    console.log('🔍 Layout: Component mounted, checking providers...');
-  }
-  return null;
-}
 
 export default function RootLayout({
   children,
@@ -29,16 +22,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${outfit.className} dark:bg-gray-900`}>
-        <LoadingDebug />
+        
         <ReduxProvider>
-          <LocalStorageInitializer />
           <AuthProvider>
             <ThemeProvider>
               <SidebarProvider>
                 <MessageProvider>
-                  <AuthGuard requireAuth={false}>
+                  <UnifiedAuthGuard>
                     {children}
-                  </AuthGuard>
+                  </UnifiedAuthGuard>
                 </MessageProvider>
               </SidebarProvider>
             </ThemeProvider>

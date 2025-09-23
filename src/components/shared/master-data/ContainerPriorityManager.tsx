@@ -1,7 +1,7 @@
 "use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
+import { useAuth } from "@/context/AuthContext";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import { FormModal } from "@/components/ui/modal/FormModal";
@@ -81,7 +81,7 @@ function SortableDragHandle({ row }: { row: ContainerPriorityResponse }) {
 
 
 function ContainerPriorityManager() {
-  const { can } = useSimplifiedRBAC();
+  const { can } = useAuth();
   // Local state for data management
   const [containerPriorities, setContainerPriorities] = useState<ContainerPriorityResponse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -641,5 +641,5 @@ export default withSimplifiedRBAC(ContainerPriorityManager, {
   privilege: "VIEW_CONTAINER_PRIORITY",
   module: [50], // Container Management module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 });

@@ -25,6 +25,7 @@ import {
   FiClock, 
   FiChevronLeft, 
   FiUser, 
+  FiUsers,
   FiDatabase, 
   FiGlobe, 
   FiPlay, 
@@ -79,6 +80,7 @@ export const ClockIcon = FiClock;
 export const ChevronLeftIcon = FiChevronLeft;
 export const UserCircleIcon = FiUser;
 export const UserIcon = FiUser;
+export const UsersIcon = FiUsers;
 export const TableIcon = FiTable;
 export const PieChartIcon = FiPieChart;
 export const DocsIcon = FiBookOpen;

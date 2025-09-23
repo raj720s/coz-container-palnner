@@ -576,5 +576,5 @@ export default withSimplifiedRBAC(ValidationSummaryManager, {
   privilege: "VIEW_VALIDATION_SUMMARY",
   module: [80], // Analytics & Reports module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 }); 

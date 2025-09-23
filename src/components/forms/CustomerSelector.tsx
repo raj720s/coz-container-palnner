@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { customerService } from '@/services/customerService';
-import { useSimplifiedRBAC } from '@/hooks/useSimplifiedRBAC';
+import { useAuth } from '@/context/AuthContext';
 import Input from '@/components/form/input/InputField';
 import Button from '@/components/ui/button/Button';
 import Label from '@/components/form/Label';
@@ -24,7 +24,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
   disabled = false,
   className = ""
 }) => {
-  const { user, canAccessCustomer, isAdmin } = useSimplifiedRBAC();
+  const { user, canAccessCustomer, isAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCountry, setSelectedCountry] = useState<string>('all');
   const [customersData, setCustomersData] = useState<CustomerResponse[]>([]);

@@ -3,6 +3,7 @@
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";      
 import Button from "@/components/ui/button/Button";
 import { useState, useEffect, useMemo } from "react";
+// Removed useLocalStorageData - localStorage managed by services
 import { useRouter } from "next/navigation";
 import {
   useReactTable,
@@ -67,6 +68,8 @@ const mockUsers = [
 const columnHelper = createColumnHelper<UploadHistory>();
 
 function UploadsHistoryManager() {
+  // Removed useLocalStorageData - localStorage managed by services
+  
   const router = useRouter();
   const [uploadHistory, setUploadHistory] = useState<UploadHistory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -677,5 +680,5 @@ export default withSimplifiedRBAC(UploadsHistoryManager, {
   privilege: "VIEW_UPLOADS_HISTORY",
   module: [70], // Shipment Operations module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 });

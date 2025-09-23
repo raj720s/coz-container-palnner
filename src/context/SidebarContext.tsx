@@ -7,22 +7,15 @@ type SidebarContextType = {
   isHovered: boolean;
   activeItem: string | null;
   openSubmenu: string | null;
+  contextAvailable: boolean; // New property to indicate context is ready
   toggleSidebar: () => void;
   toggleMobileSidebar: () => void;
-  setIsHovered: (isHovered: boolean) => void;
+  // setIsHovered: (isHovered: boolean) => void;
   setActiveItem: (item: string | null) => void;
   toggleSubmenu: (item: string) => void;
 };
 
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
-
-export const useSidebar = () => {
-  const context = useContext(SidebarContext);
-  if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider");
-  }
-  return context;
-};
 
 export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -33,6 +26,7 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isHovered, setIsHovered] = useState(false);
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+  const [contextAvailable, setContextAvailable] = useState(false);
 
   const handleResize = useCallback(() => {
     const mobile = window.innerWidth < 768;
@@ -50,6 +44,12 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
       window.removeEventListener("resize", handleResize);
     };
   }, [handleResize]);
+
+  // Initialize context availability
+  useEffect(() => {
+    // Sidebar context is immediately available after component mount
+    setContextAvailable(true);
+  }, []);
 
   const toggleSidebar = useCallback(() => {
     setIsExpanded((prev) => !prev);
@@ -79,9 +79,10 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
         isHovered,
         activeItem,
         openSubmenu,
+        contextAvailable,
         toggleSidebar,
         toggleMobileSidebar,
-        setIsHovered: setIsHoveredCallback,
+        // setIsHovered: setIsHoveredCallback,
         setActiveItem: setActiveItemCallback,
         toggleSubmenu,
       }}
@@ -89,4 +90,18 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({
       {children}
     </SidebarContext.Provider>
   );
+};
+
+// Export useSidebar hook at the end of the file with proper error checking
+export const useSidebar = () => {
+  const context = useContext(SidebarContext);
+  
+  if (!context) {
+    throw new Error('useSidebar must be used within a SidebarProvider');
+  }
+  
+  // Sidebar context initializes immediately, so we don't need to check contextAvailable
+  // The context is always available after the provider mounts
+  
+  return context;
 };

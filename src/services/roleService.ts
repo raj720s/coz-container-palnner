@@ -48,7 +48,8 @@ export const roleService = {
   async getRoles(params: RoleListRequest = {}): Promise<RoleListResponseV2[]> {
     const cleanedParams = cleanParams(params);
     const response = await superAxios.post(`admin/v1/role/list`, cleanedParams);
-    return response.data;
+    // Handle API response format: { count: number, results: RoleListResponseV2[] }
+    return response.data.results || response.data;
   },
 
   // Get single role by ID

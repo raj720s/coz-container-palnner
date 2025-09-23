@@ -9,106 +9,27 @@ export const useAppStore = () => useStore<RootState>();
 
 // Custom hooks for common use cases
 
-// Auth hooks
+// Auth hooks - DEPRECATED: Use AuthContext instead
+// These hooks are kept for backward compatibility but will return undefined
+// since user state is now managed by AuthContext
 export const useAuth = () => {
-  return useAppSelector((state) => state.user);
+  console.warn('⚠️ useAuth from store/hooks.ts is deprecated. Use AuthContext instead.');
+  return undefined;
 };
 
 export const useUser = () => {
-  return useAppSelector((state) => state.user.user);
+  console.warn('⚠️ useUser from store/hooks.ts is deprecated. Use AuthContext instead.');
+  return undefined;
 };
 
 export const useIsAuthenticated = () => {
-  return useAppSelector((state) => state.user.isAuthenticated);
+  console.warn('⚠️ useIsAuthenticated from store/hooks.ts is deprecated. Use AuthContext instead.');
+  return false;
 };
 
-// UI hooks
-export const useTheme = () => {
-  const theme = useAppSelector((state) => state.ui.theme);
-  const isDarkMode = useAppSelector((state) => state.ui.isDarkMode);
-  return { theme, isDarkMode };
-};
-
-export const useSidebar = () => {
-  const sidebarCollapsed = useAppSelector((state) => state.ui.sidebarCollapsed);
-  const sidebarOpen = useAppSelector((state) => state.ui.sidebarOpen);
-  return { sidebarCollapsed, sidebarOpen };
-};
-
-export const useNotifications = () => {
-  const notifications = useAppSelector((state) => state.ui.notifications);
-  const unreadCount = notifications.filter(n => !n.read).length;
-  return { notifications, unreadCount };
-};
-
-export const useModal = (modalId: string) => {
-  return useAppSelector((state) => state.ui.modals[modalId] || { isOpen: false, data: undefined });
-};
-
-export const useGlobalLoading = () => {
-  return useAppSelector((state) => ({
-    isLoading: state.ui.globalLoading,
-    message: state.ui.loadingMessage,
-  }));
-};
-
-// User management hooks
-export const useUsers = () => {
-  return useAppSelector((state) => state.users);
-};
-
-export const useUserPagination = () => {
-  return useAppSelector((state) => ({
-    currentPage: state.users.currentPage,
-    pageSize: state.users.pageSize,
-    totalPages: state.users.totalPages,
-    totalUsers: state.users.totalUsers,
-  }));
-};
-
-export const useUserFilters = () => {
-  return useAppSelector((state) => ({
-    filters: state.users.filters,
-    searchQuery: state.users.searchQuery,
-    sortBy: state.users.sortBy,
-    sortOrder: state.users.sortOrder,
-  }));
-};
-
-export const useSelectedUsers = () => {
-  return useAppSelector((state) => state.users.selectedUsers);
-};
-
-// Role management hooks
-export const useRoles = () => {
-  return useAppSelector((state) => state.roles);
-};
-
-export const useRolePagination = () => {
-  return useAppSelector((state) => ({
-    currentPage: state.roles.currentPage,
-    pageSize: state.roles.pageSize,
-    totalPages: state.roles.totalPages,
-    totalRoles: state.roles.totalRoles,
-  }));
-};
-
-export const useRoleFilters = () => {
-  return useAppSelector((state) => ({
-    filters: state.roles.filters,
-    searchQuery: state.roles.searchQuery,
-    sortBy: state.roles.sortBy,
-    sortOrder: state.roles.sortOrder,
-  }));
-};
-
-export const useSelectedRoles = () => {
-  return useAppSelector((state) => state.roles.selectedRoles);
-};
-
-export const usePrivileges = () => {
-  return useAppSelector((state) => ({
-    privileges: state.roles.privileges,
-    loaded: state.roles.privilegesLoaded,
-  }));
-};
+// Note: UI, User, and Role state are now managed by:
+// - UI: Context APIs (ThemeContext, SidebarContext)
+// - Users: userService
+// - Roles: roleService
+// - Customers: customerService
+// These hooks are deprecated and removed.

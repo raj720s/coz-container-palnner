@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+// Removed useLocalStorageData - localStorage managed by services
 import { toast } from "react-hot-toast";
 import {
   useReactTable,
@@ -28,7 +29,7 @@ import { containerThresholdService, containerTypeService, polService, podService
 import { ContainerThresholdResponse, ContainerThresholdListRequest } from "@/types/api";
 import { ContainerThresholdForm, ContainerThresholdFormData } from "@/components/forms/ContainerThresholdForm";
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useSimplifiedRBAC } from "@/hooks/useSimplifiedRBAC";
+import { useAuth } from "@/context/AuthContext";
 
 interface TableMeta<T> {
   editRow: (row: T) => void;
@@ -42,7 +43,9 @@ interface ContainerThresholdsManagerProps {
 const columnHelper = createColumnHelper<ContainerThresholdResponse>();
 
 export const ContainerThresholdsManager: React.FC<ContainerThresholdsManagerProps> = ({ mode }) => {
-  const { can } = useSimplifiedRBAC();
+  // Removed useLocalStorageData - localStorage managed by services
+  
+  const { can } = useAuth();
   
   // Local state for data management
   const [containerThresholds, setContainerThresholds] = useState<ContainerThresholdResponse[]>([]);
@@ -591,5 +594,5 @@ export default withSimplifiedRBAC(ContainerThresholdsManager, {
   privilege: "VIEW_CONTAINER_THRESHOLDS",
   module: [50], // Container Management module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 });

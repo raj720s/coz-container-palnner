@@ -8,6 +8,7 @@ const getToken = () => {
 
 const superAxios = axios.create({
   baseURL: BASEURL,
+  timeout: 10000, // 10 second timeout
   headers: {
     'Content-Type': 'application/json',
   },  
@@ -16,7 +17,7 @@ const superAxios = axios.create({
 // Request interceptor to add authorization header
 superAxios.interceptors.request.use(req => {
   // Get token from session storage
-  const authToken = sessionStorage.getItem('auth_token');
+  const authToken = localStorage.getItem('auth_token');
   
   // Add authorization header if token exists
   if (authToken) {
@@ -45,7 +46,7 @@ superAxios.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = sessionStorage.getItem('refresh_token');
+        const refreshToken = localStorage.getItem('refresh_token');
         
         if (refreshToken) {
           // Import authService dynamically to avoid circular dependency
@@ -55,7 +56,7 @@ superAxios.interceptors.response.use(
           const newTokens = await authService.refreshToken(refreshToken);
           
           // Update session storage with new access token
-          sessionStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
+          localStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
           
           // Update the original request with new token
           originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
@@ -66,9 +67,9 @@ superAxios.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, clear tokens and redirect to login
         console.error('Token refresh failed:', refreshError);
-        sessionStorage.removeItem('auth_token');
-        sessionStorage.removeItem('refresh_token');
-        sessionStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('auth_user');
         
         // Redirect to login page
         if (typeof window !== 'undefined') {

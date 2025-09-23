@@ -1,6 +1,7 @@
 import superAxios from '@/utils/superAxios';
 import { 
   UserListResponse, 
+  UserListResponseV2,
   UserListParams, 
   CreateUserRequest, 
   UserResponse, 
@@ -28,9 +29,10 @@ function cleanParams(params: Record<string, any>): Record<string, any> {
 
 export const userService = {
   // Get users list with filtering and pagination
-  async getUsers(params: UserListParams = {}): Promise<UserListResponse> {
+  async getUsers(params: UserListParams = {}): Promise<UserListResponseV2> {
     const cleanedParams = cleanParams(params);
     const response = await superAxios.post(`${BASEURL}/user/v1/list`, cleanedParams);
+    // Handle API response format: { count: number, results: UserData[] }
     return response.data;
   },
 

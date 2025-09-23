@@ -2,7 +2,7 @@
 
 import React, { ComponentType, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSimplifiedAuth, SimplifiedAuthContext } from '@/hooks/useSimplifiedRBAC';
+import { useAuth, AuthContextType } from '@/context/AuthContext';
 import { staticModuleDefinitions } from '@/config/staticModules';
 
 export interface SimplifiedRBACOptions {
@@ -17,7 +17,7 @@ export interface SimplifiedRBACOptions {
 }
 
 export interface SimplifiedRBACProps {
-  rbacContext?: SimplifiedAuthContext;
+  rbacContext?: AuthContextType;
 }
 
 // Higher-order component for simplified RBAC
@@ -38,7 +38,7 @@ export function withSimplifiedRBAC<P extends object>(
 
   const WithSimplifiedRBACComponent = (props: P) => {
     const router = useRouter();
-    const rbacContext = useSimplifiedAuth();
+    const rbacContext = useAuth();
     const { user, loading, error, can, canVisit, canAccessModule, canAccessAnyModule, hasRole, hasAnyRole, isAdmin } = rbacContext;
 
     useEffect(() => {

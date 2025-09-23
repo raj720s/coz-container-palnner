@@ -60,8 +60,8 @@ class AuthService {
    * @param refreshToken - The refresh token
    */
   storeTokens(accessToken: string, refreshToken: string): void {
-    sessionStorage.setItem('auth_token', `Bearer ${accessToken}`);
-    sessionStorage.setItem('refresh_token', refreshToken);
+    localStorage.setItem('auth_token', `Bearer ${accessToken}`);
+    localStorage.setItem('refresh_token', refreshToken);
   }
 
   /**
@@ -69,7 +69,7 @@ class AuthService {
    * @returns The stored access token or null
    */
   getStoredAccessToken(): string | null {
-    return sessionStorage.getItem('auth_token');
+    return localStorage.getItem('auth_token');
   }
 
   /**
@@ -77,15 +77,15 @@ class AuthService {
    * @returns The stored refresh token or null
    */
   getStoredRefreshToken(): string | null {
-    return sessionStorage.getItem('refresh_token');
+    return localStorage.getItem('refresh_token');
   }
 
   /**
    * Clear all stored tokens
    */
   clearTokens(): void {
-    sessionStorage.removeItem('auth_token');
-    sessionStorage.removeItem('refresh_token');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('refresh_token');
   }
 
   /**
@@ -94,6 +94,23 @@ class AuthService {
    */
   hasValidTokens(): boolean {
     return !!(this.getStoredAccessToken() && this.getStoredRefreshToken());
+  }
+
+  /**
+   * Verify token and get user profile from API
+   * This method verifies the token is valid and fetches the user profile
+   * @returns Promise with user profile data
+   */
+  async verifyTokenAndGetProfile(): Promise<any> {
+    try {
+      console.log('🔍 AuthService: Verifying token and fetching profile...');
+      const response = await superAxios.get('/user/v1/profile');
+      console.log('✅ AuthService: Token verified and profile fetched successfully');
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ AuthService: Token verification or profile fetch failed:', error);
+      throw new Error(error.response?.data?.detail || 'Token verification failed');
+    }
   }
 
   /**

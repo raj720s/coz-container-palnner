@@ -673,5 +673,5 @@ export default withSimplifiedRBAC(CustomerManager, {
   privilege: "VIEW_CUSTOMERS", // Minimum required privilege to access
   module: [60], // Port & Customer Management module
   allowSuperUserBypass: true, // Superusers can always access
-  redirectTo: "/user/dashboard" // Redirect if no access
+  redirectTo: "/dashboard" // Redirect if no access
 });

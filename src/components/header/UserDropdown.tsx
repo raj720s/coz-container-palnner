@@ -6,8 +6,6 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useProfileSync } from '@/hooks/useProfileSync';
-import { useSelector } from 'react-redux';
-import { selectUser } from '@/store/slices/consolidatedUserSlice';
 
 
 export default function UserDropdown() {
@@ -15,15 +13,14 @@ export default function UserDropdown() {
   const { user: contextUser, logout } = useAuth();
   const router = useRouter();
 
-  const { userProfile, isLoading: profileLoading } = useProfileSync();
-  const reduxUser = useSelector(selectUser);
+  const { userProfile, loading: { profileLoading } } = useProfileSync();
 
-  // Use Redux user as primary source, fallback to context user
-  const user = reduxUser || contextUser;
+  // Use context user as primary source
+  const user = contextUser;
   
   // Get role information consistently
-  const userRole = reduxUser?.role_id || 0;
-  const isSuperUser = reduxUser?.is_superuser || false;
+  const userRole = user?.role_id || 0;
+  const isSuperUser = user?.is_superuser || false;
   const roleName = isSuperUser ? "Administrator" : 
                    userRole === 1 ? "Admin" : 
                    userRole === 2 ? "Manager" : "User";
@@ -64,8 +61,8 @@ export default function UserDropdown() {
         </span> */}
 
         <span className="block mr-1 font-medium text-theme-sm">
-          {reduxUser?.first_name && reduxUser?.last_name ? 
-            `${reduxUser.first_name} ${reduxUser.last_name}` : 
+          {contextUser?.first_name && contextUser?.last_name ? 
+            `${contextUser.first_name} ${contextUser.last_name}` : 
             contextUser?.name || 'User'
           }
         </span>
@@ -97,20 +94,20 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            {reduxUser?.first_name && reduxUser?.last_name ? 
-              `${reduxUser.first_name} ${reduxUser.last_name}` : 
+            {contextUser?.first_name && contextUser?.last_name ? 
+              `${contextUser.first_name} ${contextUser.last_name}` : 
               contextUser?.name || 'User'
             }
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {reduxUser?.email || contextUser?.email}
+            {contextUser?.email}
           </span>
           <span className="mt-1 block text-theme-xs text-gray-400 dark:text-gray-500">
             Role: {roleName}
           </span>
-          {reduxUser?.organisation_name && (
+          {contextUser?.organisation_name && (
             <span className="mt-1 block text-theme-xs text-gray-400 dark:text-gray-500">
-              {reduxUser.organisation_name}
+              {contextUser.organisation_name}
             </span>
           )}
         </div>

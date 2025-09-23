@@ -645,5 +645,5 @@ export default withSimplifiedRBAC(AssignmentResultsManager, {
   privilege: "VIEW_ASSIGNMENT_RESULTS",
   module: [80], // Analytics & Reports module
   allowSuperUserBypass: true,
-  redirectTo: "/user/dashboard"
+  redirectTo: "/dashboard"
 }); 

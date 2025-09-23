@@ -26,8 +26,7 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "UserCircleIcon",
       "color": "blue",
       "routes": [
-        "/admin/role-management",
-        "/user/role-management"
+        "/role-management"
       ],
       "privileges": [
         "CREATE_ROLE",
@@ -68,9 +67,8 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "UserCircleIcon",
       "color": "indigo",
       "routes": [
-        "/admin/user-management",
-        "/user/profile",
-        "/admin/profile"
+        "/user-management",
+        "/profile"
       ],
       "privileges": [
         "CREATE_USER",
@@ -89,14 +87,10 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "AlertIcon",
       "color": "yellow",
       "routes": [
-        "/admin/container-types",
-        "/admin/container-thresholds",
-        "/admin/container-priority",
-        "/admin/container-planning",
-        "/user/container-types",
-        "/user/container-thresholds",
-        "/user/container-priority",
-        "/user/container-planning"
+        "/container-types",
+        "/container-thresholds",
+        "/container-priority",
+        "/container-planning"
       ],
       "privileges": []
     },
@@ -106,14 +100,10 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "UserCircleIcon",
       "color": "teal",
       "routes": [
-        "/admin/port-customer-master",
-        "/admin/port-customer-master/customers",
-        "/admin/port-customer-master/pol-ports",
-        "/admin/port-customer-master/pod-ports",
-        "/user/port-customer-master",
-        "/user/port-customer-master/customers",
-        "/user/port-customer-master/pol-ports",
-        "/user/port-customer-master/pod-ports"
+        "/port-customer-master",
+        "/port-customer-master/customers",
+        "/port-customer-master/pol-ports",
+        "/port-customer-master/pod-ports"
       ],
       "privileges": []
     },
@@ -123,16 +113,8 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "AlertIcon",
       "color": "red",
       "routes": [
-        "/admin/shipment-upload",
-        "/admin/shipment-operations/input-file",
-        "/admin/shipment-operations/output-file",
-        "/admin/shipment-operations/shipment-history",
-        "/admin/shipment-operations/uploads-history",
-        "/user/shipment-upload",
-        "/user/shipment-operations/shipment-history",
-        "/user/shipment-operations/uploads-history",
-        "/user/input-file",
-        "/user/output-file"
+        "/shipment-upload",
+        "/shipment-operations/uploads-history"
       ],
       "privileges": []
     },
@@ -142,13 +124,8 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "CheckCircleIcon",
       "color": "pink",
       "routes": [
-        "/admin/assignment-results",
-        "/admin/validation-summary",
-        "/admin/repositioning-summary",
-        "/admin/test-validation",
-        "/user/assignment-results",
-        "/user/validation-summary",
-        "/user/test-validation"
+        "/assignment-results",
+        "/validation-summary"
       ],
       "privileges": []
     },
@@ -169,8 +146,7 @@ export const moduleDefinitions: ModuleDefinitions = {
       "icon": "CheckCircleIcon",
       "color": "blue",
       "routes": [
-        "/admin/dashboard",
-        "/user/dashboard"
+        "/dashboard"
       ],
       "privileges": []
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useSimplifiedRBAC } from '@/hooks/useSimplifiedRBAC';
+import { useAuth } from '@/context/AuthContext';
 
 interface ConditionalRenderProps {
   privilege?: string;
@@ -24,7 +24,7 @@ export const ConditionalRender: React.FC<ConditionalRenderProps> = ({
   fallback = null,
   allowSuperUserBypass = true
 }) => {
-  const { can, canAccessModule, canAccessAnyModule, hasAnyRole, isSuperUser, loading } = useSimplifiedRBAC();
+  const { can, canAccessModule, canAccessAnyModule, hasAnyRole, isSuperUser, loading } = useAuth();
 
   // Show loading state while permissions are being loaded
   if (loading) {

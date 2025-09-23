@@ -191,9 +191,9 @@ export interface RoleListResponseV2 {
   id: number;
   role_name: string;
   role_description: string;
-  privilege_names: string;
-  modified_on: string;
-  modified_by: number;
+  privilege_names: string[];
+  modified_on: string | null;
+  modified_by: number | null;
   created_on: string;
   created_by: number;
 }
