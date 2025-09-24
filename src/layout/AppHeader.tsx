@@ -5,6 +5,7 @@ import UserDropdown from "@/components/header/UserDropdown";
 import Breadcrumb from "@/components/common/Breadcrumb";
 import { useSidebar } from "@/context/SidebarContext";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState } from "react";
@@ -13,6 +14,7 @@ const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const { user, isAuthenticated } = useAuth();
+  const { themeClasses } = useTheme();
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {
@@ -32,11 +34,11 @@ const AppHeader: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 flex w-full bg-white border-gray-200 dark:border-gray-800 dark:bg-gray-900 lg:border-b">
+    <header className="sticky top-0 flex w-full bg-gradient-to-r from-brand-500 to-brand-600 dark:from-brand-600 dark:to-brand-700 border-brand-400 dark:border-brand-500 lg:border-b">
       <div className="flex flex-col items-center justify-between grow lg:flex-row lg:px-6">
-        <div className="flex items-center justify-between w-full gap-2 px-3 py-3 border-b border-gray-200 dark:border-gray-800 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
+        <div className="flex items-center justify-between w-full gap-2 px-3 py-3 border-b border-brand-300 dark:border-brand-400 sm:gap-4 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4">
           <button
-            className="items-center justify-center w-10 h-10 text-gray-500 border-gray-200 rounded-lg hover:bg-theme-purple-50 dark:border-gray-800 lg:flex dark:text-gray-400 dark:hover:bg-theme-purple-900/10 lg:h-11 lg:w-11 lg:border"
+            className="items-center justify-center w-10 h-10 text-white/80 border-white/20 rounded-lg hover:bg-white/10 lg:flex lg:h-11 lg:w-11 lg:border"
             onClick={handleToggle}
             aria-label="Toggle Sidebar"
           >
@@ -75,14 +77,14 @@ const AppHeader: React.FC = () => {
 
           <Link href="/" className="lg:hidden">
             <h1 className="text-lg font-bold">
-              <span className="text-theme-purple-600 dark:text-theme-purple-400">Vendor</span>
-              <span className="text-gray-500 dark:text-gray-400">Booking Tool</span>
+              <span className="text-white">Vendor</span>
+              <span className="text-white/80">Booking Tool</span>
             </h1>
           </Link>
 
           <button
             onClick={toggleApplicationMenu}
-            className="flex items-center justify-center w-10 h-10 text-gray-700 rounded-lg hover:bg-theme-purple-50 dark:text-gray-400 dark:hover:bg-theme-purple-900/10 lg:hidden"
+            className="flex items-center justify-center w-10 h-10 text-white/80 rounded-lg hover:bg-white/10 lg:hidden"
           >
             <svg
               width="24"
@@ -108,7 +110,7 @@ const AppHeader: React.FC = () => {
         <div
           className={`${
             isApplicationMenuOpen ? "flex" : "hidden"
-          } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
+          } items-center justify-between w-full gap-4 px-5 py-4 lg:flex lg:justify-end lg:px-0`}
         >
           {/* Mobile Breadcrumb */}
           <div className="lg:hidden w-full mb-3">

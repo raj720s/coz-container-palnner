@@ -81,15 +81,19 @@ export class PODService extends BaseService {
 
   /**
    * Search POD ports by name
-   * @param query - Search query
+   * @param query - Search query (empty string for default results)
    * @param limit - Maximum number of results
    * @returns Promise<PODResponse[]>
    */
   async searchPODs(query: string, limit: number = 10): Promise<PODResponse[]> {
-    const response = await this.post<PODListResponse>(this.buildEndpoint('pod', 'list'), { 
-      name: query, 
-      page_size: limit 
-    });
+    const params: any = { page_size: limit };
+    
+    // Only add name filter if query is not empty
+    if (query.trim()) {
+      params.name = query;
+    }
+    
+    const response = await this.post<PODListResponse>(this.buildEndpoint('pod', 'list'), params);
     return response.results;
   }
 

@@ -57,7 +57,7 @@ export function CommonModalWrapper({
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="p-6 overflow-y-auto thin-scrollbar max-h-[60vh]">
             {children}
           </div>
 

@@ -24,6 +24,7 @@ import {
   FiEyeOff, 
   FiClock, 
   FiChevronLeft, 
+  FiChevronRight,
   FiUser, 
   FiUsers,
   FiDatabase, 
@@ -78,6 +79,7 @@ export const EyeCloseIcon = FiEyeOff;
 export const TimeIcon = FiClock;
 export const ClockIcon = FiClock;
 export const ChevronLeftIcon = FiChevronLeft;
+export const ChevronRightIcon = FiChevronRight;
 export const UserCircleIcon = FiUser;
 export const UserIcon = FiUser;
 export const UsersIcon = FiUsers;

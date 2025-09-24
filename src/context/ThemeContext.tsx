@@ -2,12 +2,16 @@
 
 import type React from "react";
 import { createContext, useState, useContext, useEffect } from "react";
+import { theme, themeClasses } from "@/config/theme";
 
 type Theme = "light" | "dark";
 
 type ThemeContextType = {
   theme: Theme;
   toggleTheme: () => void;
+  themeConfig: typeof theme;
+  themeClasses: typeof themeClasses;
+  isDark: boolean;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -43,7 +47,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ 
+      theme, 
+      toggleTheme, 
+      themeConfig: theme, 
+      themeClasses, 
+      isDark: theme === "dark" 
+    }}>
       {children}
     </ThemeContext.Provider>
   );

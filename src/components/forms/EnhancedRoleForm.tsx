@@ -339,7 +339,7 @@ export function EnhancedRoleForm({
           )}
 
           {/* Module Privilege Selection */}
-          <div className="space-y-4 max-h-96 overflow-y-auto custom-scrollbar">
+          <div className="space-y-4 max-h-96 overflow-y-auto thin-scrollbar">
             {filteredModuleMappings.map((mapping) => (
               <div
                 key={mapping.module_id}

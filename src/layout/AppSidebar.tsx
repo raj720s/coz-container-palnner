@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSidebar } from "../context/SidebarContext";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import { staticModules } from "@/config/staticModules";
 import {
   HiOutlineHome,
@@ -55,6 +56,7 @@ type NavItem = {
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen } = useSidebar();
   const { user, canAccessModule } = useAuth();
+  const { themeClasses } = useTheme();
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<Set<number>>(new Set());
 
@@ -86,8 +88,8 @@ const AppSidebar: React.FC = () => {
         { name: "POD Master", path: "/port-customer-master/pod-ports", moduleId: 60 },
         { name: "Customer Records", path: "/port-customer-master/customers", moduleId: 60 },
         { name: "Container Type Master", path: "/container-types", moduleId: 50 },
-        { name: "Threshold Configuration", path: "/container-thresholds", moduleId: 50 },
-        { name: "Priority Configuration", path: "/container-priority", moduleId: 50 },
+        // { name: "Threshold Configuration", path: "/container-thresholds", moduleId: 50 },
+        // { name: "Priority Configuration", path: "/container-priority", moduleId: 50 },
       ],
     });
 
@@ -98,10 +100,10 @@ const AppSidebar: React.FC = () => {
       moduleId: 2,
       subItems: [
         { name: "Shipment Orders", path: "/shipment-orders", moduleId: 75 },
-        { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
-        { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
-        { name: "Container Planning", path: "/container-planning", moduleId: 50 },
-        { name: "Assignment Results", path: "/assignment-results", moduleId: 80 },
+        // { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
+        // { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
+        // { name: "Container Planning", path: "/container-planning", moduleId: 50 },
+        // { name: "Assignment Results", path: "/assignment-results", moduleId: 80 },
       ],
     });
 
@@ -118,13 +120,13 @@ const AppSidebar: React.FC = () => {
       });
     }
 
-    items.push({
-      name: "History",
-      icon: <HiOutlineDocumentText className="w-5 h-5" />,
-      path: "#",
-      moduleId: 4,
-      subItems: [{ name: "Uploads History", path: "/shipment-operations/uploads-history", moduleId: 70 }],
-    });
+    // items.push({
+    //   name: "History",
+    //   icon: <HiOutlineDocumentText className="w-5 h-5" />,
+    //   path: "#",
+    //   moduleId: 4,
+    //   subItems: [{ name: "Uploads History", path: "/shipment-operations/uploads-history", moduleId: 70 }],
+    // });
 
     return items;
   }, [user, canAccessModule, isAdmin]);
@@ -153,7 +155,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-50 mt-16 lg:mt-0 h-screen border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-900 transition-all duration-300
+      className={`fixed top-0 left-0 z-50 mt-16 lg:mt-0 h-screen border-r border-brand-400 dark:border-brand-500 bg-gradient-to-b from-brand-500 to-brand-600 dark:from-brand-600 dark:to-brand-700 text-white transition-all duration-300
         ${isExpanded || isMobileOpen ? "w-[280px]" : "w-[80px]"}
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
     >
@@ -161,11 +163,11 @@ const AppSidebar: React.FC = () => {
          <Link href="/">
            {isExpanded || isMobileOpen ? (
              <h1 className="mx-auto text-center text-xl font-bold">
-               <span className="text-theme-purple-600 dark:text-theme-purple-400">Vendor</span>
-               <span className="text-gray-500 dark:text-gray-400">Booking Tool</span>
+               <span className="text-white">Vendor</span>
+               <span className="text-white/80">Booking Tool</span>
              </h1>
            ) : (
-             <div className="w-8 h-8 bg-theme-purple-600 dark:bg-theme-purple-500 rounded-lg flex items-center justify-center">
+             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
                <span className="text-white font-bold text-sm">VB</span>
              </div>
            )}
@@ -174,7 +176,7 @@ const AppSidebar: React.FC = () => {
 
       <nav className="flex-1 overflow-y-auto no-scrollbar px-3">
         <h2
-          className={`mb-4 text-xs uppercase font-semibold tracking-wider text-gray-500 dark:text-gray-400 ${
+          className={`mb-4 text-xs uppercase font-semibold tracking-wider text-white/60 ${
             !isExpanded ? "lg:text-center" : "text-left"
           }`}
         >
@@ -193,19 +195,19 @@ const AppSidebar: React.FC = () => {
                     title={!isExpanded ? nav.name : undefined}
                  className={`group w-full px-3 py-3 rounded-lg flex items-center transition-colors
                    ${isExpanded ? "justify-start" : "lg:justify-center"}
-                   ${hasActiveChild ? "bg-theme-purple-50 text-theme-purple-600 dark:bg-theme-purple-900/20 dark:text-theme-purple-400" : ""}
+                   ${hasActiveChild ? "bg-white/20 text-white" : "text-white/80 hover:bg-white/10"}
                  `}
                   >
-                    <span className={`flex-shrink-0 ${hasActiveChild ? "text-theme-purple-600 dark:text-theme-purple-400" : "text-gray-500 group-hover:text-gray-700 dark:text-gray-400"}`}>
+                    <span className={`flex-shrink-0 ${hasActiveChild ? "text-white" : "text-white/70 group-hover:text-white"}`}>
                       {nav.icon}
                     </span>
                     {(isExpanded || isMobileOpen) && (
                       <>
-                        <span className={`ml-3 text-sm font-medium truncate ${hasActiveChild ? "text-theme-purple-600 dark:text-theme-purple-400" : ""}`}>{nav.name}</span>
+                        <span className={`ml-3 text-sm font-medium truncate ${hasActiveChild ? "text-white" : "text-white/80"}`}>{nav.name}</span>
                         <HiOutlineChevronDown
                           className={`ml-auto w-4 h-4 transition-transform ${
                             expanded ? "rotate-180" : "rotate-0"
-                          } ${hasActiveChild ? "text-theme-purple-600 dark:text-theme-purple-400" : "text-gray-400"}`}
+                          } ${hasActiveChild ? "text-white" : "text-white/60"}`}
                         />
                       </>
                     )}
@@ -221,13 +223,13 @@ const AppSidebar: React.FC = () => {
                             href={s.path}
                            className={`block px-3 py-2 text-sm rounded-md transition-colors
                              ${isActive(s.path)
-                               ? "bg-theme-purple-50 text-theme-purple-600 dark:bg-theme-purple-900/20 dark:text-theme-purple-400 font-medium"
-                               : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-theme-purple-50 dark:hover:bg-theme-purple-900/10"
+                               ? "bg-white/20 text-white font-medium"
+                               : "text-white/70 hover:text-white hover:bg-white/10"
                              }`}
                           >
                             {s.name}
                             {s.pro && (
-                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white/20 text-white">
                                 pro
                               </span>
                             )}
@@ -247,15 +249,15 @@ const AppSidebar: React.FC = () => {
                    className={`group w-full px-3 py-3 rounded-lg flex items-center transition-colors
                      ${isExpanded ? "justify-start" : "lg:justify-center"}
                      ${isActive(nav.path)
-                       ? "bg-theme-purple-50 text-theme-purple-600 dark:bg-theme-purple-900/20 dark:text-theme-purple-400"
-                       : "text-gray-700 dark:text-gray-300 hover:bg-theme-purple-50 dark:hover:bg-theme-purple-900/10"}
+                       ? "bg-white/20 text-white"
+                       : "text-white/80 hover:bg-white/10"}
                    `}
                 >
-                  <span className={`flex-shrink-0 ${isActive(nav.path) ? "text-theme-purple-600 dark:text-theme-purple-400" : "text-gray-500 group-hover:text-gray-700 dark:text-gray-400"}`}>
+                  <span className={`flex-shrink-0 ${isActive(nav.path) ? "text-white" : "text-white/70 group-hover:text-white"}`}>
                     {nav.icon}
                   </span>
                   {(isExpanded || isMobileOpen) && (
-                    <span className={`ml-3 text-sm font-medium truncate ${isActive(nav.path) ? "text-theme-purple-600 dark:text-theme-purple-400" : ""}`}>{nav.name}</span>
+                    <span className={`ml-3 text-sm font-medium truncate ${isActive(nav.path) ? "text-white" : "text-white/80"}`}>{nav.name}</span>
                   )}
                 </Link>
               </li>

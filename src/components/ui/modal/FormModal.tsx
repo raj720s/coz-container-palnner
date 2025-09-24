@@ -114,7 +114,7 @@ export const FormModal: React.FC<FormModalProps> = ({
         )}
 
         {/* Content - Scrollable area */}
-        <div className="p-6 flex-1 overflow-y-auto">
+        <div className="p-6 flex-1 overflow-y-auto thin-scrollbar">
           {childrenWithoutActions}
         </div>
 

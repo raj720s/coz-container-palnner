@@ -230,7 +230,7 @@ export const CustomerSelector: React.FC<CustomerSelectorProps> = ({
 
       {/* Customer List */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        <div className="max-h-80 overflow-y-auto custom-scrollbar">
+        <div className="max-h-80 overflow-y-auto thin-scrollbar">
           {customersLoading ? (
             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>

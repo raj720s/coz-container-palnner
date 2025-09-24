@@ -44,17 +44,12 @@ export default function AuthLayout({
             
             <div className="relative items-center justify-center flex z-10">
               <div className="flex flex-col items-center max-w-md text-center px-8">
-                <Link href="/" className="block mb-6">
+                
                   <h1 className="text-5xl font-bold mb-4">   
-                    <span className="text-theme-purple-300 dark:text-theme-purple-200">Vendor</span>
+                    <span className="text-theme-purple-300 dark:text-theme-purple-200">Vendor </span>
                     <span className="text-white dark:text-gray-100">Booking Tool</span>
                   </h1>
-                  <p className="text-theme-purple-200 dark:text-theme-purple-300 text-lg">
-                    Streamline your logistics operations
-                  </p>
-                </Link>
-                
-                {/* Feature highlights */}
+           
             
               </div>
             </div>

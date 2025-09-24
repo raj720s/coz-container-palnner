@@ -62,10 +62,14 @@ export const customerService = {
 
   // Search customers
   async searchCustomers(query: string): Promise<CustomerResponse[]> {
-    const response = await superAxios.post(`${BASEURL}/master-data/v1/customer/list`, { 
-      name: query, 
-      page_size: 10 
-    });
+    const params: any = { page_size: 10 };
+    
+    // Only add name filter if query is not empty
+    if (query.trim()) {
+      params.name = query;
+    }
+    
+    const response = await superAxios.post(`${BASEURL}/master-data/v1/customer/list`, params);
     return response.data.results;
   },
 

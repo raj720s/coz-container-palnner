@@ -279,7 +279,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           </div>
           
           {dynamicFields.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-80 overflow-y-auto thin-scrollbar">
               {dynamicFields.map((field, index) => (
                 <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                   <div>

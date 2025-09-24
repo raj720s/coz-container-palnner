@@ -1,41 +1,26 @@
 // Shipment Order Types and Interfaces
 
 export interface ShipmentOrder {
-  id?: string;
-  so_number: string; // VBK + YY + MM + DD + 3-digit counter
-  status: ShipmentOrderStatus;
+  id?: number;
+  vendor_booking_number?: string; // System-generated booking number (e.g., VBK250911001)
+  vendor_booking_status: ShipmentOrderStatus;
   shipper: string;
   consignee: string;
-  transportation_mode: TransportationMode;
+  transportation_mode?: TransportationMode;
   cargo_readiness_date: string; // ISO date string
   service_type: ServiceType;
   volume: number;
   weight: number;
-  hs_code?: string;
+  hs_code: string;
   cargo_description?: string;
-  marks_numbers?: string;
-  customer_reference?: string;
+  marks_and_numbers?: string;
   cargo_type?: CargoType;
   dangerous_goods_notes?: string;
   place_of_receipt?: string;
-  port_of_loading: string;
-  port_of_discharge: string;
   place_of_delivery?: string;
   carrier?: string;
   carrier_booking_number?: string;
-  equipment_count: number;
-  equipment_size_type: string;
-  equipment_numbers: string[];
-  // Dynamic fields (5 user-defined fields)
-  user_defined_field1?: string;
-  user_defined_field2?: string;
-  user_defined_field3?: string;
-  user_defined_field4?: string;
-  user_defined_field5?: string;
-  // Master data references
-  customer_id: string;
-  vendor_id: string;
-  origin_partner_id: string;
+  customer: number; // Customer ID
   // Timestamps
   created_at?: string;
   updated_at?: string;
@@ -43,48 +28,23 @@ export interface ShipmentOrder {
   updated_by?: string;
 }
 
-export type ShipmentOrderStatus = 'Draft' | 'Confirmed' | 'Shipped';
-export type TransportationMode = 'FCL' | 'LCL';
-export type ServiceType = 'CFS' | 'CY';
-export type CargoType = 'Normal' | 'Reefer' | 'Dangerous Goods';
+export type ShipmentOrderStatus = 'draft' | 'confirmed' | 'booked' | 'cancelled' | 'shipped';
+export type TransportationMode = 'ocean' | 'air' | 'road' | 'rail';
+export type ServiceType = 'cy' | 'cfs';
+export type CargoType = 'normal' | 'reefer' | 'dg';
 
 export interface ShipmentOrderResponse extends ShipmentOrder {
-  id: string;
+  id: number;
+  vendor_booking_number: string;
   created_at: string;
   updated_at: string;
   // Additional fields for display
   customer_name?: string;
-  vendor_name?: string;
-  origin_partner_name?: string;
 }
 
-export interface ShipmentOrderListRequest {
-  page?: number;
-  limit?: number;
-  search?: string;
-  status?: ShipmentOrderStatus;
-  customer_id?: string;
-  vendor_id?: string;
-  transportation_mode?: TransportationMode;
-  service_type?: ServiceType;
-  cargo_type?: CargoType;
-  sort_by?: string;
-  sort_order?: 'asc' | 'desc';
-}
+export interface CreateShipmentOrderRequest extends Omit<ShipmentOrder, 'id' | 'vendor_booking_number' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'> {}
 
-export interface CreateShipmentOrderRequest extends Omit<ShipmentOrder, 'id' | 'so_number' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'> {}
-
-export interface UpdateShipmentOrderRequest extends Partial<CreateShipmentOrderRequest> {
-  id: string;
-}
-
-export interface ShipmentOrderListResponse {
-  data: ShipmentOrderResponse[];
-  total: number;
-  page: number;
-  limit: number;
-  total_pages: number;
-}
+export interface UpdateShipmentOrderRequest extends Omit<ShipmentOrder, 'id' | 'vendor_booking_number' | 'created_at' | 'updated_at' | 'created_by' | 'updated_by'> {}
 
 // Container Assignment Types
 export interface ContainerAssignment {
@@ -124,69 +84,59 @@ export interface ShipmentOrderFormData {
   // Basic Information
   shipper: string;
   consignee: string;
-  transportation_mode: TransportationMode;
+  transportation_mode?: TransportationMode;
   cargo_readiness_date: string;
   service_type: ServiceType;
   volume: number;
   weight: number;
   
-  // Optional Cargo Details
-  hs_code?: string;
+  // Required Cargo Details
+  hs_code: string;
   cargo_description?: string;
-  marks_numbers?: string;
-  customer_reference?: string;
+  marks_and_numbers?: string;
   cargo_type?: CargoType;
   dangerous_goods_notes?: string;
   
   // Location Details
   place_of_receipt?: string;
-  port_of_loading: string;
-  port_of_discharge: string;
   place_of_delivery?: string;
   
   // Carrier Details
   carrier?: string;
   carrier_booking_number?: string;
   
-  // Container Assignment
-  equipment_count: number;
-  equipment_size_type: string;
-  equipment_numbers: string[];
+  // Customer Reference
+  customer: number;
   
-  // Dynamic Fields
-  user_defined_field1?: string;
-  user_defined_field2?: string;
-  user_defined_field3?: string;
-  user_defined_field4?: string;
-  user_defined_field5?: string;
-  
-  // Master Data References
-  customer_id: string;
-  vendor_id: string;
-  origin_partner_id: string;
+  // Optional ID for editing
+  id?: number;
 }
 
 // Validation Schemas
 export const SHIPMENT_ORDER_STATUS_OPTIONS: { value: ShipmentOrderStatus; label: string }[] = [
-  { value: 'Draft', label: 'Draft' },
-  { value: 'Confirmed', label: 'Confirmed' },
-  { value: 'Shipped', label: 'Shipped' }
+  { value: 'draft', label: 'Draft' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'booked', label: 'Booked' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'shipped', label: 'Shipped' }
 ];
 
 export const TRANSPORTATION_MODE_OPTIONS: { value: TransportationMode; label: string }[] = [
-  { value: 'FCL', label: 'FCL (Full Container Load)' },
-  { value: 'LCL', label: 'LCL (Less than Container Load)' }
+  { value: 'ocean', label: 'Ocean' },
+  { value: 'air', label: 'Air' },
+  { value: 'road', label: 'Road' },
+  { value: 'rail', label: 'Rail' }
 ];
 
 export const SERVICE_TYPE_OPTIONS: { value: ServiceType; label: string }[] = [
-  { value: 'CFS', label: 'CFS (Container Freight Station)' },
-  { value: 'CY', label: 'CY (Container Yard)' }
+  { value: 'cy', label: 'CY (Container Yard)' },
+  { value: 'cfs', label: 'CFS (Container Freight Station)' }
 ];
 
 export const CARGO_TYPE_OPTIONS: { value: CargoType; label: string }[] = [
-  { value: 'Normal', label: 'Normal' },
-  { value: 'Reefer', label: 'Reefer' },
-  { value: 'Dangerous Goods', label: 'Dangerous Goods' }
+  { value: 'normal', label: 'Normal' },
+  { value: 'reefer', label: 'Reefer' },
+  { value: 'dg', label: 'Dangerous Goods' }
 ];
 
 export const EQUIPMENT_SIZE_TYPE_OPTIONS: { value: string; label: string }[] = [

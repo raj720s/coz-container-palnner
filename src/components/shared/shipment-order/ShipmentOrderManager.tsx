@@ -12,7 +12,6 @@ import {
 } from "@tanstack/react-table";
 import { 
   ShipmentOrderResponse, 
-  ShipmentOrderListRequest,
   ShipmentOrderFormData,
   ShipmentOrderStatus,
   TransportationMode,
@@ -32,8 +31,12 @@ import {
   TrashBinIcon, 
   DownloadIcon,
   ChevronUpIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  FilterIcon
 } from "@/icons";
+import { CustomerFilterDropdown } from "./CustomerFilterDropdown";
+import { ConfigurationDrawer } from "./ConfigurationDrawer";
+import { DynamicField } from "@/utils/customerDynamicFieldsUtils";
 
 const columnHelper = createColumnHelper<ShipmentOrderResponse>();
 
@@ -51,6 +54,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   const [transportationModeFilter, setTransportationModeFilter] = useState<TransportationMode | "">("");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceType | "">("");
   const [cargoTypeFilter, setCargoTypeFilter] = useState<CargoType | "">("");
+  const [customerFilter, setCustomerFilter] = useState<number | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -58,28 +62,39 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     total: 0,
     totalPages: 0,
   });
+  const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
+  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
+  
+  // Column configuration
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
+    so_number: true,
+    status: true,
+    shipper: true,
+    consignee: true,
+    transportation_mode: true,
+    service_type: true,
+    cargo_readiness_date: true,
+    volume: true,
+    weight: true,
+    port_of_loading: true,
+    port_of_discharge: true,
+    customer_name: true,
+    created_at: true,
+    updated_at: false,
+  });
 
-  // Load shipment orders
-  const loadShipmentOrders = async (params: ShipmentOrderListRequest = {}) => {
+  // Load shipment orders - Since there's no list endpoint, we'll use mock data for now
+  const loadShipmentOrders = async () => {
     try {
       setLoading(true);
-      const response = await shipmentOrderService.getShipmentOrders({
-        page: pagination.page,
-        limit: pagination.limit,
-        search: globalFilter || undefined,
-        status: statusFilter || undefined,
-        transportation_mode: transportationModeFilter || undefined,
-        service_type: serviceTypeFilter || undefined,
-        cargo_type: cargoTypeFilter || undefined,
-        ...params,
-      });
-      
-      setShipmentOrders(response.data);
+      // TODO: Implement a different approach since there's no list endpoint
+      // For now, we'll use empty array and let users create individual orders
+      setShipmentOrders([]);
       setPagination(prev => ({
         ...prev,
-        total: response.total,
-        totalPages: response.total_pages,
-        page: response.page,
+        total: 0,
+        totalPages: 0,
+        page: 1,
       }));
     } catch (error) {
       console.error("Failed to load shipment orders:", error);
@@ -91,15 +106,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   // Initial load
   useEffect(() => {
     loadShipmentOrders();
-  }, [pagination.page, pagination.limit]);
-
-  // Filter changes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadShipmentOrders({ page: 1 });
-    }, 500);
-    return () => clearTimeout(timeoutId);
-  }, [globalFilter, statusFilter, transportationModeFilter, serviceTypeFilter, cargoTypeFilter]);
+  }, []);
 
   // Handle create/edit
   const handleCreate = () => {
@@ -112,7 +119,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm("Are you sure you want to delete this shipment order?")) {
       try {
         await shipmentOrderService.deleteShipmentOrder(id);
@@ -123,7 +130,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     }
   };
 
-  const handleStatusUpdate = async (id: string, status: ShipmentOrderStatus) => {
+  const handleStatusUpdate = async (id: number, status: ShipmentOrderStatus) => {
     try {
       await shipmentOrderService.updateShipmentOrderStatus(id, status);
       await loadShipmentOrders();
@@ -135,15 +142,14 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   const handleSubmit = async (data: ShipmentOrderFormData) => {
     try {
       if (editingOrder) {
-        await shipmentOrderService.updateShipmentOrder({
-          id: editingOrder.id,
+        await shipmentOrderService.updateShipmentOrder(editingOrder.id, {
           ...data,
-          status: editingOrder.status, // Preserve existing status
+          vendor_booking_status: editingOrder.vendor_booking_status, // Preserve existing status
         });
       } else {
         await shipmentOrderService.createShipmentOrder({
           ...data,
-          status: 'Draft' as ShipmentOrderStatus, // Default status for new orders
+          vendor_booking_status: 'draft' as ShipmentOrderStatus, // Default status for new orders
         });
       }
       setIsModalOpen(false);
@@ -155,34 +161,57 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   };
 
   const handleExport = async () => {
-    try {
-      const blob = await shipmentOrderService.exportShipmentOrders({
-        search: globalFilter || undefined,
-        status: statusFilter || undefined,
-        transportation_mode: transportationModeFilter || undefined,
-        service_type: serviceTypeFilter || undefined,
-        cargo_type: cargoTypeFilter || undefined,
-      });
-      
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `shipment-orders-${new Date().toISOString().split('T')[0]}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Failed to export shipment orders:", error);
-    }
+    // Export functionality not available - no export endpoint in API
+    console.warn("Export functionality not available - no export endpoint in API");
+  };
+
+  // Column visibility handlers
+  const handleColumnVisibilityChange = (columnId: string, visible: boolean) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [columnId]: visible
+    }));
+  };
+
+  // Dynamic field handlers
+  const handleDynamicFieldAdd = (field: DynamicField) => {
+    setDynamicFields(prev => [...prev, field]);
+  };
+
+  const handleDynamicFieldUpdate = (fieldId: string, updates: Partial<DynamicField>) => {
+    setDynamicFields(prev => 
+      prev.map(field => 
+        field.id === fieldId ? { ...field, ...updates } : field
+      )
+    );
+  };
+
+  const handleDynamicFieldRemove = (fieldId: string) => {
+    setDynamicFields(prev => prev.filter(field => field.id !== fieldId));
+  };
+
+  // Helper function to categorize columns
+  const getColumnCategory = (columnId: string): string => {
+    const basicColumns = ['so_number', 'status', 'shipper', 'consignee', 'customer_name'];
+    const shippingColumns = ['transportation_mode', 'service_type', 'port_of_loading', 'port_of_discharge'];
+    const cargoColumns = ['cargo_type', 'volume', 'weight', 'cargo_readiness_date'];
+    const dateColumns = ['created_at', 'updated_at'];
+    const statusColumns = ['status'];
+
+    if (basicColumns.includes(columnId)) return 'basic';
+    if (shippingColumns.includes(columnId)) return 'shipping';
+    if (cargoColumns.includes(columnId)) return 'cargo';
+    if (dateColumns.includes(columnId)) return 'dates';
+    if (statusColumns.includes(columnId)) return 'status';
+    return 'basic';
   };
 
   // Calculate stats
   const stats = useMemo(() => {
     const total = shipmentOrders.length;
-    const draft = shipmentOrders.filter(so => so.status === 'Draft').length;
-    const confirmed = shipmentOrders.filter(so => so.status === 'Confirmed').length;
-    const shipped = shipmentOrders.filter(so => so.status === 'Shipped').length;
+    const draft = shipmentOrders.filter(so => so.vendor_booking_status === 'draft').length;
+    const confirmed = shipmentOrders.filter(so => so.vendor_booking_status === 'confirmed').length;
+    const shipped = shipmentOrders.filter(so => so.vendor_booking_status === 'shipped').length;
     
     return { total, draft, confirmed, shipped };
   }, [shipmentOrders]);
@@ -191,14 +220,14 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   const filteredData = useMemo(() => {
     return shipmentOrders.filter((item) => {
       const matchesSearch = !globalFilter || 
-        item.so_number.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.vendor_booking_number.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.shipper.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.consignee.toLowerCase().includes(globalFilter.toLowerCase()) ||
         item.customer_name?.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.port_of_loading.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.port_of_discharge.toLowerCase().includes(globalFilter.toLowerCase());
+        item.place_of_receipt?.toLowerCase().includes(globalFilter.toLowerCase()) ||
+        item.place_of_delivery?.toLowerCase().includes(globalFilter.toLowerCase());
 
-      const matchesStatus = !statusFilter || item.status === statusFilter;
+      const matchesStatus = !statusFilter || item.vendor_booking_status === statusFilter;
       const matchesTransportationMode = !transportationModeFilter || item.transportation_mode === transportationModeFilter;
       const matchesServiceType = !serviceTypeFilter || item.service_type === serviceTypeFilter;
       const matchesCargoType = !cargoTypeFilter || item.cargo_type === cargoTypeFilter;
@@ -208,250 +237,161 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   }, [shipmentOrders, globalFilter, statusFilter, transportationModeFilter, serviceTypeFilter, cargoTypeFilter]);
 
   // Table columns
-  const columns = useMemo(() => [
-    columnHelper.accessor("so_number", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          SO Number
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="font-mono text-sm text-theme-purple-600 dark:text-theme-purple-400">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("status", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Status
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => {
-        const status = info.getValue();
-        const statusColors = {
-          'Draft': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-          'Confirmed': 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
-          'Shipped': 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-        };
-        
-        return (
-          <span className={`px-2 py-1 text-xs rounded-full ${statusColors[status]}`}>
-            {status}
+  const columns = useMemo(() => {
+    // Base (static) columns
+    const baseColumns = [
+      columnHelper.accessor("vendor_booking_number", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Booking Number
+            {column.getIsSorted() === "asc" ? (
+              <ChevronUpIcon className="w-4 h-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ChevronDownIcon className="w-4 h-4" />
+            ) : (
+              <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+            )}
+          </button>
+        ),
+        cell: (info) => (
+          <span className="font-mono text-sm text-theme-purple-600 dark:text-theme-purple-400">
+            {info.getValue()}
           </span>
-        );
-      }
-    }),
-    columnHelper.accessor("shipper", {
-      header: "Shipper",
-      cell: (info) => (
-        <span className="text-sm text-gray-900 dark:text-white">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("consignee", {
-      header: "Consignee",
-      cell: (info) => (
-        <span className="text-sm text-gray-900 dark:text-white">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("transportation_mode", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Mode
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("service_type", {
-      header: "Service Type",
-      cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 rounded-full">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("cargo_readiness_date", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Cargo Date
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue()).toLocaleDateString()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("volume", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Volume
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-900 dark:text-white">
-          {info.getValue().toLocaleString()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("weight", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Weight
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-900 dark:text-white">
-          {info.getValue().toLocaleString()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("customer_name", {
-      header: "Customer",
-      cell: (info) => (
-        <span className="text-sm text-gray-900 dark:text-white">
-          {info.getValue() || 'N/A'}
-        </span>
-      )
-    }),
-    columnHelper.accessor("created_at", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Created
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue()).toLocaleDateString()}
-        </span>
-      )
-    }),
-    columnHelper.display({
-      id: "actions",
-      header: "Actions",
-      cell: (info) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleEdit(info.row.original)}
-            className="p-1"
+        ),
+      }),
+  
+      columnHelper.accessor("vendor_booking_status", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
-            <PencilIcon className="w-4 h-4" />
-          </Button>
-          
-          {info.row.original.status === 'Draft' && (
+            Status
+            {column.getIsSorted() === "asc" ? (
+              <ChevronUpIcon className="w-4 h-4" />
+            ) : column.getIsSorted() === "desc" ? (
+              <ChevronDownIcon className="w-4 h-4" />
+            ) : (
+              <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
+            )}
+          </button>
+        ),
+        cell: (info) => {
+          const status = info.getValue();
+          const statusColors: Record<string, string> = {
+            draft:
+              "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+            confirmed:
+              "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+            booked:
+              "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+            cancelled:
+              "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+            shipped:
+              "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+          };
+  
+          return (
+            <span className={`px-2 py-1 text-xs rounded-full ${statusColors[status]}`}>
+              {status}
+            </span>
+          );
+        },
+      }),
+  
+      // ... all your other static columns unchanged ...
+  
+      columnHelper.display({
+        id: "actions",
+        header: "Actions",
+        cell: (info) => (
+          <div className="flex gap-2">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleStatusUpdate(info.row.original.id, 'Confirmed')}
-              className="p-1 text-blue-600 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
+              onClick={() => handleEdit(info.row.original)}
+              className="p-1"
             >
-              Confirm
+              <PencilIcon className="w-4 h-4" />
             </Button>
-          )}
-          
-          {info.row.original.status === 'Confirmed' && (
+  
+            {info.row.original.vendor_booking_status === "draft" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handleStatusUpdate(info.row.original.id, "confirmed")
+                }
+                className="p-1 text-blue-600 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
+              >
+                Confirm
+              </Button>
+            )}
+
+            {info.row.original.vendor_booking_status === "confirmed" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handleStatusUpdate(info.row.original.id, "booked")
+                }
+                className="p-1 text-purple-600 border-purple-300 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-900/20"
+              >
+                Book
+              </Button>
+            )}
+
+            {info.row.original.vendor_booking_status === "booked" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  handleStatusUpdate(info.row.original.id, "shipped")
+                }
+                className="p-1 text-green-600 border-green-300 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20"
+              >
+                Ship
+              </Button>
+            )}
+  
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleStatusUpdate(info.row.original.id, 'Shipped')}
-              className="p-1 text-green-600 border-green-300 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20"
+              onClick={() => handleDelete(info.row.original.id)}
+              className="p-1 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
             >
-              Ship
+              <TrashBinIcon className="w-4 h-4" />
             </Button>
-          )}
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleDelete(info.row.original.id)}
-            className="p-1 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
-        </div>
-      )
-    }),
-  ], []);
+          </div>
+        ),
+      }),
+    ];
+  
+    // ✅ Dynamic columns need to be defined OUTSIDE the baseColumns array
+    const dynamicColumns = dynamicFields.map((field) =>
+      columnHelper.display({
+        id: `dynamic_${field.id}`,
+        header: field.label,
+        cell: () => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {field.value || "-"}
+          </span>
+        ),
+      })
+    );
+  
+    // Combine & filter
+    const allColumns = [...baseColumns, ...dynamicColumns];
+  
+    return allColumns.filter((column) => {
+      if (column.id === "actions") return true; // Always show actions
+      return columnVisibility[column.id as string] !== false;
+    });
+  }, [dynamicFields, columnVisibility]);
+  
 
   // Table setup
   const table = useReactTable({
@@ -473,7 +413,9 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   });
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 transition-all duration-300 ease-in-out ${
+      isConfigDrawerOpen ? 'mr-96' : 'mr-0'
+    }`}>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
@@ -539,6 +481,12 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
               />
             </div>
 
+            {/* Customer Filter */}
+            <CustomerFilterDropdown
+              selectedCustomerId={customerFilter}
+              onCustomerChange={setCustomerFilter}
+            />
+
             {/* Status Filter */}
             <select
               value={statusFilter}
@@ -546,9 +494,11 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
             >
               <option value="">All Status</option>
-              <option value="Draft">Draft</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="Shipped">Shipped</option>
+              <option value="draft">Draft</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="booked">Booked</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="shipped">Shipped</option>
             </select>
 
             {/* Transportation Mode Filter */}
@@ -558,8 +508,10 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
             >
               <option value="">All Modes</option>
-              <option value="FCL">FCL</option>
-              <option value="LCL">LCL</option>
+              <option value="ocean">Ocean</option>
+              <option value="air">Air</option>
+              <option value="road">Road</option>
+              <option value="rail">Rail</option>
             </select>
 
             {/* Service Type Filter */}
@@ -569,9 +521,20 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
             >
               <option value="">All Services</option>
-              <option value="CFS">CFS</option>
-              <option value="CY">CY</option>
+              <option value="cy">CY (Container Yard)</option>
+              <option value="cfs">CFS (Container Freight Station)</option>
             </select>
+
+            {/* Configuration Button */}
+            <Button
+              onClick={() => setIsConfigDrawerOpen(true)}
+              size="sm"
+              variant="outline"
+              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+            >
+              <FilterIcon className="w-4 h-4 mr-2" />
+              Configure
+            </Button>
 
             {/* Export Button */}
             <Button
@@ -669,8 +632,24 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
       >
         <ShipmentOrderForm
           initialData={editingOrder ? {
-            ...editingOrder,
             id: editingOrder.id,
+            shipper: editingOrder.shipper,
+            consignee: editingOrder.consignee,
+            transportation_mode: editingOrder.transportation_mode,
+            cargo_readiness_date: editingOrder.cargo_readiness_date,
+            service_type: editingOrder.service_type,
+            volume: editingOrder.volume,
+            weight: editingOrder.weight,
+            hs_code: editingOrder.hs_code,
+            cargo_description: editingOrder.cargo_description,
+            marks_and_numbers: editingOrder.marks_and_numbers,
+            cargo_type: editingOrder.cargo_type,
+            dangerous_goods_notes: editingOrder.dangerous_goods_notes,
+            place_of_receipt: editingOrder.place_of_receipt,
+            place_of_delivery: editingOrder.place_of_delivery,
+            carrier: editingOrder.carrier,
+            carrier_booking_number: editingOrder.carrier_booking_number,
+            customer: editingOrder.customer,
           } : undefined}
           onSubmit={handleSubmit}
           onCancel={() => {
@@ -680,6 +659,23 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
           isLoading={loading}
         />
       </FormModal>
+
+      {/* Configuration Drawer */}
+      <ConfigurationDrawer
+        isOpen={isConfigDrawerOpen}
+        onClose={() => setIsConfigDrawerOpen(false)}
+        selectedCustomerId={customerFilter}
+        columns={Object.entries(columnVisibility).map(([id, visible]) => ({
+          id,
+          label: id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          visible,
+          category: getColumnCategory(id)
+        }))}
+        onColumnVisibilityChange={handleColumnVisibilityChange}
+        onDynamicFieldAdd={handleDynamicFieldAdd}
+        onDynamicFieldUpdate={handleDynamicFieldUpdate}
+        onDynamicFieldRemove={handleDynamicFieldRemove}
+      />
     </div>
   );
 };

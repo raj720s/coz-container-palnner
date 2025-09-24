@@ -1,153 +1,68 @@
 // Shipment Order Service
 import { 
   ShipmentOrderResponse, 
-  ShipmentOrderListRequest, 
-  ShipmentOrderListResponse,
   CreateShipmentOrderRequest,
   UpdateShipmentOrderRequest,
+  ShipmentOrderStatus,
   CustomerReference,
   VendorReference,
   OriginPartnerReference
 } from '@/types/shipmentOrder';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+import superAxios from '@/utils/superAxios';
+import { BASEURL } from '@/config/variables';
 
 class ShipmentOrderService {
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const token = localStorage.getItem('auth_token');
-
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
-
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error);
-      throw error;
-    }
-  }
-
-  // Get list of shipment orders
-  async getShipmentOrders(params: ShipmentOrderListRequest = {}): Promise<ShipmentOrderListResponse> {
-    const queryParams = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, value.toString());
-      }
-    });
-
-    const queryString = queryParams.toString();
-    const endpoint = `/shipment-orders${queryString ? `?${queryString}` : ''}`;
-    
-    return this.request<ShipmentOrderListResponse>(endpoint);
-  }
 
   // Get single shipment order by ID
-  async getShipmentOrder(id: string): Promise<ShipmentOrderResponse> {
-    return this.request<ShipmentOrderResponse>(`/shipment-orders/${id}`);
+  async getShipmentOrder(id: number): Promise<ShipmentOrderResponse> {
+    const response = await superAxios.get(`${BASEURL}/shipment/api/shipment/${id}`);
+    return response.data;
   }
 
   // Create new shipment order
   async createShipmentOrder(data: CreateShipmentOrderRequest): Promise<ShipmentOrderResponse> {
-    return this.request<ShipmentOrderResponse>('/shipment-orders', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    const response = await superAxios.post(`${BASEURL}/shipment/api/shipment`, data);
+    return response.data;
   }
 
-  // Update existing shipment order
-  async updateShipmentOrder(data: UpdateShipmentOrderRequest): Promise<ShipmentOrderResponse> {
-    const { id, ...updateData } = data;
-    return this.request<ShipmentOrderResponse>(`/shipment-orders/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updateData),
-    });
+  // Update existing shipment order (full update)
+  async updateShipmentOrder(id: number, data: UpdateShipmentOrderRequest): Promise<ShipmentOrderResponse> {
+    const response = await superAxios.put(`${BASEURL}/shipment/api/shipment/${id}`, data);
+    return response.data;
+  }
+
+  // Partial update shipment order
+  async partialUpdateShipmentOrder(id: number, data: Partial<UpdateShipmentOrderRequest>): Promise<ShipmentOrderResponse> {
+    const response = await superAxios.patch(`${BASEURL}/shipment/api/shipment/${id}`, data);
+    return response.data;
+  }
+
+  // Update shipment order status (using partial update)
+  async updateShipmentOrderStatus(id: number, status: ShipmentOrderStatus): Promise<ShipmentOrderResponse> {
+    return this.partialUpdateShipmentOrder(id, { vendor_booking_status: status });
   }
 
   // Delete shipment order
-  async deleteShipmentOrder(id: string): Promise<void> {
-    return this.request<void>(`/shipment-orders/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  // Update shipment order status
-  async updateShipmentOrderStatus(id: string, status: string): Promise<ShipmentOrderResponse> {
-    return this.request<ShipmentOrderResponse>(`/shipment-orders/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  // Assign container to shipment order
-  async assignContainer(id: string, containerData: {
-    equipment_count: number;
-    equipment_size_type: string;
-    equipment_numbers: string[];
-  }): Promise<ShipmentOrderResponse> {
-    return this.request<ShipmentOrderResponse>(`/shipment-orders/${id}/container`, {
-      method: 'PATCH',
-      body: JSON.stringify(containerData),
-    });
-  }
-
-  // Export shipment orders
-  async exportShipmentOrders(params: ShipmentOrderListRequest = {}): Promise<Blob> {
-    const queryParams = new URLSearchParams();
-    
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        queryParams.append(key, value.toString());
-      }
-    });
-
-    const queryString = queryParams.toString();
-    const endpoint = `/shipment-orders/export${queryString ? `?${queryString}` : ''}`;
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Export failed: ${response.statusText}`);
-    }
-
-    return response.blob();
+  async deleteShipmentOrder(id: number): Promise<void> {
+    await superAxios.delete(`${BASEURL}/shipment/api/shipment/${id}`);
   }
 
   // Get customers for dropdown
   async getCustomers(): Promise<CustomerReference[]> {
-    return this.request<CustomerReference[]>('/customers/short-list');
+    const response = await superAxios.get(`${BASEURL}/customers/short-list`);
+    return response.data;
   }
 
   // Get vendors for dropdown
   async getVendors(): Promise<VendorReference[]> {
-    return this.request<VendorReference[]>('/vendors/short-list');
+    const response = await superAxios.get(`${BASEURL}/vendors/short-list`);
+    return response.data;
   }
 
   // Get origin partners for dropdown
   async getOriginPartners(): Promise<OriginPartnerReference[]> {
-    return this.request<OriginPartnerReference[]>('/origin-partners/short-list');
+    const response = await superAxios.get(`${BASEURL}/origin-partners/short-list`);
+    return response.data;
   }
 
   // Generate SO number (client-side for preview)
@@ -171,23 +86,12 @@ class ShipmentOrderService {
     // Required fields validation
     if (!data.shipper?.trim()) errors.push('Shipper is required');
     if (!data.consignee?.trim()) errors.push('Consignee is required');
-    if (!data.transportation_mode) errors.push('Transportation mode is required');
     if (!data.cargo_readiness_date) errors.push('Cargo readiness date is required');
     if (!data.service_type) errors.push('Service type is required');
     if (!data.volume || data.volume <= 0) errors.push('Volume must be greater than 0');
     if (!data.weight || data.weight <= 0) errors.push('Weight must be greater than 0');
-    if (!data.port_of_loading?.trim()) errors.push('Port of loading is required');
-    if (!data.port_of_discharge?.trim()) errors.push('Port of discharge is required');
-    if (!data.equipment_count || data.equipment_count <= 0) errors.push('Equipment count must be greater than 0');
-    if (!data.equipment_size_type?.trim()) errors.push('Equipment size/type is required');
-    if (!data.customer_id) errors.push('Customer is required');
-    if (!data.vendor_id) errors.push('Vendor is required');
-    if (!data.origin_partner_id) errors.push('Origin partner is required');
-
-    // Equipment numbers validation
-    if (data.equipment_numbers.length !== data.equipment_count) {
-      errors.push('Number of equipment numbers must match equipment count');
-    }
+    if (!data.hs_code?.trim()) errors.push('HS Code is required');
+    if (!data.customer) errors.push('Customer is required');
 
     // Dangerous goods validation
     if (data.cargo_type === 'Dangerous Goods' && !data.dangerous_goods_notes?.trim()) {

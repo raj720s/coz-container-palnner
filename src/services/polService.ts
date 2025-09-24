@@ -71,15 +71,19 @@ export class POLService extends BaseService {
 
   /**
    * Search POL ports by name
-   * @param query - Search query
+   * @param query - Search query (empty string for default results)
    * @param limit - Maximum number of results
    * @returns Promise<POLResponse[]>
    */
   async searchPOLs(query: string, limit: number = 10): Promise<POLResponse[]> {
-    const response = await this.post<POLListResponse>(this.buildEndpoint('pol', 'list'), { 
-      name: query, 
-      page_size: limit 
-    });
+    const params: any = { page_size: limit };
+    
+    // Only add name filter if query is not empty
+    if (query.trim()) {
+      params.name = query;
+    }
+    
+    const response = await this.post<POLListResponse>(this.buildEndpoint('pol', 'list'), params);
     return response.results;
   }
 

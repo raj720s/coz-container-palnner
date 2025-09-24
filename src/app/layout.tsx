@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { MessageProvider } from '@/components/ui/MessageBox';
 import UnifiedAuthGuard from '@/components/auth/UnifiedAuthGuard';
+import { GlobalErrorHandler } from '@/components/providers/GlobalErrorHandler';
 
 export const metadata: Metadata = {
   title: 'Vendor Booking Tool',
@@ -34,6 +35,7 @@ export default function RootLayout({
             <ThemeProvider>
               <SidebarProvider>
                 <MessageProvider>
+                  <GlobalErrorHandler />
                   <UnifiedAuthGuard>
                     {children}
                   </UnifiedAuthGuard>
