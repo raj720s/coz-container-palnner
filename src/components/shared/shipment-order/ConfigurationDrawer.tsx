@@ -57,6 +57,15 @@ const CATEGORIES = [
   }
 ];
 
+// Fields available in current API response
+const API_AVAILABLE_FIELDS = [
+  'vendor_booking_number', 'vendor_booking_status', 'shipper', 'consignee',
+  'transportation_mode', 'service_type', 'cargo_readiness_date', 'volume', 'weight',
+  'hs_code', 'cargo_description', 'marks_and_numbers', 'cargo_type', 'dangerous_goods_notes',
+  'place_of_receipt', 'place_of_delivery', 'carrier', 'carrier_booking_number',
+  'customer', 'customer_name', 'created_on', 'modified_on'
+];
+
 // Field definitions based on validation requirements
 const FIELD_DEFINITIONS = {
   // Mandatory Fields
@@ -187,14 +196,14 @@ const FIELD_DEFINITIONS = {
     description: "Origin Partner from SupplyX Masterdata"
   },
 
-  // Optional Fields
+  // Optional Fields (all unchecked by default)
   hs_code: {
     id: "hs_code",
     label: "HS Code",
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Harmonized System Code"
   },
   cargo_description: {
@@ -203,7 +212,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Description of the cargo"
   },
   marks_and_numbers: {
@@ -212,7 +221,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Cargo marks and numbers"
   },
   customer_reference: {
@@ -221,7 +230,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Customer reference number"
   },
   cargo_type: {
@@ -239,7 +248,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Required only if Cargo Type = Dangerous Goods"
   },
   place_of_receipt: {
@@ -248,7 +257,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Place where cargo is received"
   },
   place_of_delivery: {
@@ -257,7 +266,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Place where cargo is delivered"
   },
   carrier: {
@@ -266,7 +275,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Carrier information"
   },
   carrier_booking_number: {
@@ -275,7 +284,7 @@ const FIELD_DEFINITIONS = {
     category: "optional",
     type: "text",
     required: false,
-    visible: true,
+    visible: false,
     description: "Carrier's booking reference"
   },
 
@@ -338,11 +347,12 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
     }
   }, [selectedCustomerId]);
 
-  // Create field definitions with current visibility state
+  // Create field definitions with current visibility state and API availability
   const getFieldDefinitions = () => {
     return Object.values(FIELD_DEFINITIONS).map(field => ({
       ...field,
-      visible: columns.find(col => col.id === field.id)?.visible ?? field.visible
+      visible: columns.find(col => col.id === field.id)?.visible ?? field.visible,
+      apiAvailable: API_AVAILABLE_FIELDS.includes(field.id)
     }));
   };
 
@@ -439,32 +449,6 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto thin-scrollbar h-[calc(100vh-80px)]">
           <div className="p-4 space-y-6">
-            {/* Field Summary */}
-            <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                Field Summary
-              </h3>
-              <div className="grid grid-cols-2 gap-4 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Mandatory Fields:</span>
-                  <span className="font-medium text-red-600 dark:text-red-400">
-                    {fieldsByCategory.find(cat => cat.id === 'mandatory')?.fields.length || 0}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Optional Fields:</span>
-                  <span className="font-medium text-blue-600 dark:text-blue-400">
-                    {fieldsByCategory.find(cat => cat.id === 'optional')?.fields.length || 0}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Dynamic Fields:</span>
-                  <span className="font-medium text-purple-600 dark:text-purple-400">
-                    {dynamicFields.length}/5
-                  </span>
-                </div>
-              </div>
-            </div>
 
             {/* Field Configuration */}
             <div>
@@ -501,22 +485,38 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
                       {category.fields.map((field) => (
                         <div
                           key={field.id}
-                          className="flex items-start space-x-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-md"
+                          className={`flex items-start space-x-3 p-2 rounded-md ${
+                            field.apiAvailable 
+                              ? 'bg-gray-50 dark:bg-gray-700' 
+                              : 'bg-gray-100 dark:bg-gray-800 opacity-60'
+                          }`}
                         >
                           <div className="flex items-center space-x-2 flex-1">
                             <Checkbox
                               checked={field.visible}
                               onChange={(e) => onColumnVisibilityChange(field.id, e.target.checked)}
-                              disabled={field.required && category.id === "mandatory"}
+                              disabled={
+                                (field.required && category.id === "mandatory") || 
+                                !field.apiAvailable
+                              }
                             />
                             <div className="flex-1">
                               <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                                <span className={`text-sm font-medium ${
+                                  field.apiAvailable 
+                                    ? 'text-gray-900 dark:text-white' 
+                                    : 'text-gray-500 dark:text-gray-400'
+                                }`}>
                                   {field.label}
                                 </span>
                                 {field.required && (
                                   <span className="text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-2 py-0.5 rounded">
                                     Required
+                                  </span>
+                                )}
+                                {!field.apiAvailable && (
+                                  <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-0.5 rounded">
+                                    Future
                                   </span>
                                 )}
                                 <span className={`text-xs px-2 py-0.5 rounded ${
@@ -529,8 +529,13 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
                                   {field.type.toUpperCase()}
                                 </span>
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              <div className={`text-xs mt-1 ${
+                                field.apiAvailable 
+                                  ? 'text-gray-500 dark:text-gray-400' 
+                                  : 'text-gray-400 dark:text-gray-500'
+                              }`}>
                                 {field.description}
+                                {!field.apiAvailable && ' (Not available in current API)'}
                               </div>
                             </div>
                           </div>

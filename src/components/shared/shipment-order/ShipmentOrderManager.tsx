@@ -238,18 +238,22 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   };
 
   const handleSubmit = async (data: ShipmentOrderFormData) => {
+    console.log("ShipmentOrderManager handleSubmit called with data:", data);
     try {
       if (editingOrder) {
+        console.log("Updating shipment order:", editingOrder.id);
         await shipmentOrderService.updateShipmentOrder(editingOrder.id, {
           ...data,
           vendor_booking_status: editingOrder.vendor_booking_status, // Preserve existing status
         });
       } else {
+        console.log("Creating new shipment order");
         await shipmentOrderService.createShipmentOrder({
           ...data,
           vendor_booking_status: 'draft' as ShipmentOrderStatus, // Default status for new orders
         });
       }
+      console.log("Shipment order saved successfully");
       setIsModalOpen(false);
       setEditingOrder(null);
       await loadShipmentOrders();

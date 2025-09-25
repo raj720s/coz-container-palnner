@@ -221,7 +221,7 @@ function UserDashboard() {
       </div> */}
 
       {/* Quick Actions */}
-      <div className="mb-8">
+      {/* <div className="mb-8">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
           Quick Actions
         </h2>
@@ -246,7 +246,7 @@ function UserDashboard() {
             </div>
           ))}
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

@@ -30,6 +30,7 @@ function AdminUserManagementClient() {
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [nameSearch, setNameSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
   const [pagination, setPagination] = useState({
@@ -139,10 +140,10 @@ function AdminUserManagementClient() {
       const requestBody = {
         page: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
-        first_name: globalFilter || undefined,
-        last_name: globalFilter || undefined,
-        email: globalFilter || undefined,
-        organisation_name: globalFilter || undefined,
+        first_name: nameSearch || undefined,
+        // last_name: nameSearch || undefined, // Commented out - only searching first name
+        // email: globalFilter || undefined, // Commented out - not using global filter for email
+        // organisation_name: globalFilter || undefined, // Commented out - not using global filter for organization
         role_name: roleFilter === 1 ? 'admin' : roleFilter === 2 ? 'user' : roleFilter === 3 ? 'manager' : undefined,
         status: statusFilter !== null ? (statusFilter ? 1 : 0) : undefined,
         order_by: sorting.length > 0 ? sorting[0].id : undefined,
@@ -178,7 +179,7 @@ function AdminUserManagementClient() {
       setLoading(false);
       setFilterLoading(false);
     }
-  }, [pagination.pageIndex, pagination.pageSize, globalFilter, roleFilter, statusFilter, sorting]);
+  }, [pagination.pageIndex, pagination.pageSize, nameSearch, roleFilter, statusFilter, sorting]);
 
   // Fetch users on component mount and when filters change
   useEffect(() => {
@@ -193,7 +194,8 @@ function AdminUserManagementClient() {
   };
 
   const handleClearFilters = () => {
-    setGlobalFilter("");
+    // setGlobalFilter(""); // Commented out - not using global filter
+    setNameSearch("");
     setRoleFilter(null);
     setStatusFilter(null);
     setPagination(prev => ({ ...prev, pageIndex: 0 }));
@@ -347,12 +349,12 @@ function AdminUserManagementClient() {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     state: {
-      globalFilter,
+      // globalFilter, // Commented out - not using global filter
       pagination,
       sorting,
     },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    // onGlobalFilterChange: setGlobalFilter, // Commented out - not using global filter
     onPaginationChange: setPagination,
   });
 
@@ -380,23 +382,6 @@ function AdminUserManagementClient() {
   };
 
 
-  // Add a check for when data is loaded but empty
-  if (!loading && data.length === 0) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="text-gray-500 text-6xl mb-4">📭</div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">No Users Found</h2>
-            <p className="text-gray-600 mb-4">No users were loaded from the API.</p>
-            <Button onClick={() => fetchUsers()} className="bg-blue-600 hover:bg-blue-700">
-              Retry
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -479,9 +464,9 @@ function AdminUserManagementClient() {
               </label>
               <div className="flex">
                 <Input
-                  placeholder="Search by name, email, or organization..."
-                  value={globalFilter}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  placeholder="Search by first name..."
+                  value={nameSearch}
+                  onChange={(e) => setNameSearch(e.target.value)}
                   className="flex-1 rounded-r-none border-r-0 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <Button 
@@ -724,13 +709,6 @@ function AdminUserManagementClient() {
         </div>
       )}
 
-      {filteredData.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          {globalFilter || roleFilter !== null || statusFilter !== null
-            ? "No users found matching your filters."
-            : "No users found. Add your first user to get started."}
-        </div>
-      )}
 
       {/* FormModal Wrapper for User Form */}
       <FormModal

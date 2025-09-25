@@ -91,7 +91,7 @@ export function MessageBox({
   const IconComponent = styles.icon;
 
   return (
-    <div className={`fixed top-4 right-4 z-50 max-w-md w-full transition-all duration-300 ${
+    <div className={`fixed top-4 right-4 z-509980 max-w-md w-full transition-all duration-300 ${
       isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'
     }`}>
       <div className={`${styles.bg} ${styles.border} border rounded-lg shadow-lg p-4`}>

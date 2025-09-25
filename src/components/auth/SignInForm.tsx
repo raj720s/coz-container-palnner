@@ -26,6 +26,8 @@ export default function SignInForm() {
   const { login } = useAuth();
   const router = useRouter();
 
+  console.log("Sign in form rendered",{loading: isLoading});
+
   const {
     register,
     handleSubmit,
@@ -39,6 +41,8 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (data: SignInFormData) => {
+    console.log("Sign in form data:", data);
+    console.log("Sign in form loading:", isLoading);
     setIsLoading(true);
     try {
       const result = await login(data.email, data.password);
@@ -158,8 +162,11 @@ export default function SignInForm() {
                 </div>
               </div>
 
+
+
               <div>
                 <Button
+                type="submit"       
                   className="w-full bg-theme-purple-600 hover:bg-theme-purple-700 focus:ring-theme-purple-500 dark:bg-theme-purple-500 dark:hover:bg-theme-purple-600"
                   disabled={isLoading}
                 >

@@ -35,7 +35,13 @@ const shipmentOrderSchema = z.object({
   shipper: z.string().min(1, "Shipper is required"),
   consignee: z.string().min(1, "Consignee is required"),
   transportation_mode: z.enum(["ocean", "air", "road", "rail"]).optional(),
-  cargo_readiness_date: z.string().min(1, "Cargo readiness date is required"),
+  cargo_readiness_date: z.string()
+    .min(1, "Cargo readiness date is required")
+    .refine((date) => {
+      if (!date) return false;
+      const parsedDate = new Date(date);
+      return !isNaN(parsedDate.getTime());
+    }, "Please enter a valid date"),
   service_type: z.enum(["cy", "cfs"], { required_error: "Service type is required" }),
   volume: z.number().min(0.01, "Volume must be greater than 0"),
   weight: z.number().min(0.01, "Weight must be greater than 0"),
@@ -125,7 +131,31 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
   useEffect(() => {
     setIsClient(true);
     if (initialData) {
-      reset(initialData);
+      console.log("Initializing form with data:", initialData);
+      console.log("Cargo readiness date:", initialData.cargo_readiness_date);
+      
+      // Transform date to YYYY-MM-DD format for HTML date input
+      const transformedData = {
+        ...initialData,
+        cargo_readiness_date: initialData.cargo_readiness_date 
+          ? (() => {
+              try {
+                const date = new Date(initialData.cargo_readiness_date);
+                if (isNaN(date.getTime())) {
+                  console.warn("Invalid date format:", initialData.cargo_readiness_date);
+                  return initialData.cargo_readiness_date;
+                }
+                return date.toISOString().split('T')[0];
+              } catch (error) {
+                console.warn("Error parsing date:", error);
+                return initialData.cargo_readiness_date;
+              }
+            })()
+          : initialData.cargo_readiness_date
+      };
+      
+      console.log("Transformed data:", transformedData);
+      reset(transformedData);
     }
   }, [initialData, reset]);
 
@@ -159,7 +189,31 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
   };
 
   const handleFormSubmit = (data: ShipmentOrderFormSchema) => {
-    onSubmit(data);
+    console.log("Form submitted with data:", data);
+    console.log("Form errors:", errors);
+    
+    // Transform date to ISO format for API
+    const transformedData = {
+      ...data,
+      cargo_readiness_date: data.cargo_readiness_date 
+        ? (() => {
+            try {
+              const date = new Date(data.cargo_readiness_date);
+              if (isNaN(date.getTime())) {
+                console.warn("Invalid date format for submission:", data.cargo_readiness_date);
+                return data.cargo_readiness_date;
+              }
+              return date.toISOString();
+            } catch (error) {
+              console.warn("Error parsing date for submission:", error);
+              return data.cargo_readiness_date;
+            }
+          })()
+        : data.cargo_readiness_date
+    };
+    
+    console.log("Transformed data for API:", transformedData);
+    onSubmit(transformedData);
   };
 
   const handleCancel = () => {
@@ -477,6 +531,7 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
           Cancel
         </Button>
         <Button
+          type="submit"
           disabled={isLoading}
         >
           {isLoading ? 'Saving...' : (isEditing ? 'Update Shipment Order' : 'Create Shipment Order')}

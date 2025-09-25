@@ -212,11 +212,13 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           variant="outline"
           onClick={handleCancel}
           disabled={isLoading}
+          type="submit"
         >
           Cancel
         </Button>
         <Button
           disabled={isLoading}
+          type="submit"
         >
           {isLoading ? 'Saving...' : (isEditing ? 'Update Customer' : 'Create Customer')}
         </Button>

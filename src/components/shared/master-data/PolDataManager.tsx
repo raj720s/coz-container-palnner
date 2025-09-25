@@ -431,16 +431,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     });
   };
 
-  if (loading && pols.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading POL ports...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -514,7 +504,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Search ports by code, name, country, or city..."
+            placeholder="Search ports by Port Name
+"
             value={globalFilter}
             onChange={(e) => handleSearch(e.target.value)}
             className="max-w-md"
@@ -522,11 +513,11 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         </div>
 
         <div className="flex gap-3">
-          <Button onClick={handleExport} size="sm" variant="outline">
+          <Button type="button" onClick={handleExport} size="sm" variant="outline">
             <DownloadIcon className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button onClick={handleAddNew} size="sm">
+          <Button type="button" onClick={handleAddNew} size="sm">
             <PlusIcon className="w-4 h-4 mr-2" />
             Add POL Port
           </Button>
@@ -685,11 +676,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         </div>
       )}
 
-      {filteredData.length === 0 && !loading && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No POL ports found matching your search criteria.
-        </div>
-      )}
 
       {/* Form Modal */}
       <FormModal

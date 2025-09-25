@@ -445,16 +445,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     });
   };
 
-  if (loading && customers.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading customers...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -559,7 +549,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             {/* Search */}
             <div className="flex-1 min-w-0">
               <Input
-                placeholder="Search customers..."
+                placeholder="Search customers by Company Name"
                 value={globalFilter}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
@@ -568,6 +558,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
             {/* Export Button */}
             <Button 
+              type="button"
               onClick={handleExport} 
               size="sm" 
               variant="outline"
@@ -579,6 +570,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
             {/* Add Button */}
             <Button 
+              type="button"
               onClick={handleAddNew} 
               size="sm"
               className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
@@ -756,11 +748,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         </div>
       )}
 
-      {filteredData.length === 0 && !loading && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No customers found matching your search criteria.
-        </div>
-      )}
 
       {/* Form Modal */}
       <FormModal

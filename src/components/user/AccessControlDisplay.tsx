@@ -215,11 +215,6 @@ const AccessControlDisplay: React.FC = () => {
         </div>
       )}
       
-      {!loading && !error && rolesV2.length === 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No roles found. Try adjusting your filters or create a new role.
-        </div>
-      )}
 
       {/* API Information */}
       <div className="mt-8 p-4 bg-gray-50 rounded">

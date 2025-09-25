@@ -541,18 +541,6 @@ function AdminRoleManagementClient() {
     setPagination({ pageIndex: 0, pageSize: 10 });
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading roles...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -616,7 +604,7 @@ function AdminRoleManagementClient() {
          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
            <div className="flex-1 max-w-md">
              <Input
-               placeholder="Search roles..."
+               placeholder="Search by role name..."
                value={globalFilter}
                onChange={(e) => setGlobalFilter(e.target.value)}
                className="w-full"
@@ -793,13 +781,6 @@ function AdminRoleManagementClient() {
         </div>
       )}
 
-      {roles.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          {globalFilter
-            ? "No roles found matching your search criteria."
-            : "No roles found. Add your first role to get started."}
-        </div>
-      )}
 
              {/* Form Modal */}
        <FormModal

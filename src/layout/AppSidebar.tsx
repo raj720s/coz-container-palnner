@@ -87,25 +87,25 @@ const AppSidebar: React.FC = () => {
         { name: "POL Master", path: "/port-customer-master/pol-ports", moduleId: 60 },
         { name: "POD Master", path: "/port-customer-master/pod-ports", moduleId: 60 },
         { name: "Customer Records", path: "/port-customer-master/customers", moduleId: 60 },
-        { name: "Container Type Master", path: "/container-types", moduleId: 50 },
+        // { name: "Container Type Master", path: "/container-types", moduleId: 50 },
         // { name: "Threshold Configuration", path: "/container-thresholds", moduleId: 50 },
         // { name: "Priority Configuration", path: "/container-priority", moduleId: 50 },
       ],
     });
 
-    items.push({
-      name: "Shipment Operations",
-      icon: <HiOutlineTruck className="w-5 h-5" />,
-      path: "#",
-      moduleId: 2,
-      subItems: [
-        { name: "Shipment Orders", path: "/shipment-orders", moduleId: 75 },
-        // { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
-        // { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
-        // { name: "Container Planning", path: "/container-planning", moduleId: 50 },
-        // { name: "Assignment Results", path: "/assignment-results", moduleId: 80 },
-      ],
-    });
+    // items.push({
+    //   name: "Shipment Operations",
+    //   icon: <HiOutlineTruck className="w-5 h-5" />,
+    //   path: "#",
+    //   moduleId: 2,
+    //   subItems: [
+    //     { name: "Shipment Orders", path: "/shipment-orders", moduleId: 75 },
+    //     // { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
+    //     // { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
+    //     // { name: "Container Planning", path: "/container-planning", moduleId: 50 },
+    //     // { name: "Assignment Results", path: "/assignment-results", moduleId: 80 },
+    //   ],
+    // });
 
     if (isAdmin) {
       items.push({
@@ -156,7 +156,7 @@ const AppSidebar: React.FC = () => {
   return (
     <aside
       className={`fixed top-0 left-0 z-50 mt-16 lg:mt-0 h-screen border-r border-brand-400 dark:border-brand-500 bg-gradient-to-b from-brand-500 to-brand-600 dark:from-brand-600 dark:to-brand-700 text-white transition-all duration-300 shadow-xl
-        ${isExpanded || isMobileOpen ? "w-[280px]" : "w-[80px]"}
+        ${isExpanded || isMobileOpen ? "w-[290px]" : "w-[90px]"}
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
     >
       <div className={`py-6 flex ${!isExpanded ? "lg:justify-center" : "justify-center"}`}>

@@ -8,6 +8,15 @@ export interface CreateUserRequest {
   role: number;
   password?: string;
 }
+export interface UpdateUserRequest {
+  status: boolean;
+  first_name: string;
+  last_name: string;
+  email: string;
+  organisation_name: string;
+  role_id: number;
+  password?: string;
+}
 
 export interface UserResponse {
   status: boolean;

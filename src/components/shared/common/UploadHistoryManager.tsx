@@ -656,14 +656,6 @@ function UploadsHistoryManager() {
         </div>
       </div>
 
-      {filteredData.length === 0 && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          {uploadHistory.length === 0 
-            ? "No upload history found. Upload your first shipment file to get started."
-            : "No uploads match your search criteria."
-          }
-        </div>
-      )}
 
       {/* Excel Viewer Modal */}
       <ExcelViewerModal

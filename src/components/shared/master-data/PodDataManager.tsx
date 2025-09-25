@@ -378,16 +378,6 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     });
   };
 
-  if (loading && pods.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading POD ports...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -461,18 +451,18 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         <div className="flex-1">
           <Input
-            placeholder="Search ports by code, name, country, or city..."
+            placeholder="Search ports by Port Name"
             value={globalFilter}
             onChange={(e) => handleSearch(e.target.value)}
             className="max-w-md"
           />
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleExport} variant="outline" className="flex items-center gap-2" disabled={loading}>
+          <Button type="button" onClick={handleExport} variant="outline" className="flex items-center gap-2" disabled={loading}>
             <DownloadIcon className="w-4 h-4" />
             Export
           </Button>
-          <Button onClick={() => openModal()} className="flex items-center gap-2">
+          <Button type="button" onClick={() => openModal()} className="flex items-center gap-2">
             <PlusIcon className="w-4 h-4" />
             Add POD Port
           </Button>

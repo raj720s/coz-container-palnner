@@ -62,7 +62,7 @@ export const userService = {
 
   // Update user
   async updateUser(id: number, data: Partial<CreateUserRequest>): Promise<UserDetailResponse> {
-    const response = await superAxios.put(`${BASEURL}/user/v1/${id}`, data);
+    const response = await superAxios.put(`${BASEURL}/user/v1/${id}`, {...data, role_id: data.role});
     return response.data;
   },
 

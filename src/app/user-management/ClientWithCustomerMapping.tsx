@@ -422,16 +422,6 @@ function AdminUserManagementClientWithCustomerMapping({ rbacContext }: AdminUser
     }
   };
 
-  if (loading && data.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
@@ -550,11 +540,6 @@ function AdminUserManagementClientWithCustomerMapping({ rbacContext }: AdminUser
         />
       </div>
 
-      {filteredData.length === 0 && !loading && (
-        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-          No users found matching your search criteria.
-        </div>
-      )}
 
       {/* User Form Modal */}
       <FormModal
