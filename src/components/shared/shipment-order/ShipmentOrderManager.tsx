@@ -384,7 +384,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
           );
         },
       }),
-
+  
       columnHelper.accessor("shipper", {
         header: ({ column }) => (
           <button
@@ -731,62 +731,65 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
       {/* Filters and Controls */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
         <div className="p-4">
-          <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center">
-            {/* Search */}
-            <div className="flex-1 min-w-0">
-              <Input
-                placeholder="Search shipment orders..."
-                value={globalFilter}
-                onChange={(e) => handleGlobalFilterChange(e.target.value)}
-                className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
+          {/* Search Row */}
+          <div className="mb-4">
+            <Input
+              placeholder="Search shipment orders..."
+              value={globalFilter}
+              onChange={(e) => handleGlobalFilterChange(e.target.value)}
+              className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
+            />
+          </div>
+
+          {/* Filter Controls Row */}
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            {/* Customer Filter */}
+            <div className="w-full lg:w-64">
+              <CustomerFilterDropdown
+                selectedCustomerId={customerFilter}
+                onCustomerChange={setCustomerFilter}
               />
             </div>
 
-            {/* Customer Filter */}
-            <CustomerFilterDropdown
-              selectedCustomerId={customerFilter}
-              onCustomerChange={setCustomerFilter}
-            />
-
             {/* Filter Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto">
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as ShipmentOrderStatus | "")}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ShipmentOrderStatus | "")}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
-              >
-                <option value="">All Status</option>
-                <option value="draft">Draft</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="booked">Booked</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="shipped">Shipped</option>
-              </select>
+            >
+              <option value="">All Status</option>
+              <option value="draft">Draft</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="booked">Booked</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="shipped">Shipped</option>
+            </select>
 
-              {/* Transportation Mode Filter */}
-              <select
-                value={transportationModeFilter}
-                onChange={(e) => setTransportationModeFilter(e.target.value as TransportationMode | "")}
+            {/* Transportation Mode Filter */}
+            <select
+              value={transportationModeFilter}
+              onChange={(e) => setTransportationModeFilter(e.target.value as TransportationMode | "")}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
-              >
-                <option value="">All Modes</option>
-                <option value="ocean">Ocean</option>
-                <option value="air">Air</option>
-                <option value="road">Road</option>
-                <option value="rail">Rail</option>
-              </select>
+            >
+              <option value="">All Modes</option>
+              <option value="ocean">Ocean</option>
+              <option value="air">Air</option>
+              <option value="road">Road</option>
+              <option value="rail">Rail</option>
+            </select>
 
-              {/* Service Type Filter */}
-              <select
-                value={serviceTypeFilter}
-                onChange={(e) => setServiceTypeFilter(e.target.value as ServiceType | "")}
+            {/* Service Type Filter */}
+            <select
+              value={serviceTypeFilter}
+              onChange={(e) => setServiceTypeFilter(e.target.value as ServiceType | "")}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
-              >
-                <option value="">All Services</option>
-                <option value="cy">CY (Container Yard)</option>
-                <option value="cfs">CFS (Container Freight Station)</option>
-              </select>
+            >
+              <option value="">All Services</option>
+              <option value="cy">CY (Container Yard)</option>
+              <option value="cfs">CFS (Container Freight Station)</option>
+            </select>
 
               {/* Cargo Type Filter */}
               <select
@@ -802,13 +805,13 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
               {/* Advanced Filters Toggle */}
               <Button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 size="sm"
                 variant="outline"
-                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 xl:flex-none"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 sm:flex-none"
               >
                 <FilterIcon className="w-4 h-4 mr-2" />
                 {showAdvancedFilters ? 'Hide Filters' : 'Advanced Filters'}
@@ -819,44 +822,44 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
                 onClick={clearAllFilters}
                 size="sm"
                 variant="outline"
-                className="border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap flex-1 xl:flex-none"
+                className="border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap flex-1 sm:flex-none"
               >
                 Clear All
               </Button>
 
-              {/* Configuration Button */}
-              <Button
-                onClick={() => setIsConfigDrawerOpen(true)}
-                size="sm"
-                variant="outline"
-                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 xl:flex-none"
-              >
-                <FilterIcon className="w-4 h-4 mr-2" />
+            {/* Configuration Button */}
+            <Button
+              onClick={() => setIsConfigDrawerOpen(true)}
+              size="sm"
+              variant="outline"
+              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 sm:flex-none"
+            >
+              <FilterIcon className="w-4 h-4 mr-2" />
                 Column Setting
-              </Button>
+            </Button>
 
-              {/* Export Button */}
-              <Button
-                onClick={handleExport}
-                size="sm"
-                variant="outline"
-                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 xl:flex-none"
-              >
-                <DownloadIcon className="w-4 h-4 mr-2" />
-                Export
-              </Button>
+            {/* Export Button */}
+            <Button
+              onClick={handleExport}
+              size="sm"
+              variant="outline"
+              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 sm:flex-none"
+            >
+              <DownloadIcon className="w-4 h-4 mr-2" />
+              Export
+            </Button>
 
-              {/* Add Button */}
-              <Button
-                onClick={handleCreate}
-                size="sm"
-                className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap flex-1 xl:flex-none"
-              >
-                <PlusIcon className="w-4 h-4 mr-2" />
-                Add Order
-              </Button>
-            </div>
+            {/* Add Button */}
+            <Button
+              onClick={handleCreate}
+              size="sm"
+              className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap flex-1 sm:flex-none"
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Add Order
+            </Button>
           </div>
+        </div>
         </div>
 
         {/* Advanced Filters Section */}
@@ -1008,12 +1011,12 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
               ) : (
                 table.getRowModel().rows.map((row) => (
                   <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
+                  {row.getVisibleCells().map((cell) => (
+                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
                 ))
               )}
             </tbody>
@@ -1183,7 +1186,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
             of {pagination.total} results
           </div>
           <div className="order-1 sm:order-2">
-            <Pagination
+          <Pagination
               currentPage={pagination.page + 1}
               totalPages={pagination.totalPages}
               onPageChange={(page: number) => {

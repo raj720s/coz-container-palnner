@@ -16,6 +16,7 @@ import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Checkbox from "@/components/form/input/Checkbox";
+import { useAuth } from "@/context/AuthContext";
 
 interface ColumnConfig {
   id: string;
@@ -318,9 +319,14 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
   onDynamicFieldUpdate,
   onDynamicFieldRemove
 }) => {
+  const { user } = useAuth();
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
   const [newFieldLabel, setNewFieldLabel] = useState("");
+
+  // Role-based visibility
+  const isVendor = user?.role === 'user'; // Regular users are treated as vendors for field access
+  const isAdmin = user?.role === 'admin';
 
   // Load dynamic fields for selected customer
   useEffect(() => {
@@ -341,7 +347,14 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
   };
 
   // Group fields by category
-  const fieldsByCategory = CATEGORIES.map(category => ({
+  // Filter categories based on user role
+  // Vendors (regular users) can only configure Optional fields
+  // Admins can configure all field categories (Mandatory, Optional, Dynamic)
+  const visibleCategories = isVendor 
+    ? CATEGORIES.filter(cat => cat.id === 'optional') // Vendors only see Optional fields
+    : CATEGORIES; // Admins see all categories
+
+  const fieldsByCategory = visibleCategories.map(category => ({
     ...category,
     fields: getFieldDefinitions().filter(field => field.category === category.id)
   }));
@@ -409,7 +422,10 @@ export const ConfigurationDrawer: React.FC<ConfigurationDrawerProps> = ({
               SO Field Configuration
             </h2>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Configure field visibility and dynamic fields for shipment orders
+              {isVendor 
+                ? "Configure optional field visibility for shipment orders" 
+                : "Configure field visibility and dynamic fields for shipment orders"
+              }
             </p>
           </div>
           <button
