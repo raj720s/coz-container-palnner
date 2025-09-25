@@ -1,7 +1,7 @@
 "use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, SortingState } from "@tanstack/react-table";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
@@ -41,23 +41,49 @@ function AdminRoleManagementClient() {
   const [rolesWithPrivileges, setRolesWithPrivileges] = useState<RoleListResponseV2[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [privileges, setPrivileges] = useState<{ count: number; results: any[] } | null>(null);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+  const [sorting, setSorting] = useState<SortingState>([]);
   
   // Fetch roles function
   const fetchRoles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await roleService.getRoles({ include_privilege_data: true });
-      // roleService.getRoles() already handles the API response format
-      setRoles(response);
-      setRolesWithPrivileges(response);
+      
+      // Build request parameters
+      const requestParams = {
+        include_privilege_data: true,
+        role_name: globalFilter || undefined,
+        order_by: sorting.length > 0 ? sorting[0].id : undefined,
+        order_type: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
+        page: pagination.pageIndex + 1,
+        page_size: pagination.pageSize,
+      };
+      
+      const response = await roleService.getRoles(requestParams);
+      // Handle paginated response format: { count: number, results: RoleListResponseV2[] }
+      if (Array.isArray(response)) {
+        setRoles(response);
+        setRolesWithPrivileges(response);
+        setTotalCount(response.length);
+      } else {
+        setRoles((response as any).results || []);
+        setRolesWithPrivileges((response as any).results || []);
+        setTotalCount((response as any).count || 0);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch roles');
       console.error('Error fetching roles:', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [globalFilter, sorting, pagination.pageIndex, pagination.pageSize]);
 
   // Load roles on component mount
   useEffect(() => {
@@ -65,13 +91,6 @@ function AdminRoleManagementClient() {
   }, [fetchRoles]);
   
 
-  
-  const [privileges, setPrivileges] = useState<{ count: number; results: any[] } | null>(null);
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
 
   const {
     isOpen: isModalOpen,
@@ -302,20 +321,7 @@ function AdminRoleManagementClient() {
     setDeleteError(null); // Clear errors when closing
   };
 
-  // Filter data based on search
-  const filteredData = useMemo(() => {
-    if (!roles || !Array.isArray(roles)) {
-      return [];
-    }
-    
-    return roles.filter(item => {
-      const matchesSearch = globalFilter === "" || 
-        item.role_name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.role_description.toLowerCase().includes(globalFilter.toLowerCase());
-      
-      return matchesSearch;
-    });
-  }, [roles, globalFilter]);
+  // Server-side filtering is now handled in fetchRoles
 
   // Define columns
   const columns = useMemo(() => [
@@ -482,24 +488,27 @@ function AdminRoleManagementClient() {
   ], [openModal, handleDeleteRole, openPrivilegesModal]);
 
   const table = useReactTable({
-    data: filteredData,
+    data: roles,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: true,
+    manualSorting: true,
+    pageCount: Math.ceil(totalCount / pagination.pageSize),
     state: {
       globalFilter,
       pagination,
+      sorting,
     },
+    onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
   });
 
   // Calculate stats
   const stats = useMemo(() => {
-    const total = roles.length;
-    const active = roles.length; // All roles are considered active
+    const total = totalCount;
+    const active = totalCount; // All roles are considered active
     
     // Calculate total privileges - handle different response structures
     let totalPrivileges = 0;
@@ -516,7 +525,7 @@ function AdminRoleManagementClient() {
     }
 
     return { total, active, totalPrivileges };
-  }, [roles, privileges]);
+  }, [totalCount, privileges]);
 
   const handleAddNew = () => {
     openModal();
@@ -628,8 +637,18 @@ function AdminRoleManagementClient() {
        </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading roles...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -651,40 +670,130 @@ function AdminRoleManagementClient() {
               ))}
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    {loading ? 'Loading...' : 'No roles found'}
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden">
+          {table.getRowModel().rows.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              {loading ? 'Loading...' : 'No roles found'}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="space-y-3">
+                    {/* Role Name and Description */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {row.original.role_name}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {row.original.role_description || 'No description'}
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Active
+                      </span>
+                    </div>
+
+                    {/* Privilege Count and Created Date */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Privileges:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {row.original.privilege_names?.length || 0}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {new Date(row.original.created_on).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openModal(row.original)}
+                          className="flex-1"
+                        >
+                          <PencilIcon className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openPrivilegesModal(row.original)}
+                          className="flex-1"
+                        >
+                          <EyeIcon className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteRole(row.original.id.toString())}
+                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <TrashBinIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Pagination */}
-      {filteredData.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
+      {roles.length > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
             Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
             {Math.min(
               (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              filteredData.length
+              totalCount
             )}{" "}
-            of {filteredData.length} results
+            of {totalCount} results
           </div>
-          <Pagination
-            currentPage={table.getState().pagination.pageIndex + 1}
-            totalPages={table.getPageCount()}
-            onPageChange={(page) => table.setPageIndex(page - 1)}
-          />
+          <div className="order-1 sm:order-2">
+            <Pagination
+              currentPage={table.getState().pagination.pageIndex + 1}
+              totalPages={table.getPageCount()}
+              onPageChange={(page) => table.setPageIndex(page - 1)}
+            />
+          </div>
         </div>
       )}
 
-      {filteredData.length === 0 && (
+      {roles.length === 0 && (
         <div className="text-center py-8 text-gray-500 dark:text-gray-400">
           {globalFilter
             ? "No roles found matching your search criteria."

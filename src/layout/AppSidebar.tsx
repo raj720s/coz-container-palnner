@@ -155,7 +155,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed top-0 left-0 z-50 mt-16 lg:mt-0 h-screen border-r border-brand-400 dark:border-brand-500 bg-gradient-to-b from-brand-500 to-brand-600 dark:from-brand-600 dark:to-brand-700 text-white transition-all duration-300
+      className={`fixed top-0 left-0 z-50 mt-16 lg:mt-0 h-screen border-r border-brand-400 dark:border-brand-500 bg-gradient-to-b from-brand-500 to-brand-600 dark:from-brand-600 dark:to-brand-700 text-white transition-all duration-300 shadow-xl
         ${isExpanded || isMobileOpen ? "w-[280px]" : "w-[80px]"}
         ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
     >

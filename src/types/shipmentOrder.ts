@@ -149,3 +149,72 @@ export const EQUIPMENT_SIZE_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: '20FT_TANK', label: '20FT Tank' },
   { value: '40FT_TANK', label: '40FT Tank' }
 ];
+
+// API Request/Response Types for Shipment List
+export interface ShipmentListRequest {
+  page: number;
+  page_size: number;
+  order_by?: string;
+  order_type?: 'asc' | 'desc';
+  shipper?: string;
+  consignee?: string;
+  vendor_booking_number?: string;
+  volume?: number;
+  weight?: number;
+  hs_code?: string;
+  cargo_description?: string;
+  marks_and_numbers?: string;
+  dangerous_goods_notes?: string;
+  place_of_receipt?: string;
+  place_of_delivery?: string;
+  carrier?: string;
+  carrier_booking_number?: string;
+  customer?: number;
+  created_by?: number;
+  created_by_name?: string;
+  modified_by?: number;
+  modified_by_name?: string;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  vendor_booking_status?: ShipmentOrderStatus;
+  transportation_mode?: TransportationMode;
+  service_type?: ServiceType;
+  cargo_type?: CargoType;
+}
+
+export interface ShipmentListResponse {
+  id: number;
+  vendor_booking_number: string;
+  vendor_booking_status: ShipmentOrderStatus;
+  shipper: string;
+  consignee: string;
+  transportation_mode: TransportationMode;
+  service_type: ServiceType;
+  cargo_readiness_date: string;
+  volume: number;
+  weight: number;
+  hs_code: string;
+  cargo_description: string;
+  marks_and_numbers: string;
+  cargo_type: CargoType;
+  dangerous_goods_notes: string;
+  place_of_receipt: string;
+  place_of_delivery: string;
+  carrier: string;
+  carrier_booking_number: string;
+  customer: number;
+  customer_name: string;
+  created_on: string;
+  modified_on: string;
+  created_by: number;
+  modified_by: number;
+}
+
+export interface ShipmentListApiResponse {
+  results: ShipmentListResponse[];
+  count: number;
+  next?: string;
+  previous?: string;
+}

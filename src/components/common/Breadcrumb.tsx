@@ -104,21 +104,21 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = "" }) => {
         {breadcrumbs.map((item, index) => (
           <li key={`${item.href}-${index}`} className="flex items-center">
             {index > 0 && (
-              <HiChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500 mx-2" />
+              <HiChevronRight className="w-4 h-4 text-white mx-2" />
             )}
             
             {item.isLast ? (
-              <span className="text-gray-900 dark:text-white font-medium">
+              <span className="text-white font-medium">
                 {item.label}
               </span>
             ) : (
               <Link
                 href={item.href}
-                className="text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors duration-200"
+                className="text-white hover:text-purple-400 transition-colors duration-200"
               >
                 {index === 0 ? (
                   <div className="flex items-center">
-                    <HiHome className="w-4 h-4 mr-1" />
+                    <HiHome className="w-4 h-4 mr-1 text-white" />
                     {item.label}
                   </div>
                 ) : (

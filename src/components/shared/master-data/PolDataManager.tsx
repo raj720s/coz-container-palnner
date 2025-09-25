@@ -89,6 +89,18 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     loadPOLs();
   }, [filters]);
 
+  // Sync table sorting with API filters
+  useEffect(() => {
+    if (sorting.length > 0) {
+      const sortConfig = sorting[0];
+      setFilters(prev => ({
+        ...prev,
+        order_by: sortConfig.id,
+        order_type: sortConfig.desc ? 'desc' : 'asc'
+      }));
+    }
+  }, [sorting]);
+
   // Auto-clear errors after 5 seconds
   useEffect(() => {
     if (error) {
@@ -122,13 +134,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Port Code
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
@@ -140,13 +148,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Port Name
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
@@ -158,13 +162,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Country
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => info.getValue() 
@@ -176,13 +176,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           City
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
@@ -206,13 +202,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Status
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
@@ -232,13 +224,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Created
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
@@ -546,10 +534,20 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading POL ports...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -568,28 +566,108 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                 </tr>
               ))}
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    {loading ? 'Loading...' : 'No POL ports found'}
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden">
+          {table.getRowModel().rows.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              {loading ? 'Loading...' : 'No POL ports found'}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="space-y-3">
+                    {/* Port Name and Code */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {row.original.port_name}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {row.original.port_code}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        row.original.is_active 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {row.original.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    {/* Country and City */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Country:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {row.original.country || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">City:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {row.original.city || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openModal(row.original)}
+                          className="flex-1"
+                        >
+                          <PencilIcon className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(row.original.id)}
+                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <TrashBinIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Pagination */}
       {filteredData.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
             Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
             {Math.min(
               (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
@@ -597,11 +675,13 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
             )}{" "}
             of {table.getFilteredRowModel().rows.length} results
           </div>
-          <Pagination
-            currentPage={table.getState().pagination.pageIndex + 1}
-            totalPages={table.getPageCount()}
-            onPageChange={(page) => table.setPageIndex(page - 1)}
-          />
+          <div className="order-1 sm:order-2">
+            <Pagination
+              currentPage={table.getState().pagination.pageIndex + 1}
+              totalPages={table.getPageCount()}
+              onPageChange={(page) => table.setPageIndex(page - 1)}
+            />
+          </div>
         </div>
       )}
 

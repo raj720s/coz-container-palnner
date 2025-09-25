@@ -16,7 +16,10 @@ import {
   ShipmentOrderStatus,
   TransportationMode,
   ServiceType,
-  CargoType
+  CargoType,
+  ShipmentListRequest,
+  ShipmentListResponse,
+  ShipmentListApiResponse
 } from "@/types/shipmentOrder";
 import { shipmentOrderService } from "@/services/shipmentOrderService";
 import { ShipmentOrderForm } from "@/components/forms/ShipmentOrderForm";
@@ -38,17 +41,17 @@ import { CustomerFilterDropdown } from "./CustomerFilterDropdown";
 import { ConfigurationDrawer } from "./ConfigurationDrawer";
 import { DynamicField } from "@/utils/customerDynamicFieldsUtils";
 
-const columnHelper = createColumnHelper<ShipmentOrderResponse>();
+const columnHelper = createColumnHelper<ShipmentListResponse>();
 
 interface ShipmentOrderManagerProps {
   rbacContext?: SimplifiedRBACProps['rbacContext'];
 }
 
 const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext }) => {
-  const [shipmentOrders, setShipmentOrders] = useState<ShipmentOrderResponse[]>([]);
+  const [shipmentOrders, setShipmentOrders] = useState<ShipmentListResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<ShipmentOrderResponse | null>(null);
+  const [editingOrder, setEditingOrder] = useState<ShipmentListResponse | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<ShipmentOrderStatus | "">("");
   const [transportationModeFilter, setTransportationModeFilter] = useState<TransportationMode | "">("");
@@ -57,47 +60,99 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   const [customerFilter, setCustomerFilter] = useState<number | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
+    page: 0, // API uses 0-based pagination
+    pageSize: 10,
     total: 0,
     totalPages: 0,
   });
   const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
+  const [apiFilters, setApiFilters] = useState<Partial<ShipmentListRequest>>({});
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
-  // Column configuration
+  // Column configuration based on validation requirements
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
-    so_number: true,
-    status: true,
+    // Mandatory fields (cannot be hidden)
+    vendor_booking_number: true,
+    vendor_booking_status: true,
     shipper: true,
     consignee: true,
     transportation_mode: true,
-    service_type: true,
     cargo_readiness_date: true,
+    service_type: true,
     volume: true,
     weight: true,
     port_of_loading: true,
     port_of_discharge: true,
-    customer_name: true,
-    created_at: true,
-    updated_at: false,
+    customer: true,
+    vendor: true,
+    origin_partner: true,
+    
+    // Optional fields (can be hidden)
+    hs_code: true,
+    cargo_description: true,
+    marks_and_numbers: true,
+    customer_reference: true,
+    cargo_type: false, // Hidden by default as per requirements
+    dangerous_goods_notes: true,
+    place_of_receipt: true,
+    place_of_delivery: true,
+    carrier: true,
+    carrier_booking_number: true,
+    
+    // Equipment fields (required for 'Shipped' status)
+    equipment_count: true,
+    equipment_size_type: true,
+    equipment_numbers: true,
+    
+    // System fields
+    created_on: true,
+    modified_on: false,
   });
 
-  // Load shipment orders - Since there's no list endpoint, we'll use mock data for now
+  // Load shipment orders from API
   const loadShipmentOrders = async () => {
     try {
       setLoading(true);
-      // TODO: Implement a different approach since there's no list endpoint
-      // For now, we'll use empty array and let users create individual orders
+      
+      // Build API request
+      const request: ShipmentListRequest = {
+        page: pagination.page,
+        page_size: pagination.pageSize,
+        order_by: sorting.length > 0 ? sorting[0].id : undefined,
+        order_type: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
+        ...apiFilters,
+        // Apply local filters to API request
+        vendor_booking_status: statusFilter || undefined,
+        transportation_mode: transportationModeFilter || undefined,
+        service_type: serviceTypeFilter || undefined,
+        cargo_type: cargoTypeFilter || undefined,
+        customer: customerFilter || undefined,
+        // Global search across multiple fields
+        ...(globalFilter && {
+          shipper: globalFilter,
+          consignee: globalFilter,
+          vendor_booking_number: globalFilter,
+        }),
+      };
+
+      const response = await shipmentOrderService.listShipmentOrders(request);
+      
+      setShipmentOrders(response.results);
+      setPagination(prev => ({
+        ...prev,
+        total: response.count,
+        totalPages: Math.ceil(response.count / pagination.pageSize),
+      }));
+    } catch (error) {
+      console.error("Failed to load shipment orders:", error);
       setShipmentOrders([]);
       setPagination(prev => ({
         ...prev,
         total: 0,
         totalPages: 0,
-        page: 1,
       }));
-    } catch (error) {
-      console.error("Failed to load shipment orders:", error);
     } finally {
       setLoading(false);
     }
@@ -108,13 +163,56 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     loadShipmentOrders();
   }, []);
 
+  // Debounced search function
+  const handleGlobalFilterChange = (value: string) => {
+    setGlobalFilter(value);
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout for debounced search
+    const timeout = setTimeout(() => {
+      setPagination(prev => ({ ...prev, page: 0 })); // Reset to first page
+    }, 500);
+    
+    setSearchTimeout(timeout);
+  };
+
+  // Reload when pagination, sorting, or filters change
+  useEffect(() => {
+    loadShipmentOrders();
+  }, [pagination.page, pagination.pageSize, sorting, statusFilter, transportationModeFilter, serviceTypeFilter, cargoTypeFilter, customerFilter, globalFilter, apiFilters]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setGlobalFilter("");
+    setStatusFilter("");
+    setTransportationModeFilter("");
+    setServiceTypeFilter("");
+    setCargoTypeFilter("");
+    setCustomerFilter(null);
+    setApiFilters({});
+    setPagination(prev => ({ ...prev, page: 0 }));
+  };
+
   // Handle create/edit
   const handleCreate = () => {
     setEditingOrder(null);
     setIsModalOpen(true);
   };
 
-  const handleEdit = (order: ShipmentOrderResponse) => {
+  const handleEdit = (order: ShipmentListResponse) => {
     setEditingOrder(order);
     setIsModalOpen(true);
   };
@@ -190,20 +288,30 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     setDynamicFields(prev => prev.filter(field => field.id !== fieldId));
   };
 
-  // Helper function to categorize columns
+  // Helper function to categorize columns based on validation requirements
   const getColumnCategory = (columnId: string): string => {
-    const basicColumns = ['so_number', 'status', 'shipper', 'consignee', 'customer_name'];
-    const shippingColumns = ['transportation_mode', 'service_type', 'port_of_loading', 'port_of_discharge'];
-    const cargoColumns = ['cargo_type', 'volume', 'weight', 'cargo_readiness_date'];
-    const dateColumns = ['created_at', 'updated_at'];
-    const statusColumns = ['status'];
+    // Mandatory fields (including equipment fields)
+    const mandatoryColumns = [
+      'vendor_booking_number', 'vendor_booking_status', 'shipper', 'consignee',
+      'transportation_mode', 'cargo_readiness_date', 'service_type', 'volume',
+      'weight', 'port_of_loading', 'port_of_discharge', 'customer', 'vendor', 'origin_partner',
+      'equipment_count', 'equipment_size_type', 'equipment_numbers'
+    ];
+    
+    // Optional fields
+    const optionalColumns = [
+      'hs_code', 'cargo_description', 'marks_and_numbers', 'customer_reference',
+      'cargo_type', 'dangerous_goods_notes', 'place_of_receipt', 'place_of_delivery',
+      'carrier', 'carrier_booking_number'
+    ];
+    
+    // System fields
+    const systemColumns = ['created_on', 'modified_on'];
 
-    if (basicColumns.includes(columnId)) return 'basic';
-    if (shippingColumns.includes(columnId)) return 'shipping';
-    if (cargoColumns.includes(columnId)) return 'cargo';
-    if (dateColumns.includes(columnId)) return 'dates';
-    if (statusColumns.includes(columnId)) return 'status';
-    return 'basic';
+    if (mandatoryColumns.includes(columnId)) return 'mandatory';
+    if (optionalColumns.includes(columnId)) return 'optional';
+    if (systemColumns.includes(columnId)) return 'system';
+    return 'optional';
   };
 
   // Calculate stats
@@ -216,25 +324,8 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     return { total, draft, confirmed, shipped };
   }, [shipmentOrders]);
 
-  // Filter data based on search and filters
-  const filteredData = useMemo(() => {
-    return shipmentOrders.filter((item) => {
-      const matchesSearch = !globalFilter || 
-        item.vendor_booking_number.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.shipper.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.consignee.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.customer_name?.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.place_of_receipt?.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.place_of_delivery?.toLowerCase().includes(globalFilter.toLowerCase());
-
-      const matchesStatus = !statusFilter || item.vendor_booking_status === statusFilter;
-      const matchesTransportationMode = !transportationModeFilter || item.transportation_mode === transportationModeFilter;
-      const matchesServiceType = !serviceTypeFilter || item.service_type === serviceTypeFilter;
-      const matchesCargoType = !cargoTypeFilter || item.cargo_type === cargoTypeFilter;
-
-      return matchesSearch && matchesStatus && matchesTransportationMode && matchesServiceType && matchesCargoType;
-    });
-  }, [shipmentOrders, globalFilter, statusFilter, transportationModeFilter, serviceTypeFilter, cargoTypeFilter]);
+  // No client-side filtering needed since we're using server-side filtering
+  const filteredData = shipmentOrders;
 
   // Table columns
   const columns = useMemo(() => {
@@ -247,13 +338,9 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
             className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
             Booking Number
-            {column.getIsSorted() === "asc" ? (
-              <ChevronUpIcon className="w-4 h-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ChevronDownIcon className="w-4 h-4" />
-            ) : (
-              <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-            )}
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
           </button>
         ),
         cell: (info) => (
@@ -270,13 +357,9 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
             className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
             Status
-            {column.getIsSorted() === "asc" ? (
-              <ChevronUpIcon className="w-4 h-4" />
-            ) : column.getIsSorted() === "desc" ? (
-              <ChevronDownIcon className="w-4 h-4" />
-            ) : (
-              <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-            )}
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
           </button>
         ),
         cell: (info) => {
@@ -301,8 +384,190 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
           );
         },
       }),
-  
-      // ... all your other static columns unchanged ...
+
+      columnHelper.accessor("shipper", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Shipper
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+
+      columnHelper.accessor("consignee", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Consignee
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+
+      columnHelper.accessor("transportation_mode", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Transport Mode
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => {
+          const mode = info.getValue();
+          const modeColors: Record<string, string> = {
+            ocean: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+            air: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+            road: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+            rail: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+          };
+          
+          return (
+            <span className={`px-2 py-1 text-xs rounded-full ${modeColors[mode] || 'bg-gray-100 text-gray-800'}`}>
+              {mode?.toUpperCase() || '-'}
+            </span>
+          );
+        },
+      }),
+
+      columnHelper.accessor("service_type", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Service Type
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => {
+          const serviceType = info.getValue();
+          return (
+            <span className="text-sm text-gray-900 dark:text-white">
+              {serviceType?.toUpperCase() || '-'}
+            </span>
+          );
+        },
+      }),
+
+      columnHelper.accessor("cargo_readiness_date", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Cargo Ready Date
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.accessor("volume", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Volume (CBM)
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white font-mono">
+            {info.getValue()?.toLocaleString() || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.accessor("weight", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Weight (KG)
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white font-mono">
+            {info.getValue()?.toLocaleString() || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.accessor("customer_name", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Customer
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {info.getValue() || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.accessor("created_on", {
+        header: ({ column }) => (
+          <button
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          >
+            Created
+            <span className="text-xs">
+              {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+            </span>
+          </button>
+        ),
+        cell: (info) => (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-'}
+          </span>
+        ),
+      }),
   
       columnHelper.display({
         id: "actions",
@@ -393,23 +658,19 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   }, [dynamicFields, columnVisibility]);
   
 
-  // Table setup
+  // Table setup - server-side filtering and pagination
   const table = useReactTable({
     data: filteredData,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     state: {
       sorting,
     },
     onSortingChange: setSorting,
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    manualPagination: true,
+    manualSorting: true,
+    pageCount: pagination.totalPages,
   });
 
   return (
@@ -470,13 +731,13 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
       {/* Filters and Controls */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
         <div className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4 items-center">
+          <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center">
             {/* Search */}
             <div className="flex-1 min-w-0">
               <Input
                 placeholder="Search shipment orders..."
                 value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                onChange={(e) => handleGlobalFilterChange(e.target.value)}
                 className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
               />
             </div>
@@ -487,84 +748,238 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
               onCustomerChange={setCustomerFilter}
             />
 
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as ShipmentOrderStatus | "")}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
-            >
-              <option value="">All Status</option>
-              <option value="draft">Draft</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="booked">Booked</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="shipped">Shipped</option>
-            </select>
+            {/* Filter Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto">
+              {/* Status Filter */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as ShipmentOrderStatus | "")}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
+              >
+                <option value="">All Status</option>
+                <option value="draft">Draft</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="booked">Booked</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="shipped">Shipped</option>
+              </select>
 
-            {/* Transportation Mode Filter */}
-            <select
-              value={transportationModeFilter}
-              onChange={(e) => setTransportationModeFilter(e.target.value as TransportationMode | "")}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
-            >
-              <option value="">All Modes</option>
-              <option value="ocean">Ocean</option>
-              <option value="air">Air</option>
-              <option value="road">Road</option>
-              <option value="rail">Rail</option>
-            </select>
+              {/* Transportation Mode Filter */}
+              <select
+                value={transportationModeFilter}
+                onChange={(e) => setTransportationModeFilter(e.target.value as TransportationMode | "")}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
+              >
+                <option value="">All Modes</option>
+                <option value="ocean">Ocean</option>
+                <option value="air">Air</option>
+                <option value="road">Road</option>
+                <option value="rail">Rail</option>
+              </select>
 
-            {/* Service Type Filter */}
-            <select
-              value={serviceTypeFilter}
-              onChange={(e) => setServiceTypeFilter(e.target.value as ServiceType | "")}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm min-w-[120px]"
-            >
-              <option value="">All Services</option>
-              <option value="cy">CY (Container Yard)</option>
-              <option value="cfs">CFS (Container Freight Station)</option>
-            </select>
+              {/* Service Type Filter */}
+              <select
+                value={serviceTypeFilter}
+                onChange={(e) => setServiceTypeFilter(e.target.value as ServiceType | "")}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
+              >
+                <option value="">All Services</option>
+                <option value="cy">CY (Container Yard)</option>
+                <option value="cfs">CFS (Container Freight Station)</option>
+              </select>
 
-            {/* Configuration Button */}
-            <Button
-              onClick={() => setIsConfigDrawerOpen(true)}
-              size="sm"
-              variant="outline"
-              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
-            >
-              <FilterIcon className="w-4 h-4 mr-2" />
-              Configure
-            </Button>
+              {/* Cargo Type Filter */}
+              <select
+                value={cargoTypeFilter}
+                onChange={(e) => setCargoTypeFilter(e.target.value as CargoType | "")}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-theme-purple-500 focus:border-theme-purple-500 dark:bg-gray-700 dark:text-white text-sm w-full"
+              >
+                <option value="">All Cargo Types</option>
+                <option value="normal">Normal</option>
+                <option value="reefer">Reefer</option>
+                <option value="dg">Dangerous Goods</option>
+              </select>
+            </div>
 
-            {/* Export Button */}
-            <Button
-              onClick={handleExport}
-              size="sm"
-              variant="outline"
-              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
-            >
-              <DownloadIcon className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-2 w-full xl:w-auto">
+              {/* Advanced Filters Toggle */}
+              <Button
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                size="sm"
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 xl:flex-none"
+              >
+                <FilterIcon className="w-4 h-4 mr-2" />
+                {showAdvancedFilters ? 'Hide Filters' : 'Advanced Filters'}
+              </Button>
 
-            {/* Add Button */}
-            <Button
-              onClick={handleCreate}
-              size="sm"
-              className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
-            >
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Add Order
-            </Button>
+              {/* Clear Filters Button */}
+              <Button
+                onClick={clearAllFilters}
+                size="sm"
+                variant="outline"
+                className="border-red-300 dark:border-red-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 whitespace-nowrap flex-1 xl:flex-none"
+              >
+                Clear All
+              </Button>
+
+              {/* Configuration Button */}
+              <Button
+                onClick={() => setIsConfigDrawerOpen(true)}
+                size="sm"
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 xl:flex-none"
+              >
+                <FilterIcon className="w-4 h-4 mr-2" />
+                Column Setting
+              </Button>
+
+              {/* Export Button */}
+              <Button
+                onClick={handleExport}
+                size="sm"
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap flex-1 xl:flex-none"
+              >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+
+              {/* Add Button */}
+              <Button
+                onClick={handleCreate}
+                size="sm"
+                className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap flex-1 xl:flex-none"
+              >
+                <PlusIcon className="w-4 h-4 mr-2" />
+                Add Order
+              </Button>
+            </div>
           </div>
         </div>
+
+        {/* Advanced Filters Section */}
+        {showAdvancedFilters && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Volume Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Volume (CBM)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Min volume"
+                  value={apiFilters.volume || ''}
+                  onChange={(e) => setApiFilters(prev => ({ 
+                    ...prev, 
+                    volume: e.target.value ? Number(e.target.value) : undefined 
+                  }))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Weight Range */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Weight (KG)
+                </label>
+                <Input
+                  type="number"
+                  placeholder="Min weight"
+                  value={apiFilters.weight || ''}
+                  onChange={(e) => setApiFilters(prev => ({ 
+                    ...prev, 
+                    weight: e.target.value ? Number(e.target.value) : undefined 
+                  }))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* HS Code */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  HS Code
+                </label>
+                <Input
+                  placeholder="Enter HS code"
+                  value={apiFilters.hs_code || ''}
+                  onChange={(e) => setApiFilters(prev => ({ 
+                    ...prev, 
+                    hs_code: e.target.value || undefined 
+                  }))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Carrier */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Carrier
+                </label>
+                <Input
+                  placeholder="Enter carrier name"
+                  value={apiFilters.carrier || ''}
+                  onChange={(e) => setApiFilters(prev => ({ 
+                    ...prev, 
+                    carrier: e.target.value || undefined 
+                  }))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Place of Receipt */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Place of Receipt
+                </label>
+                <Input
+                  placeholder="Enter place of receipt"
+                  value={apiFilters.place_of_receipt || ''}
+                  onChange={(e) => setApiFilters(prev => ({ 
+                    ...prev, 
+                    place_of_receipt: e.target.value || undefined 
+                  }))}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Place of Delivery */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Place of Delivery
+                </label>
+                <Input
+                  placeholder="Enter place of delivery"
+                  value={apiFilters.place_of_delivery || ''}
+                  onChange={(e) => setApiFilters(prev => ({ 
+                    ...prev, 
+                    place_of_delivery: e.target.value || undefined 
+                  }))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading shipment orders...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -583,40 +998,202 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
                 </tr>
               ))}
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    {loading ? 'Loading...' : 'No shipment orders found'}
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden">
+          {table.getRowModel().rows.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              {loading ? 'Loading...' : 'No shipment orders found'}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="space-y-3">
+                    {/* Booking Number and Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-sm text-theme-purple-600 dark:text-theme-purple-400">
+                          {row.original.vendor_booking_number}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        row.original.vendor_booking_status === 'draft' ? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' :
+                        row.original.vendor_booking_status === 'confirmed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' :
+                        row.original.vendor_booking_status === 'booked' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300' :
+                        row.original.vendor_booking_status === 'cancelled' ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' :
+                        'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                      }`}>
+                        {row.original.vendor_booking_status}
+                      </span>
+                    </div>
+
+                    {/* Shipper and Consignee */}
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Shipper:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.shipper}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Consignee:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.consignee}</p>
+                      </div>
+                    </div>
+
+                    {/* Transport and Service */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Transport:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {row.original.transportation_mode?.toUpperCase() || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Service:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {row.original.service_type?.toUpperCase() || '-'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Volume and Weight */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Volume:</span>
+                        <p className="text-sm text-gray-900 dark:text-white font-mono">
+                          {row.original.volume?.toLocaleString() || '-'} CBM
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Weight:</span>
+                        <p className="text-sm text-gray-900 dark:text-white font-mono">
+                          {row.original.weight?.toLocaleString() || '-'} KG
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Customer and Date */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Customer:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.customer_name || '-'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {row.original.created_on ? new Date(row.original.created_on).toLocaleDateString() : '-'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(row.original)}
+                          className="flex-1"
+                        >
+                          <PencilIcon className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        
+                        {row.original.vendor_booking_status === "draft" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStatusUpdate(row.original.id, "confirmed")}
+                            className="flex-1 text-blue-600 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                          >
+                            Confirm
+                          </Button>
+                        )}
+
+                        {row.original.vendor_booking_status === "confirmed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStatusUpdate(row.original.id, "booked")}
+                            className="flex-1 text-purple-600 border-purple-300 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                          >
+                            Book
+                          </Button>
+                        )}
+
+                        {row.original.vendor_booking_status === "booked" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleStatusUpdate(row.original.id, "shipped")}
+                            className="flex-1 text-green-600 border-green-300 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20"
+                          >
+                            Ship
+                          </Button>
+                        )}
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(row.original.id)}
+                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <TrashBinIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Pagination */}
-      {filteredData.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
+      {pagination.total > 0 && (
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
+            Showing {pagination.page * pagination.pageSize + 1} to{" "}
             {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
+              (pagination.page + 1) * pagination.pageSize,
+              pagination.total
             )}{" "}
-            of {table.getFilteredRowModel().rows.length} results
+            of {pagination.total} results
           </div>
-          <Pagination
-            currentPage={table.getState().pagination.pageIndex + 1}
-            totalPages={table.getPageCount()}
-            onPageChange={(page: number) => table.setPageIndex(page - 1)}
-          />
+          <div className="order-1 sm:order-2">
+            <Pagination
+              currentPage={pagination.page + 1}
+              totalPages={pagination.totalPages}
+              onPageChange={(page: number) => {
+                setPagination(prev => ({
+                  ...prev,
+                  page: page - 1
+                }));
+              }}
+            />
+          </div>
         </div>
       )}
 

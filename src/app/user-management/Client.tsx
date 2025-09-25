@@ -1,7 +1,7 @@
 "use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, SortingState } from "@tanstack/react-table";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
@@ -37,6 +37,7 @@ function AdminUserManagementClient() {
     pageSize: 10,
   });
   const [totalCount, setTotalCount] = useState(0);
+  const [sorting, setSorting] = useState<SortingState>([]);
 
 
 
@@ -144,6 +145,8 @@ function AdminUserManagementClient() {
         organisation_name: globalFilter || undefined,
         role_name: roleFilter === 1 ? 'admin' : roleFilter === 2 ? 'user' : roleFilter === 3 ? 'manager' : undefined,
         status: statusFilter !== null ? (statusFilter ? 1 : 0) : undefined,
+        order_by: sorting.length > 0 ? sorting[0].id : undefined,
+        order_type: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
         export: false,
       };
       
@@ -175,7 +178,7 @@ function AdminUserManagementClient() {
       setLoading(false);
       setFilterLoading(false);
     }
-  }, [pagination.pageIndex, pagination.pageSize, globalFilter, roleFilter, statusFilter]);
+  }, [pagination.pageIndex, pagination.pageSize, globalFilter, roleFilter, statusFilter, sorting]);
 
   // Fetch users on component mount and when filters change
   useEffect(() => {
@@ -346,7 +349,9 @@ function AdminUserManagementClient() {
     state: {
       globalFilter,
       pagination,
+      sorting,
     },
+    onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
   });
@@ -374,19 +379,6 @@ function AdminUserManagementClient() {
     toast.success('Export functionality coming soon');
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
-
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Add a check for when data is loaded but empty
   if (!loading && data.length === 0) {
@@ -573,18 +565,17 @@ function AdminUserManagementClient() {
 
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
-        {filterLoading && (
+        {loading && (
           <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600 dark:text-gray-400">Applying filters...</p>
+              <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
             </div>
           </div>
         )}
         
-
-        
-        <div className="overflow-x-auto">
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -626,12 +617,96 @@ function AdminUserManagementClient() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden">
+          {table.getRowModel().rows.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              {loading ? 'Loading...' : 'No users found'}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="space-y-3">
+                    {/* User Name and Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <UserCircleIcon className="w-8 h-8 text-gray-400" />
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">
+                            {row.original.firstName} {row.original.lastName}
+                          </div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{row.original.email}</div>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        row.original.status === 'active' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {row.original.status}
+                      </span>
+                    </div>
+
+                    {/* Role and Organization */}
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Role:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">
+                          {row.original.role === 1 ? 'admin' : row.original.role === 2 ? 'user' : 'manager'}
+                        </p>
+                      </div>
+                      {row.original.organisation_name && (
+                        <div>
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Organization:</span>
+                          <p className="text-sm text-gray-900 dark:text-white">{row.original.organisation_name}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Created Date */}
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {new Date(row.original.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openModal(row.original)}
+                          className="flex-1"
+                        >
+                          <PencilIcon className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteUser(row.original.id)}
+                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <TrashBinIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Pagination */}
       {filteredData.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
             Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
             {Math.min(
               (pagination.pageIndex + 1) * pagination.pageSize,
@@ -639,11 +714,13 @@ function AdminUserManagementClient() {
             )}{" "}
             of {totalCount} results
           </div>
-          <Pagination
-            currentPage={pagination.pageIndex + 1}
-            totalPages={Math.ceil(totalCount / pagination.pageSize)}
-            onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
-          />
+          <div className="order-1 sm:order-2">
+            <Pagination
+              currentPage={pagination.pageIndex + 1}
+              totalPages={Math.ceil(totalCount / pagination.pageSize)}
+              onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
+            />
+          </div>
         </div>
       )}
 

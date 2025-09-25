@@ -6,12 +6,20 @@ import {
   ShipmentOrderStatus,
   CustomerReference,
   VendorReference,
-  OriginPartnerReference
+  OriginPartnerReference,
+  ShipmentListRequest,
+  ShipmentListApiResponse
 } from '@/types/shipmentOrder';
 import superAxios from '@/utils/superAxios';
 import { BASEURL } from '@/config/variables';
 
 class ShipmentOrderService {
+
+  // Get list of shipment orders with filtering and pagination
+  async listShipmentOrders(request: ShipmentListRequest): Promise<ShipmentListApiResponse> {
+    const response = await superAxios.post(`${BASEURL}/shipment/api/list`, request);
+    return response.data;
+  }
 
   // Get single shipment order by ID
   async getShipmentOrder(id: number): Promise<ShipmentOrderResponse> {
@@ -94,7 +102,7 @@ class ShipmentOrderService {
     if (!data.customer) errors.push('Customer is required');
 
     // Dangerous goods validation
-    if (data.cargo_type === 'Dangerous Goods' && !data.dangerous_goods_notes?.trim()) {
+    if (data.cargo_type === 'dg' && !data.dangerous_goods_notes?.trim()) {
       errors.push('Dangerous goods notes are required when cargo type is Dangerous Goods');
     }
 

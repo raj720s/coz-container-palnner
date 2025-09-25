@@ -7,12 +7,6 @@ import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Checkbox from "@/components/form/input/Checkbox";
 import Button from "@/components/ui/button/Button";
-import { PlusIcon, TrashBinIcon } from "@/icons";
-import { 
-  getCustomerDynamicFieldsById, 
-  saveCustomerDynamicFieldsById,
-  type DynamicField 
-} from "@/utils/customerDynamicFieldsUtils";
 
 const customerSchema = z.object({
   customer_code: z.string().min(1, "Customer code is required"),
@@ -41,8 +35,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   onCancel,
   isLoading = false,
 }) => {
-  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
-  const [isClient, setIsClient] = useState(false);
 
   const {
     register,
@@ -68,49 +60,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
   const isActive = watch("is_active");
   const isEditing = !!initialData;
-  const customerId = initialData?.id || 'new';
-
-  // Initialize dynamic fields from localStorage
-  useEffect(() => {
-    setIsClient(true);
-    if (isEditing && initialData?.id) {
-      const savedFields = getCustomerDynamicFieldsById(initialData.id);
-      setDynamicFields(savedFields);
-    }
-  }, [initialData?.id, isEditing]);
-
-  // Add new dynamic field
-  const addDynamicField = () => {
-    if (dynamicFields.length < 5) {
-      const newField: DynamicField = {
-        id: `field_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        label: `Custom Field ${dynamicFields.length + 1}`,
-        value: '',
-      };
-      setDynamicFields(prev => [...prev, newField]);
-    }
-  };
-
-  // Remove dynamic field
-  const removeDynamicField = (fieldId: string) => {
-    setDynamicFields(prev => prev.filter(field => field.id !== fieldId));
-  };
-
-  // Update dynamic field
-  const updateDynamicField = (fieldId: string, updates: Partial<DynamicField>) => {
-    setDynamicFields(prev => 
-      prev.map(field => 
-        field.id === fieldId ? { ...field, ...updates } : field
-      )
-    );
-  };
-
-  // Save dynamic fields to localStorage
-  const saveDynamicFields = () => {
-    if (isEditing && initialData?.id) {
-      saveCustomerDynamicFieldsById(initialData.id, dynamicFields);
-    }
-  };
 
   useEffect(() => {
     if (initialData) {
@@ -131,8 +80,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   }, [initialData, reset]);
 
   const handleFormSubmit = (data: CustomerFormData) => {
-    // Save dynamic fields before submitting
-    saveDynamicFields();
     onSubmit(data);
   };
 
@@ -259,77 +206,6 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         </div>
       </div>
 
-      {/* Dynamic Fields Section */}
-      {isClient && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-base font-medium text-gray-900 dark:text-white">
-              Custom Fields
-            </Label>
-            <Button
-              onClick={addDynamicField}
-              disabled={dynamicFields.length >= 5}
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2 text-theme-purple-600 border-theme-purple-300 hover:bg-theme-purple-50 dark:border-theme-purple-600 dark:text-theme-purple-400 dark:hover:bg-theme-purple-900/20"
-            >
-              <PlusIcon className="w-4 h-4" />
-              Add Field
-            </Button>
-          </div>
-          
-          {dynamicFields.length > 0 && (
-            <div className="space-y-3 max-h-80 overflow-y-auto thin-scrollbar">
-              {dynamicFields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <Label htmlFor={`field-label-${field.id}`} className="text-sm">
-                      Field Label
-                    </Label>
-                    <Input
-                      id={`field-label-${field.id}`}
-                      value={field.label}
-                      onChange={(e) => updateDynamicField(field.id, { label: e.target.value })}
-                      placeholder="Enter field label"
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`field-value-${field.id}`} className="text-sm">
-                      Field Value
-                    </Label>
-                    <Input
-                      id={`field-value-${field.id}`}
-                      value={field.value}
-                      onChange={(e) => updateDynamicField(field.id, { value: e.target.value })}
-                      placeholder="Enter field value"
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button
-                      onClick={() => removeDynamicField(field.id)}
-                      size="sm"
-                      variant="outline"
-                      className="w-full text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-                    >
-                      <TrashBinIcon className="w-4 h-4 mr-2" />
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {dynamicFields.length === 0 && (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-              <p className="text-sm">No custom fields added yet.</p>
-              <p className="text-xs mt-1">Click "Add Field" to create up to 5 custom fields for this customer.</p>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex justify-end gap-3 pt-4">
         <Button

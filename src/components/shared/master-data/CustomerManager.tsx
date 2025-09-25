@@ -25,7 +25,6 @@ import { customerService } from "@/services";
 import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
-import { getCustomerDynamicFieldsById } from "@/utils/customerDynamicFieldsUtils";
 
 const columnHelper = createColumnHelper<CustomerResponse>();
 
@@ -67,6 +66,18 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   useEffect(() => {
     loadCustomers();
   }, [filters]);
+
+  // Sync table sorting with API filters
+  useEffect(() => {
+    if (sorting.length > 0) {
+      const sortConfig = sorting[0];
+      setFilters(prev => ({
+        ...prev,
+        order_by: sortConfig.id,
+        order_type: sortConfig.desc ? 'desc' : 'asc'
+      }));
+    }
+  }, [sorting]);
 
   // Auto-clear errors after 5 seconds
   useEffect(() => {
@@ -122,13 +133,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Customer Code
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
@@ -140,13 +147,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Company Name
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => <span className="font-medium">{info.getValue()}</span>
@@ -158,13 +161,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Contact Person
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => info.getValue() 
@@ -192,13 +191,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Country
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
@@ -222,13 +217,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Status
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
@@ -248,13 +239,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Created
-          {column.getIsSorted() === "asc" ? (
-            <ChevronUpIcon className="w-4 h-4" />
-          ) : column.getIsSorted() === "desc" ? (
-            <ChevronDownIcon className="w-4 h-4" />
-          ) : (
-            <ChevronUpIcon className="w-4 h-4 text-gray-300 dark:text-gray-600" />
-          )}
+          <span className="text-xs">
+            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+          </span>
         </button>
       ),
       cell: (info) => (
@@ -262,43 +249,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
         </span>
       ),
-    }),
-    // Dynamic Fields Column
-    columnHelper.display({
-      id: "dynamic_fields",
-      header: "Custom Fields",
-      cell: (info) => {
-        const customerId = info.row.original.id?.toString() || '';
-        const dynamicFields = getCustomerDynamicFieldsById(customerId);
-        
-        if (dynamicFields.length === 0) {
-          return (
-            <span className="text-xs text-gray-400 dark:text-gray-500">
-              No custom fields
-            </span>
-          );
-        }
-
-        return (
-          <div className="space-y-1">
-            {dynamicFields.slice(0, 2).map((field) => (
-              <div key={field.id} className="text-xs">
-                <span className="font-medium text-gray-600 dark:text-gray-300">
-                  {field.label}:
-                </span>
-                <span className="ml-1 text-gray-500 dark:text-gray-400">
-                  {field.value || 'N/A'}
-                </span>
-              </div>
-            ))}
-            {dynamicFields.length > 2 && (
-              <span className="text-xs text-theme-purple-600 dark:text-theme-purple-400">
-                +{dynamicFields.length - 2} more
-              </span>
-            )}
-          </div>
-        );
-      }
     }),
     columnHelper.display({
       id: "actions",
@@ -641,10 +591,20 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
+        {loading && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading customers...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Desktop Table */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-gray-700">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -663,28 +623,122 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
                 </tr>
               ))}
             </thead>
-            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    {loading ? 'Loading...' : 'No customers found'}
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    {row.getVisibleCells().map((cell) => (
+                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="lg:hidden">
+          {table.getRowModel().rows.length === 0 ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              {loading ? 'Loading...' : 'No customers found'}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {table.getRowModel().rows.map((row) => (
+                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="space-y-3">
+                    {/* Customer Name and Status */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {row.original.name}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          {row.original.customer_code}
+                        </div>
+                      </div>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        row.original.is_active 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {row.original.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Contact:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.contact_person}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Email:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.email}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Phone:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.phone}</p>
+                      </div>
+                    </div>
+
+                    {/* Country and Created Date */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Country:</span>
+                        <p className="text-sm text-gray-900 dark:text-white">{row.original.country}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {row.original.created_on ? new Date(row.original.created_on).toLocaleDateString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openModal(row.original)}
+                          className="flex-1"
+                        >
+                          <PencilIcon className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteClick(row.original)}
+                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+                        >
+                          <TrashBinIcon className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Pagination */}
       {filteredData.length > 0 && (
-        <div className="mt-6 flex items-center justify-between">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
             Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
             {Math.min(
               (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
@@ -692,11 +746,13 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             )}{" "}
             of {table.getFilteredRowModel().rows.length} results
           </div>
-          <Pagination
-            currentPage={table.getState().pagination.pageIndex + 1}
-            totalPages={table.getPageCount()}
-            onPageChange={(page) => table.setPageIndex(page - 1)}
-          />
+          <div className="order-1 sm:order-2">
+            <Pagination
+              currentPage={table.getState().pagination.pageIndex + 1}
+              totalPages={table.getPageCount()}
+              onPageChange={(page) => table.setPageIndex(page - 1)}
+            />
+          </div>
         </div>
       )}
 
