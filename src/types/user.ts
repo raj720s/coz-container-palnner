@@ -3,34 +3,52 @@ export interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: 1 | 2;
+  role: number; // Changed to number to support multiple role IDs
+  roleName: string; // Added role name for display
   status: "active" | "inactive" | "pending";
   lastLogin: string;
   createdAt: string;
   organisation_name?: string;
   permissions: string[];
   accessControl: string[]; // Array of allowed routes
+  is_superuser?: boolean; // Added superuser flag
+  role_data?: Array<{
+    id: number;
+    role_name: string;
+  }>; // Added role data array to match API
 }
 
 export interface CreateUserData {
   firstName: string;
   lastName: string;
   email: string;
-  role: 1 | 2;
+  role: number;
+  roleName?: string;
   status: "active" | "inactive" | "pending";
   organisation_name?: string;
   password: string;
   accessControl?: string[];
+  is_superuser?: boolean;
+  role_data?: Array<{
+    id: number;
+    role_name: string;
+  }>;
 }
 
 export interface UpdateUserData {
   firstName?: string;
   lastName?: string;
   email?: string;
-  role?: 1 | 2;
+  role?: number;
+  roleName?: string;
   status?: "active" | "inactive" | "pending";
   organisation_name?: string;
   accessControl?: string[];
+  is_superuser?: boolean;
+  role_data?: Array<{
+    id: number;
+    role_name: string;
+  }>;
 }
 
 // Route definitions for access control

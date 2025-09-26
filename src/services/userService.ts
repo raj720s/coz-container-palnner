@@ -10,7 +10,8 @@ import {
   ApiResponse,
   SuperuserModifyRequest,
   SuperuserModifyResponse,
-  UserProfileResponse
+  UserProfileResponse,
+  UserJsonInfoResponse
 } from '@/types/api';
 import { BASEURL } from '@/config/variables';
 
@@ -31,6 +32,7 @@ export const userService = {
   // Get users list with filtering and pagination
   async getUsers(params: UserListParams = {}): Promise<UserListResponseV2> {
     const cleanedParams = cleanParams(params);
+    console.log({cleanedParams});
     const response = await superAxios.post(`${BASEURL}/user/v1/list`, cleanedParams);
     // Handle API response format: { count: number, results: UserData[] }
     return response.data;
@@ -93,6 +95,12 @@ export const userService = {
   // Update current user profile
   async updateUserProfile(profileData: Partial<CreateUserRequest>): Promise<UserProfileResponse> {
     const response = await superAxios.put(`${BASEURL}/user/v1/profile`, profileData);
+    return response.data;
+  },
+
+  // Get user JSON info for mapping user IDs to names
+  async getUserJsonInfo(): Promise<UserJsonInfoResponse> {
+    const response = await superAxios.get(`${BASEURL}/user/v1/json-info`);
     return response.data;
   }
 };

@@ -115,6 +115,12 @@ export interface UserListResponseV2 {
   }>;
 }
 
+// User JSON Info for mapping user IDs to names
+export interface UserJsonInfoResponse {
+  count: number;
+  results: Record<string, string>; // Key: user_id, Value: user_name
+}
+
 export interface UserListParams {
   email?: string;
   is_superuser?: boolean;

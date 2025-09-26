@@ -144,7 +144,7 @@ function AdminUserManagementClient() {
         // last_name: nameSearch || undefined, // Commented out - only searching first name
         // email: globalFilter || undefined, // Commented out - not using global filter for email
         // organisation_name: globalFilter || undefined, // Commented out - not using global filter for organization
-        role_name: roleFilter === 1 ? 'admin' : roleFilter === 2 ? 'user' : roleFilter === 3 ? 'manager' : undefined,
+        role_name: roleFilter ? roles.find(r => r.id === roleFilter)?.role_name : undefined,
         status: statusFilter !== null ? (statusFilter ? 1 : 0) : undefined,
         order_by: sorting.length > 0 ? sorting[0].id : undefined,
         order_type: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
@@ -162,13 +162,16 @@ function AdminUserManagementClient() {
         firstName: apiUser.first_name,
         lastName: apiUser.last_name,
         email: apiUser.email,
-        role: apiUser.is_superuser ? 1 : 2, // Map superuser to admin (1), others to user (2)
+        role: apiUser.role_data?.[0]?.id || (apiUser.is_superuser ? 1 : 2), // Use first role ID or fallback
+        roleName: apiUser.role_data?.[0]?.role_name || (apiUser.is_superuser ? "Superuser" : "User"), // Use first role name or fallback
         status: apiUser.status ? "active" : "inactive",
         lastLogin: apiUser.last_login || apiUser.created_on,
         createdAt: apiUser.created_on,
         organisation_name: apiUser.organisation_name || "",
-        permissions: apiUser.role_data?.[0]?.role_name ? [apiUser.role_data[0].role_name] : [],
+        permissions: apiUser.role_data?.map((role: any) => role.role_name) || [],
         accessControl: [], // Empty array since we're not using default routes anymore
+        is_superuser: apiUser.is_superuser,
+        role_data: apiUser.role_data || [],
       }));
       
       setData(transformedUsers);
@@ -234,7 +237,7 @@ function AdminUserManagementClient() {
         </div>
       ),
     }),
-    columnHelper.accessor("role", {
+    columnHelper.accessor("roleName", {
       header: ({ column }) => (
         <button
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
@@ -246,15 +249,40 @@ function AdminUserManagementClient() {
           </span>
         </button>
       ),
-      cell: (info) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          info.getValue() === 1 
-            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-            : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-        }`}>
-          {info.getValue() === 1 ? 'admin' : info.getValue() === 2 ? 'user' : 'manager'}
-        </span>
-      ),
+      cell: (info) => {
+        const roleName = info.getValue();
+        const isSuperuser = info.row.original.is_superuser;
+        const roleData = info.row.original.role_data || [];
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {isSuperuser && (
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                Superuser
+              </span>
+            )}
+            {roleData.map((role: any, index: number) => (
+              <span 
+                key={index}
+                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  role.role_name === 'Vendor' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    : role.role_name === 'Origin Agent'
+                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                }`}
+              >
+                {role.role_name}
+              </span>
+            ))}
+            {!isSuperuser && roleData.length === 0 && (
+              <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                No Role
+              </span>
+            )}
+          </div>
+        );
+      },
     }),
     columnHelper.accessor("status", {
       header: ({ column }) => (
@@ -365,11 +393,12 @@ function AdminUserManagementClient() {
     const total = data.length;
     const active = data.filter(user => user.status === "active").length;
     const inactive = data.filter(user => user.status === "inactive").length;
-    const admins = data.filter(user => user.role === 1).length;
-    const users = data.filter(user => user.role === 2).length;
-    const managers = 0; // Managers not supported in current User type
+    const superusers = data.filter(user => user.is_superuser).length;
+    const vendors = data.filter(user => user.role_data?.some(role => role.role_name === 'Vendor')).length;
+    const originAgents = data.filter(user => user.role_data?.some(role => role.role_name === 'Origin Agent')).length;
+    const noRole = data.filter(user => !user.is_superuser && (!user.role_data || user.role_data.length === 0)).length;
 
-    return { total, active, inactive, admins, users, managers };
+    return { total, active, inactive, superusers, vendors, originAgents, noRole };
   }, [data]);
 
   const handleAddNew = () => {
@@ -424,28 +453,28 @@ function AdminUserManagementClient() {
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Admins</p>
-              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.admins}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Superusers</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.superusers}</p>
             </div>
-            <UserCircleIcon className="w-8 h-8 text-purple-600" />
+            <UserCircleIcon className="w-8 h-8 text-red-600" />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Users</p>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.users}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Vendors</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.vendors}</p>
+            </div>
+            <UserCircleIcon className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Origin Agents</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.originAgents}</p>
             </div>
             <UserCircleIcon className="w-8 h-8 text-blue-600" />
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Managers</p>
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{stats.managers}</p>
-            </div>
-            <UserCircleIcon className="w-8 h-8 text-orange-600" />
           </div>
         </div>
       </div>
@@ -490,9 +519,11 @@ function AdminUserManagementClient() {
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white text-sm"
               >
                 <option value="">All Roles</option>
-                <option value={2}>User</option>
-                <option value={1}>Admin</option>
-                <option value={3}>Manager</option>
+                {roles.map((role) => (
+                  <option key={role.id} value={role.id}>
+                    {role.role_name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -638,9 +669,32 @@ function AdminUserManagementClient() {
                     <div className="grid grid-cols-1 gap-2">
                       <div>
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Role:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {row.original.role === 1 ? 'admin' : row.original.role === 2 ? 'user' : 'manager'}
-                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {row.original.is_superuser && (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                              Superuser
+                            </span>
+                          )}
+                          {row.original.role_data?.map((role: any, index: number) => (
+                            <span 
+                              key={index}
+                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                role.role_name === 'Vendor' 
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  : role.role_name === 'Origin Agent'
+                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                              }`}
+                            >
+                              {role.role_name}
+                            </span>
+                          ))}
+                          {!row.original.is_superuser && (!row.original.role_data || row.original.role_data.length === 0) && (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+                              No Role
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {row.original.organisation_name && (
                         <div>

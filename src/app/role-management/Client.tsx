@@ -20,7 +20,8 @@ import { RoleForm } from "@/components/forms/RoleForm";
 // Removed useRoles - using roleService directly
 import { staticModuleDefinitions } from "@/config/staticModules";
 import { useCommonData } from "@/hooks/useCommonData";
-import { getUsernameById } from "@/utils/userUtils";
+import { fetchUsersJson, selectUsersJson } from "@/store/slices/commonDataSlice";
+import { useSelector } from "react-redux";
 
 const columnHelper = createColumnHelper<RoleListResponseV2>();
 
@@ -48,7 +49,17 @@ function AdminRoleManagementClient() {
     pageIndex: 0,
     pageSize: 10,
   });
+
+  // Get users JSON data using useCommonData hook
+  const { data: usersJson, loading: usersLoading, error: usersError, refresh: refreshUsers } = useCommonData(fetchUsersJson, selectUsersJson);
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Helper function to get user name by ID
+  const getUserName = useCallback((userId: number | null): string => {
+    if (!userId || !usersJson) return '-';
+    const userName = usersJson[userId.toString()];
+    return userName || `User ${userId}`;
+  }, [usersJson]);
   
   // Fetch roles function
   const fetchRoles = useCallback(async () => {
@@ -401,8 +412,18 @@ function AdminRoleManagementClient() {
       ),
               cell: (info) => (
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {/* {getUsernameById(info.row.original.created_by || null, userInfo, 'System')} */}
-            {/* {info.row.original.created_by} */}
+            {usersLoading ? (
+              <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
+            ) : (
+              <div className="flex items-center">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                  <span className="text-blue-600 font-semibold text-xs">
+                    {info.row.original.created_by}
+                  </span>
+                </div>
+                <span>{getUserName(info.row.original.created_by)}</span>
+              </div>
+            )}
           </div>
         ),
     }),
@@ -439,7 +460,20 @@ function AdminRoleManagementClient() {
       ),
               cell: (info) => (
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            {/* {getUsernameById(info.row.original.modified_by || null, userInfo, '-')} */}
+            {usersLoading ? (
+              <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
+            ) : info.row.original.modified_by ? (
+              <div className="flex items-center">
+                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                  <span className="text-green-600 font-semibold text-xs">
+                    {info.row.original.modified_by}
+                  </span>
+                </div>
+                <span>{getUserName(info.row.original.modified_by)}</span>
+              </div>
+            ) : (
+              <span className="text-gray-400 italic">Not modified</span>
+            )}
           </div>
         ),
     }),
@@ -616,6 +650,12 @@ function AdminRoleManagementClient() {
                  Clear Search
                </Button>
              )}
+             {usersError && (
+               <Button onClick={refreshUsers} size="sm" variant="outline" className="text-orange-600 border-orange-300 hover:bg-orange-50">
+                 <UserCircleIcon className="w-4 h-4 mr-2" />
+                 Refresh Users
+               </Button>
+             )}
              <Button onClick={handleAddNew} size="sm">
                <PlusIcon className="w-4 h-4 mr-2" />
                Add Role
@@ -631,6 +671,16 @@ function AdminRoleManagementClient() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
               <p className="text-gray-600 dark:text-gray-400">Loading roles...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Users Data Loading Indicator */}
+        {usersLoading && (
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+              <p className="text-sm text-blue-700">Loading user data...</p>
             </div>
           </div>
         )}
@@ -719,6 +769,50 @@ function AdminRoleManagementClient() {
                           {new Date(row.original.created_on).toLocaleDateString()}
                         </p>
                       </div>
+                    </div>
+
+                    {/* Created By and Modified By */}
+                    <div className="grid grid-cols-1 gap-2">
+                      <div>
+                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created By:</span>
+                        <div className="flex items-center mt-1">
+                          {usersLoading ? (
+                            <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
+                          ) : (
+                            <>
+                              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                                <span className="text-blue-600 font-semibold text-xs">
+                                  {row.original.created_by}
+                                </span>
+                              </div>
+                              <span className="text-sm text-gray-900 dark:text-white">
+                                {getUserName(row.original.created_by)}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {row.original.modified_by && (
+                        <div>
+                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Modified By:</span>
+                          <div className="flex items-center mt-1">
+                            {usersLoading ? (
+                              <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
+                            ) : (
+                              <>
+                                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                                  <span className="text-green-600 font-semibold text-xs">
+                                    {row.original.modified_by}
+                                  </span>
+                                </div>
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                  {getUserName(row.original.modified_by)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions */}

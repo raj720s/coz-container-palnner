@@ -501,7 +501,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+      <div className="p-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1">
           <Input
             placeholder="Search ports by Port Name
@@ -522,6 +524,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
             Add POL Port
           </Button>
         </div>
+      </div>
+      </div>
       </div>
 
       {/* Table */}

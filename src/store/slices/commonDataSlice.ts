@@ -1,16 +1,18 @@
 import { ContainerPriorityResponse } from '@/types/api';
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ContainerTypeResponse, PODListResponse , POLListResponse } from '@/types/api';
+import { ContainerTypeResponse, PODListResponse , POLListResponse, UserJsonInfoResponse } from '@/types/api';
 import superAxios from '@/utils/superAxios';
 // Removed userInfoSlice dependency - using AuthContext instead
 import { RootState } from '@reduxjs/toolkit/query/react';
 import podService, { PODService } from '@/services/podService';
 import { polService } from '@/services';
+import { userService } from '@/services/userService';
 
 interface CommonDataState {
   
-  polList: POLListResponse[];
-  podList: PODListResponse[];
+  polList: any[]; // Using any[] to match actual API response structure
+  podList: any[]; // Using any[] to match actual API response structure
+  usersJson: Record<string, string>; // Key: user_id, Value: user_name
   isLoading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -21,6 +23,7 @@ const  initialState: CommonDataState = {
   
   polList: [],
   podList: [],
+  usersJson: {},
   isLoading: false,
   error: null,
   lastFetched: null,
@@ -71,6 +74,20 @@ const  initialState: CommonDataState = {
     }
   );
 
+  export const fetchUsersJson = createAsyncThunk(
+    'commonData/fetchUsersJson',
+    async (_, { rejectWithValue }) => {
+      try {
+        const response = await userService.getUserJsonInfo();
+        return response.results;
+      } catch (error: any) {
+        return rejectWithValue(
+          error.response?.data?.detail || error.message || 'Failed to fetch users JSON info'
+        );
+      }
+    }
+  );
+
 
 const commonDataSlice = createSlice({
   name: 'commonData',
@@ -92,6 +109,13 @@ const commonDataSlice = createSlice({
       state.lastFetched = Date.now();
       state.error = null;
     },
+    
+    setUsersJson: (state, action: PayloadAction<Record<string, string>>) => {
+      state.usersJson = action.payload;
+      state.isInitialized = true;
+      state.lastFetched = Date.now();
+      state.error = null;
+    },
   },
 
   extraReducers: (builder) => {
@@ -102,7 +126,7 @@ const commonDataSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchPortOfLoading.fulfilled, (state, action: PayloadAction<POLListResponse[]>) => {
+      .addCase(fetchPortOfLoading.fulfilled, (state, action) => {
         state.isLoading = false;
         state.polList = action.payload;
         state.isInitialized = true;
@@ -118,7 +142,7 @@ const commonDataSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(fetchPortOfDischarge.fulfilled, (state, action: PayloadAction<PODListResponse[]>) => {
+      .addCase(fetchPortOfDischarge.fulfilled, (state, action) => {
         state.isLoading = false;
         state.podList = action.payload;
         state.isInitialized = true;
@@ -129,18 +153,38 @@ const commonDataSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
         state.isInitialized = true;
+      })
+      .addCase(fetchUsersJson.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchUsersJson.fulfilled, (state, action: PayloadAction<Record<string, string>>) => {
+        state.isLoading = false;
+        state.usersJson = action.payload;
+        state.isInitialized = true;
+        state.lastFetched = Date.now();
+        state.error = null;
+      })
+      .addCase(fetchUsersJson.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.isInitialized = true;
       });
   },
 });
 
-export const {  setPortOfLoading, setPortOfDischarge } = commonDataSlice.actions;
+export const {  setPortOfLoading, setPortOfDischarge, setUsersJson } = commonDataSlice.actions;
 export const selectPortOfLoading = (state: { commonData: CommonDataState }) => state.commonData.polList;
 export const selectPortOfDischarge = (state: { commonData: CommonDataState }) => state.commonData.podList;
+export const selectUsersJson = (state: { commonData: CommonDataState }) => state.commonData.usersJson;
 export const selectPortOfLoadingLoading = (state: { commonData: CommonDataState }) => state.commonData.isLoading;
 export const selectPortOfDischargeLoading = (state: { commonData: CommonDataState }) => state.commonData.isLoading;
+export const selectUsersJsonLoading = (state: { commonData: CommonDataState }) => state.commonData.isLoading;
 export const selectPortOfLoadingError = (state: { commonData: CommonDataState }) => state.commonData.error;
 export const selectPortOfDischargeError = (state: { commonData: CommonDataState }) => state.commonData.error;
+export const selectUsersJsonError = (state: { commonData: CommonDataState }) => state.commonData.error;
 export const selectPortOfLoadingInitialized = (state: { commonData: CommonDataState }) => state.commonData.isInitialized;
 export const selectPortOfDischargeInitialized = (state: { commonData: CommonDataState }) => state.commonData.isInitialized;
+export const selectUsersJsonInitialized = (state: { commonData: CommonDataState }) => state.commonData.isInitialized;
 
 export default commonDataSlice.reducer;
