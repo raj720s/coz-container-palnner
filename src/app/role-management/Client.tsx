@@ -19,8 +19,7 @@ import { RoleListResponseV2 } from "@/types/api";
 import { RoleForm } from "@/components/forms/RoleForm";
 // Removed useRoles - using roleService directly
 import { staticModuleDefinitions } from "@/config/staticModules";
-import { useCommonData } from "@/hooks/useCommonData";
-import { fetchUsersJson, selectUsersJson } from "@/store/slices/commonDataSlice";
+import { useUsersJson } from "@/hooks/useCommonData";
 import { useSelector } from "react-redux";
 
 const columnHelper = createColumnHelper<RoleListResponseV2>();
@@ -50,8 +49,8 @@ function AdminRoleManagementClient() {
     pageSize: 10,
   });
 
-  // Get users JSON data using useCommonData hook
-  const { data: usersJson, loading: usersLoading, error: usersError, refresh: refreshUsers } = useCommonData(fetchUsersJson, selectUsersJson);
+  // Get users JSON data using specialized useUsersJson hook
+  const { usersJson, loading: usersLoading, error: usersError, refresh: refreshUsers } = useUsersJson();
   const [sorting, setSorting] = useState<SortingState>([]);
 
   // Helper function to get user name by ID
@@ -60,6 +59,8 @@ function AdminRoleManagementClient() {
     const userName = usersJson[userId.toString()];
     return userName || `User ${userId}`;
   }, [usersJson]);
+
+  
   
   // Fetch roles function
   const fetchRoles = useCallback(async () => {
@@ -405,9 +406,9 @@ function AdminRoleManagementClient() {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Created By
-          <span className="text-xs">
+          {/* <span className="text-xs">
             {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          </span> */}
         </button>
       ),
               cell: (info) => (
@@ -416,11 +417,11 @@ function AdminRoleManagementClient() {
               <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
             ) : (
               <div className="flex items-center">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                {/* <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
                   <span className="text-blue-600 font-semibold text-xs">
                     {info.row.original.created_by}
                   </span>
-                </div>
+                </div> */}
                 <span>{getUserName(info.row.original.created_by)}</span>
               </div>
             )}
@@ -453,9 +454,9 @@ function AdminRoleManagementClient() {
           className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
           Modified By
-          <span className="text-xs">
+          {/* <span className="text-xs">
             {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
+          </span> */}
         </button>
       ),
               cell: (info) => (
@@ -464,11 +465,11 @@ function AdminRoleManagementClient() {
               <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
             ) : info.row.original.modified_by ? (
               <div className="flex items-center">
-                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                {/* <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
                   <span className="text-green-600 font-semibold text-xs">
                     {info.row.original.modified_by}
                   </span>
-                </div>
+                </div> */}
                 <span>{getUserName(info.row.original.modified_by)}</span>
               </div>
             ) : (

@@ -249,7 +249,7 @@ export const PortForm: React.FC<PortFormProps> = ({
             <p className="mt-1.5 text-xs text-red-500">{errors.timezone.message}</p>
           )}
         </div>
-        <div>
+        {/* <div>
           <Label>Port Type *</Label>
           <Select
             options={typeOptions}
@@ -262,7 +262,7 @@ export const PortForm: React.FC<PortFormProps> = ({
           {errors.type && (
             <p className="mt-1.5 text-xs text-red-500">{errors.type.message}</p>
           )}
-        </div>
+        </div> */}
       </div>
 
       <div className="flex items-center gap-3 pt-6">

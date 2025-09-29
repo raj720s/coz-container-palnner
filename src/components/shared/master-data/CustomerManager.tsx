@@ -232,24 +232,24 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         </span>
       ),
     }),
-    columnHelper.accessor("created_on", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Created
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
-        </span>
-      ),
-    }),
+    // columnHelper.accessor("created_on", {
+    //   header: ({ column }) => (
+    //     <button
+    //       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+    //       className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+    //     >
+    //       Created
+    //       <span className="text-xs">
+    //         {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
+    //       </span>
+    //     </button>
+    //   ),
+    //   cell: (info) => (
+    //     <span className="text-sm text-gray-500 dark:text-gray-400">
+    //       {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
+    //     </span>
+    //   ),
+    // }),
     columnHelper.display({
       id: "actions",
       header: "Actions",
@@ -684,7 +684,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
                     </div>
 
                     {/* Country and Created Date */}
-                    <div className="grid grid-cols-2 gap-2">
+                    {/* <div className="grid grid-cols-2 gap-2">
                       <div>
                         <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Country:</span>
                         <p className="text-sm text-gray-900 dark:text-white">{row.original.country}</p>
@@ -695,7 +695,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
                           {row.original.created_on ? new Date(row.original.created_on).toLocaleDateString() : 'N/A'}
                         </p>
                       </div>
-                    </div>
+                    </div> */}
 
                     {/* Actions */}
                     <div className="pt-2 border-t border-gray-200 dark:border-gray-600">

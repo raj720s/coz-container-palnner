@@ -195,51 +195,23 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         </span>
       )
     }),
-    columnHelper.accessor("is_active", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Status
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
+    columnHelper.accessor("is_active", { 
+      header: "Status",
       cell: (info) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          info.getValue()
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+          info.getValue() 
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
         }`}>
           {info.getValue() ? "Active" : "Inactive"}
         </span>
-      ),
-    }),
-    columnHelper.accessor("created_on", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Created
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-500 dark:text-gray-400">
-          {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
-        </span>
-      ),
+      )
     }),
     columnHelper.display({
       id: "actions",
       header: "Actions",
       cell: (info) => (
-        <div className="flex gap-2">
+        <div className="flex space-x-2">
           <Button
             size="sm"
             variant="outline"
@@ -598,10 +570,10 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="font-medium text-gray-900 dark:text-white">
-                          {row.original.port_name}
+                          {row.original.name}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {row.original.port_code}
+                          {row.original.code}
                         </div>
                       </div>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -644,7 +616,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleDelete(row.original.id)}
+                          onClick={() => handleDeleteClick(row.original)}
                           className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
                         >
                           <TrashBinIcon className="w-4 h-4" />
