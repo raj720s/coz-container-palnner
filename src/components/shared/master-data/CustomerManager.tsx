@@ -363,6 +363,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         country: formData.country,
         tax_id: formData.tax_id,
         is_active: formData.is_active,
+        custom_fields: formData.dynamic_fields?.map(df => ({ name: df.field_name })) || [],
       };
       
       if (editingItem) {
@@ -765,7 +766,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             address: editingItem.address,
             country: editingItem.country,
             tax_id: editingItem.tax_id,
-            is_active: editingItem.is_active
+            is_active: editingItem.is_active,
+            dynamic_fields: editingItem.custom_fields?.map(cf => ({ field_name: cf.name })) || []
           } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}

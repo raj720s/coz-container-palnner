@@ -196,7 +196,7 @@ const FIELD_DEFINITIONS = {
     description: "Origin Partner from SupplyX Masterdata"
   },
 
-  // Optional Fields (all unchecked by default)
+  // Optional Fields (hidden by default, can be configured)
   hs_code: {
     id: "hs_code",
     label: "HS Code",

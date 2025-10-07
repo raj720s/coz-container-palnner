@@ -93,19 +93,19 @@ const AppSidebar: React.FC = () => {
       ],
     });
 
-    // items.push({
-    //   name: "Shipment Operations",
-    //   icon: <HiOutlineTruck className="w-5 h-5" />,
-    //   path: "#",
-    //   moduleId: 2,
-    //   subItems: [
-    //     { name: "Shipment Orders", path: "/shipment-orders", moduleId: 75 },
-    //     // { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
-    //     // { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
-    //     // { name: "Container Planning", path: "/container-planning", moduleId: 50 },
-    //     // { name: "Assignment Results", path: "/assignment-results", moduleId: 80 },
-    //   ],
-    // });
+    items.push({
+      name: "Shipment Operations",
+      icon: <HiOutlineTruck className="w-5 h-5" />,
+      path: "#",
+      moduleId: 2,
+      subItems: [
+        { name: "Shipment Orders", path: "/shipment-orders", moduleId: 75 },
+        // { name: "Upload Shipments", path: "/shipment-upload", moduleId: 70 },
+        // { name: "Validation Summary", path: "/validation-summary", moduleId: 80 },
+        // { name: "Container Planning", path: "/container-planning", moduleId: 50 },
+        // { name: "Assignment Results", path: "/assignment-results", moduleId: 80 },
+      ],
+    });
 
     if (isAdmin) {
       items.push({

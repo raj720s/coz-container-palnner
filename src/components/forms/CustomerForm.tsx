@@ -8,6 +8,10 @@ import Label from "@/components/form/Label";
 import Checkbox from "@/components/form/input/Checkbox";
 import Button from "@/components/ui/button/Button";
 
+const dynamicFieldSchema = z.object({
+  field_name: z.string(),
+});
+
 const customerSchema = z.object({
   customer_code: z.string().min(1, "Customer code is required"),
   name: z.string().min(1, "Company name is required"),
@@ -18,9 +22,14 @@ const customerSchema = z.object({
   country: z.string().min(1, "Country is required"),
   tax_id: z.string().min(1, "Tax ID is required"),
   is_active: z.boolean(),
+  dynamic_fields: z.array(dynamicFieldSchema).max(5).optional(),
 });
 
 export type CustomerFormData = z.infer<typeof customerSchema>;
+
+interface DynamicField {
+  field_name: string;
+}
 
 interface CustomerFormProps {
   initialData?: CustomerFormData & { id?: string };
@@ -35,6 +44,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   onCancel,
   isLoading = false,
 }) => {
+  const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
 
   const {
     register,
@@ -55,6 +65,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
       country: "",
       tax_id: "",
       is_active: true,
+      dynamic_fields: [],
     },
   });
 
@@ -64,6 +75,9 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   useEffect(() => {
     if (initialData) {
       reset(initialData);
+      if (initialData.dynamic_fields) {
+        setDynamicFields(initialData.dynamic_fields);
+      }
     } else {
       reset({
         customer_code: "",
@@ -75,12 +89,40 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         country: "",
         tax_id: "",
         is_active: true,
+        dynamic_fields: [],
       });
+      setDynamicFields([]);
     }
   }, [initialData, reset]);
 
+  const addDynamicField = () => {
+    if (dynamicFields.length >= 5) {
+      return; // Maximum 5 dynamic fields allowed
+    }
+    const newField: DynamicField = { field_name: "" };
+    setDynamicFields([...dynamicFields, newField]);
+  };
+
+  const removeDynamicField = (index: number) => {
+    const updatedFields = dynamicFields.filter((_, i) => i !== index);
+    setDynamicFields(updatedFields);
+    setValue("dynamic_fields", updatedFields);
+  };
+
+  const updateDynamicField = (index: number, fieldName: string) => {
+    const updatedFields = dynamicFields.map((field, i) =>
+      i === index ? { ...field, field_name: fieldName } : field
+    );
+    setDynamicFields(updatedFields);
+    setValue("dynamic_fields", updatedFields);
+  };
+
   const handleFormSubmit = (data: CustomerFormData) => {
-    onSubmit(data);
+    const formData = {
+      ...data,
+      dynamic_fields: dynamicFields.filter(field => field.field_name.trim() !== ""),
+    };
+    onSubmit(formData);
   };
 
   const handleCancel = () => {
@@ -206,6 +248,57 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         </div>
       </div>
 
+      {/* Dynamic Fields Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900">Dynamic Fields</h3>
+            <p className="text-sm text-gray-500">
+              {dynamicFields.length}/5 fields added
+              {dynamicFields.length >= 5 && " (Maximum reached)"}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addDynamicField}
+            disabled={isLoading || dynamicFields.length >= 5}
+            className="text-sm"
+          >
+            + Add Field
+          </Button>
+        </div>
+        
+        {dynamicFields.length === 0 && (
+          <p className="text-sm text-gray-500 italic">No dynamic fields added yet. Click "Add Field" to add custom fields (max 5).</p>
+        )}
+        
+        {dynamicFields.map((field, index) => (
+          <div key={index} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+            <div className="flex-1">
+              <Label htmlFor={`dynamic_field_${index}`} className="text-sm font-medium">
+                Field Name {index + 1}
+              </Label>
+              <Input
+                id={`dynamic_field_${index}`}
+                value={field.field_name}
+                onChange={(e) => updateDynamicField(index, e.target.value)}
+                placeholder="e.g., invoice_ref1, invoice_ref2"
+                className="mt-1"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => removeDynamicField(index)}
+              disabled={isLoading}
+              className="text-red-600  self-end hover:text-red-700 hover:bg-red-50"
+            >
+              Remove
+            </Button>
+          </div>
+        ))}
+      </div>
 
       <div className="flex justify-end gap-3 pt-4">
         <Button

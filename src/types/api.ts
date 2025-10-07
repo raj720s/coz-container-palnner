@@ -334,6 +334,15 @@ export interface PODListResponse {
 }
 
 // Customer Management Types
+export interface DynamicField {
+  field_name: string;
+}
+
+export interface CustomField {
+  id: number;
+  name: string;
+}
+
 export interface CreateCustomerRequest {
   name: string;
   customer_code: string;
@@ -344,6 +353,7 @@ export interface CreateCustomerRequest {
   country: string;
   tax_id: string;
   is_active: boolean;
+  custom_fields?: CustomField[];
 }
 
 export interface UpdateCustomerRequest {
@@ -356,6 +366,7 @@ export interface UpdateCustomerRequest {
   country?: string;
   tax_id?: string;
   is_active?: boolean;
+  custom_fields?: CustomField[];
 }
 
 export interface CustomerResponse {
@@ -369,6 +380,9 @@ export interface CustomerResponse {
   country: string;
   tax_id: string;
   is_active: boolean;
+  optionals?: string[];
+  custom_fields?: CustomField[];
+  dynamic_fields?: DynamicField[];
   created_on?: string;
   modified_on?: string;
   created_by?: number;

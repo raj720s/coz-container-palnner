@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { createColumnHelper } from "@tanstack/react-table";
 import {
   useReactTable,
@@ -40,6 +40,7 @@ import {
 import { CustomerFilterDropdown } from "./CustomerFilterDropdown";
 import { ConfigurationDrawer } from "./ConfigurationDrawer";
 import { DynamicField } from "@/utils/customerDynamicFieldsUtils";
+import { customerService } from "@/services";
 
 const columnHelper = createColumnHelper<ShipmentListResponse>();
 
@@ -73,7 +74,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   
   // Column configuration based on validation requirements
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({
-    // Mandatory fields (cannot be hidden)
+    // Mandatory fields (always visible by default, cannot be hidden)
     vendor_booking_number: true,
     vendor_booking_status: true,
     shipper: true,
@@ -88,28 +89,33 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     customer: true,
     vendor: true,
     origin_partner: true,
-    
-    // Optional fields (can be hidden)
-    hs_code: true,
-    cargo_description: true,
-    marks_and_numbers: true,
-    customer_reference: true,
-    cargo_type: false, // Hidden by default as per requirements
-    dangerous_goods_notes: true,
-    place_of_receipt: true,
-    place_of_delivery: true,
-    carrier: true,
-    carrier_booking_number: true,
-    
-    // Equipment fields (required for 'Shipped' status)
     equipment_count: true,
     equipment_size_type: true,
     equipment_numbers: true,
+    
+    // Optional fields (hidden by default, can be configured)
+    hs_code: false,
+    cargo_description: false,
+    marks_and_numbers: false,
+    customer_reference: false,
+    cargo_type: false,
+    dangerous_goods_notes: false,
+    place_of_receipt: false,
+    place_of_delivery: false,
+    carrier: false,
+    carrier_booking_number: false,
     
     // System fields
     created_on: true,
     modified_on: false,
   });
+
+  // Cache customer data to prevent redundant API calls
+  const customerCacheRef = useRef<Map<number, any>>(new Map());
+  
+  // Create stable filter keys for dependency tracking
+  const apiFiltersKey = useMemo(() => JSON.stringify(apiFilters), [apiFilters]);
+  const sortingKey = useMemo(() => JSON.stringify(sorting), [sorting]);
 
   // Load shipment orders from API
   const loadShipmentOrders = async () => {
@@ -181,9 +187,13 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   };
 
   // Reload when pagination, sorting, or filters change
+  // Use stable keys for object/array dependencies to prevent unnecessary re-renders
+  // Don't reload if modal is open (prevents unnecessary API calls when form is being edited)
   useEffect(() => {
-    loadShipmentOrders();
-  }, [pagination.page, pagination.pageSize, sorting, statusFilter, transportationModeFilter, serviceTypeFilter, cargoTypeFilter, customerFilter, globalFilter, apiFilters]);
+    if (!isModalOpen) {
+      loadShipmentOrders();
+    }
+  }, [pagination.page, pagination.pageSize, sortingKey, statusFilter, transportationModeFilter, serviceTypeFilter, cargoTypeFilter, customerFilter, globalFilter, apiFiltersKey]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -193,6 +203,57 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
       }
     };
   }, [searchTimeout]);
+
+  // Load customer dynamic fields when customer filter changes (optimized with caching)
+  useEffect(() => {
+    const loadCustomerDynamicFields = async () => {
+      if (!customerFilter) {
+        setDynamicFields([]);
+        return;
+      }
+
+      // Check cache first
+      const cachedCustomer = customerCacheRef.current.get(customerFilter);
+      if (cachedCustomer) {
+        if (cachedCustomer.custom_fields && cachedCustomer.custom_fields.length > 0) {
+          const customerDynamicFields: DynamicField[] = cachedCustomer.custom_fields.map((field: any) => ({
+            id: field.id.toString(),
+            label: field.name,
+            value: ''
+          }));
+          setDynamicFields(customerDynamicFields);
+        } else {
+          setDynamicFields([]);
+        }
+        return;
+      }
+
+      // Load from API only if not cached
+      try {
+        const customer = await customerService.getCustomer(customerFilter);
+        
+        // Cache the result
+        customerCacheRef.current.set(customerFilter, customer);
+        
+        // Map custom_fields from API to DynamicField format with actual field IDs
+        if (customer.custom_fields && customer.custom_fields.length > 0) {
+          const customerDynamicFields: DynamicField[] = customer.custom_fields.map((field) => ({
+            id: field.id.toString(), // Use actual field ID from API
+            label: field.name,
+            value: ''
+          }));
+          setDynamicFields(customerDynamicFields);
+        } else {
+          setDynamicFields([]);
+        }
+      } catch (error) {
+        console.error("Failed to load customer dynamic fields:", error);
+        setDynamicFields([]);
+      }
+    };
+
+    loadCustomerDynamicFields();
+  }, [customerFilter]);
 
   // Clear all filters
   const clearAllFilters = () => {
@@ -208,7 +269,14 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
 
   // Handle create/edit
   const handleCreate = () => {
-    setEditingOrder(null);
+    // If customer is selected in filter, pre-populate it in the form
+    if (customerFilter) {
+      setEditingOrder({
+        customer: customerFilter,
+      } as ShipmentListResponse);
+    } else {
+      setEditingOrder(null);
+    }
     setIsModalOpen(true);
   };
 
@@ -535,11 +603,34 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
         ),
       }),
 
+      // Missing mandatory fields - port_of_loading
+      columnHelper.display({
+        id: "port_of_loading",
+        header: "Port of Loading",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).port_of_loading || '-'}
+          </span>
+        ),
+      }),
+
+      // port_of_discharge
+      columnHelper.display({
+        id: "port_of_discharge",
+        header: "Port of Discharge",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).port_of_discharge || '-'}
+          </span>
+        ),
+      }),
+
       columnHelper.accessor("customer_name", {
+        id: "customer",
         header: ({ column }) => (
           <button
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            className="flex items-center gap-1 hover:text-gray-700 dark:text-gray-300 transition-colors"
           >
             Customer
             <span className="text-xs">
@@ -550,6 +641,160 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
         cell: (info) => (
           <span className="text-sm text-gray-900 dark:text-white">
             {info.getValue() || '-'}
+          </span>
+        ),
+      }),
+
+      // vendor
+      columnHelper.display({
+        id: "vendor",
+        header: "Vendor",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).vendor || '-'}
+          </span>
+        ),
+      }),
+
+      // origin_partner
+      columnHelper.display({
+        id: "origin_partner",
+        header: "Origin Partner",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).origin_partner || '-'}
+          </span>
+        ),
+      }),
+
+      // Equipment fields
+      columnHelper.display({
+        id: "equipment_count",
+        header: "Equipment #",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white font-mono">
+            {(info.row.original as any).equipment_count || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "equipment_size_type",
+        header: "Equipment Size/Type",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).equipment_size_type || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "equipment_numbers",
+        header: "Equipment Numbers",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white font-mono">
+            {(info.row.original as any).equipment_numbers || '-'}
+          </span>
+        ),
+      }),
+
+      // Optional fields
+      columnHelper.display({
+        id: "hs_code",
+        header: "HS Code",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).hs_code || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "cargo_description",
+        header: "Cargo Description",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).cargo_description || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "marks_and_numbers",
+        header: "Marks & Numbers",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).marks_and_numbers || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "customer_reference",
+        header: "Customer Reference",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).customer_reference || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "cargo_type",
+        header: "Cargo Type",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).cargo_type || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "dangerous_goods_notes",
+        header: "Dangerous Goods Notes",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).dangerous_goods_notes || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "place_of_receipt",
+        header: "Place of Receipt",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).place_of_receipt || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "place_of_delivery",
+        header: "Place of Delivery",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).place_of_delivery || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "carrier",
+        header: "Carrier",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).carrier || '-'}
+          </span>
+        ),
+      }),
+
+      columnHelper.display({
+        id: "carrier_booking_number",
+        header: "Carrier Booking Number",
+        cell: (info) => (
+          <span className="text-sm text-gray-900 dark:text-white">
+            {(info.row.original as any).carrier_booking_number || '-'}
           </span>
         ),
       }),
@@ -572,69 +817,14 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
           </span>
         ),
       }),
-  
+
       columnHelper.display({
-        id: "actions",
-        header: "Actions",
+        id: "modified_on",
+        header: "Modified",
         cell: (info) => (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleEdit(info.row.original)}
-              className="p-1"
-            >
-              <PencilIcon className="w-4 h-4" />
-            </Button>
-  
-            {info.row.original.vendor_booking_status === "draft" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  handleStatusUpdate(info.row.original.id, "confirmed")
-                }
-                className="p-1 text-blue-600 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
-              >
-                Confirm
-              </Button>
-            )}
-
-            {info.row.original.vendor_booking_status === "confirmed" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  handleStatusUpdate(info.row.original.id, "booked")
-                }
-                className="p-1 text-purple-600 border-purple-300 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-900/20"
-              >
-                Book
-              </Button>
-            )}
-
-            {info.row.original.vendor_booking_status === "booked" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  handleStatusUpdate(info.row.original.id, "shipped")
-                }
-                className="p-1 text-green-600 border-green-300 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20"
-              >
-                Ship
-              </Button>
-            )}
-  
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDelete(info.row.original.id)}
-              className="p-1 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-            >
-              <TrashBinIcon className="w-4 h-4" />
-            </Button>
-          </div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {(info.row.original as any).modified_on ? new Date((info.row.original as any).modified_on).toLocaleDateString() : '-'}
+          </span>
         ),
       }),
     ];
@@ -643,22 +833,94 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     const dynamicColumns = dynamicFields.map((field) =>
       columnHelper.display({
         id: `dynamic_${field.id}`,
-        header: field.label,
-        cell: () => (
-          <span className="text-sm text-gray-900 dark:text-white">
-            {field.value || "-"}
-          </span>
-        ),
+        header: field.label, // Use actual field name from customer (e.g., "preferred_shipping_line")
+        cell: (info) => {
+          // Get custom field value from row data
+          const customFieldValues = (info.row.original as any).custom_field_values || [];
+          // Match by field ID (field.id is string, cfv.field is number)
+          const fieldValue = customFieldValues.find((cfv: any) => cfv.field === parseInt(field.id));
+          return (
+            <span className="text-sm text-gray-900 dark:text-white">
+              {fieldValue?.value || "-"}
+            </span>
+          );
+        },
       })
     );
+
+    // Actions column (always last)
+    const actionsColumn = columnHelper.display({
+      id: "actions",
+      header: "Actions",
+      cell: (info) => (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleEdit(info.row.original)}
+            className="p-1"
+          >
+            <PencilIcon className="w-4 h-4" />
+          </Button>
+
+          {info.row.original.vendor_booking_status === "draft" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                handleStatusUpdate(info.row.original.id, "confirmed")
+              }
+              className="p-1 text-blue-600 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:text-blue-400 dark:hover:bg-blue-900/20"
+            >
+              Confirm
+            </Button>
+          )}
+
+          {info.row.original.vendor_booking_status === "confirmed" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                handleStatusUpdate(info.row.original.id, "booked")
+              }
+              className="p-1 text-purple-600 border-purple-300 hover:bg-purple-50 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-900/20"
+            >
+              Book
+            </Button>
+          )}
+
+          {info.row.original.vendor_booking_status === "booked" && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                handleStatusUpdate(info.row.original.id, "shipped")
+              }
+              className="p-1 text-green-600 border-green-300 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20"
+            >
+              Ship
+            </Button>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDelete(info.row.original.id)}
+            className="p-1 text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <TrashBinIcon className="w-4 h-4" />
+          </Button>
+        </div>
+      ),
+    });
   
-    // Combine & filter
-    const allColumns = [...baseColumns, ...dynamicColumns];
-  
-    return allColumns.filter((column) => {
-      if (column.id === "actions") return true; // Always show actions
+    // Filter base columns based on visibility
+    const visibleBaseColumns = baseColumns.filter((column) => {
       return columnVisibility[column.id as string] !== false;
     });
+
+    // Combine: base columns + dynamic columns + actions (always last)
+    return [...visibleBaseColumns, ...dynamicColumns, actionsColumn];
   }, [dynamicFields, columnVisibility]);
   
 
@@ -1211,20 +1473,22 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
           setIsModalOpen(false);
           setEditingOrder(null);
         }}
-        title={editingOrder ? "Edit Shipment Order" : "Create Shipment Order"}
+        title={editingOrder?.id ? "Edit Shipment Order" : "Create Shipment Order"}
         size="xl"
       >
         <ShipmentOrderForm
           initialData={editingOrder ? {
+            // For full edit: all fields populated
+            // For create with customer filter: only customer populated
             id: editingOrder.id,
-            shipper: editingOrder.shipper,
-            consignee: editingOrder.consignee,
+            shipper: editingOrder.shipper || '',
+            consignee: editingOrder.consignee || '',
             transportation_mode: editingOrder.transportation_mode,
-            cargo_readiness_date: editingOrder.cargo_readiness_date,
+            cargo_readiness_date: editingOrder.cargo_readiness_date || '',
             service_type: editingOrder.service_type,
-            volume: editingOrder.volume,
-            weight: editingOrder.weight,
-            hs_code: editingOrder.hs_code,
+            volume: editingOrder.volume || 0,
+            weight: editingOrder.weight || 0,
+            hs_code: editingOrder.hs_code || '',
             cargo_description: editingOrder.cargo_description,
             marks_and_numbers: editingOrder.marks_and_numbers,
             cargo_type: editingOrder.cargo_type,
@@ -1234,6 +1498,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
             carrier: editingOrder.carrier,
             carrier_booking_number: editingOrder.carrier_booking_number,
             customer: editingOrder.customer,
+            custom_field_values: editingOrder.custom_field_values || [],
           } : undefined}
           onSubmit={handleSubmit}
           onCancel={() => {

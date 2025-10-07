@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -82,7 +82,13 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
   isLoading = false,
 }) => {
   const [customerDynamicFields, setCustomerDynamicFields] = useState<CustomerDynamicField[]>([]);
+  const [customFieldValues, setCustomFieldValues] = useState<{[key: string]: string}>({});
   const [isClient, setIsClient] = useState(false);
+  const [isLoadingCustomerFields, setIsLoadingCustomerFields] = useState(false);
+  
+  // Cache for customer data to prevent redundant API calls
+  const customerCacheRef = useRef<Map<number, CustomerResponse>>(new Map());
+  const loadingCustomerRef = useRef<number | null>(null);
 
   const {
     register,
@@ -113,18 +119,71 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
     },
   });
 
-  const isEditing = !!initialData;
+  const isEditing = !!initialData?.id; // ✅ Check for id, not just initialData
   const selectedCustomerId = watch("customer");
   const cargoType = watch("cargo_type");
 
-  // Load customer dynamic fields when customer changes
+  // Load customer dynamic fields when customer changes (optimized with caching)
   useEffect(() => {
-    if (selectedCustomerId && isClient) {
-      const dynamicFields = getCustomerDynamicFieldsById(selectedCustomerId.toString());
-      setCustomerDynamicFields(dynamicFields);
-    } else {
-      setCustomerDynamicFields([]);
-    }
+    const loadCustomerDynamicFields = async () => {
+      if (!selectedCustomerId || !isClient) {
+        setCustomerDynamicFields([]);
+        return;
+      }
+
+      // Prevent duplicate calls for the same customer
+      if (loadingCustomerRef.current === selectedCustomerId) {
+        return;
+      }
+
+      // Check cache first
+      const cachedCustomer = customerCacheRef.current.get(selectedCustomerId);
+      if (cachedCustomer) {
+        // Use cached data
+        if (cachedCustomer.custom_fields && cachedCustomer.custom_fields.length > 0) {
+          const dynamicFields: CustomerDynamicField[] = cachedCustomer.custom_fields.map((field) => ({
+            id: field.id.toString(),
+            label: field.name,
+            value: ''
+          }));
+          setCustomerDynamicFields(dynamicFields);
+        } else {
+          setCustomerDynamicFields([]);
+        }
+        return;
+      }
+
+      // Load from API
+      try {
+        setIsLoadingCustomerFields(true);
+        loadingCustomerRef.current = selectedCustomerId;
+        
+        const customer = await customerService.getCustomer(selectedCustomerId);
+        
+        // Cache the customer data
+        customerCacheRef.current.set(selectedCustomerId, customer);
+        
+        // Map custom_fields from API to CustomerDynamicField format
+        if (customer.custom_fields && customer.custom_fields.length > 0) {
+          const dynamicFields: CustomerDynamicField[] = customer.custom_fields.map((field) => ({
+            id: field.id.toString(),
+            label: field.name,
+            value: ''
+          }));
+          setCustomerDynamicFields(dynamicFields);
+        } else {
+          setCustomerDynamicFields([]);
+        }
+      } catch (error) {
+        console.error("Failed to load customer dynamic fields:", error);
+        setCustomerDynamicFields([]);
+      } finally {
+        setIsLoadingCustomerFields(false);
+        loadingCustomerRef.current = null;
+      }
+    };
+
+    loadCustomerDynamicFields();
   }, [selectedCustomerId, isClient]);
 
   // Initialize form data
@@ -156,6 +215,48 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
       
       console.log("Transformed data:", transformedData);
       reset(transformedData);
+
+      // Load customer fields and populate custom field values if editing
+      const loadInitialCustomerData = async () => {
+        if (initialData.customer) {
+          try {
+            // Check cache first
+            let customer = customerCacheRef.current.get(initialData.customer);
+            
+            // Load from API if not cached
+            if (!customer) {
+              setIsLoadingCustomerFields(true);
+              customer = await customerService.getCustomer(initialData.customer);
+              customerCacheRef.current.set(initialData.customer, customer);
+              setIsLoadingCustomerFields(false);
+            }
+
+            // Set customer dynamic fields
+            if (customer.custom_fields && customer.custom_fields.length > 0) {
+              const dynamicFields: CustomerDynamicField[] = customer.custom_fields.map((field) => ({
+                id: field.id.toString(),
+                label: field.name,
+                value: ''
+              }));
+              setCustomerDynamicFields(dynamicFields);
+            }
+
+            // Populate custom field values from initialData
+            if (initialData.custom_field_values && initialData.custom_field_values.length > 0) {
+              const fieldValuesMap: {[key: string]: string} = {};
+              initialData.custom_field_values.forEach(cfv => {
+                fieldValuesMap[cfv.field.toString()] = cfv.value;
+              });
+              setCustomFieldValues(fieldValuesMap);
+            }
+          } catch (error) {
+            console.error("Failed to load customer data for edit:", error);
+            setIsLoadingCustomerFields(false);
+          }
+        }
+      };
+
+      loadInitialCustomerData();
     }
   }, [initialData, reset]);
 
@@ -188,9 +289,26 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
     }
   };
 
-  const handleFormSubmit = (data: ShipmentOrderFormSchema) => {
+  // Memoize custom field value handler to prevent re-renders
+  const handleCustomFieldChange = useCallback((fieldId: string, value: string) => {
+    setCustomFieldValues(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  }, []);
+
+  // Memoize form submission handler
+  const handleFormSubmit = useCallback((data: ShipmentOrderFormSchema) => {
     console.log("Form submitted with data:", data);
     console.log("Form errors:", errors);
+    
+    // Build custom_field_values array from customFieldValues state
+    const custom_field_values = customerDynamicFields
+      .filter(field => customFieldValues[field.id]?.trim())
+      .map(field => ({
+        field: parseInt(field.id),
+        value: customFieldValues[field.id]
+      }));
     
     // Transform date to ISO format for API
     const transformedData = {
@@ -209,12 +327,13 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
               return data.cargo_readiness_date;
             }
           })()
-        : data.cargo_readiness_date
+        : data.cargo_readiness_date,
+      custom_field_values: custom_field_values.length > 0 ? custom_field_values : undefined
     };
     
     console.log("Transformed data for API:", transformedData);
     onSubmit(transformedData);
-  };
+  }, [customerDynamicFields, customFieldValues, errors, onSubmit]);
 
   const handleCancel = () => {
     if (onCancel) {
@@ -501,19 +620,25 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
       {/* Customer Dynamic Fields */}
       {isClient && customerDynamicFields.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Customer Custom Fields</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Customer Custom Fields
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            These fields are specific to the selected customer
+          </p>
           
           <div className="space-y-4">
             {customerDynamicFields.map((field, index) => (
               <div key={field.id}>
-                <Label htmlFor={`user_defined_field${index + 1}`}>
+                <Label htmlFor={`custom_field_${field.id}`}>
                   {field.label}
                 </Label>
                 <Input
-                  id={`user_defined_field${index + 1}`}
-                  {...register(`user_defined_field${index + 1}` as keyof ShipmentOrderFormSchema)}
+                  id={`custom_field_${field.id}`}
+                  value={customFieldValues[field.id] || ''}
+                  onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
                   placeholder={`Enter ${field.label.toLowerCase()}`}
-                  defaultValue={field.value}
+                  disabled={isLoadingCustomerFields}
                 />
               </div>
             ))}

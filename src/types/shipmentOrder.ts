@@ -1,5 +1,10 @@
 // Shipment Order Types and Interfaces
 
+export interface CustomFieldValue {
+  field: number; // Field ID
+  value: string;
+}
+
 export interface ShipmentOrder {
   id?: number;
   vendor_booking_number?: string; // System-generated booking number (e.g., VBK250911001)
@@ -21,6 +26,7 @@ export interface ShipmentOrder {
   carrier?: string;
   carrier_booking_number?: string;
   customer: number; // Customer ID
+  custom_field_values?: CustomFieldValue[]; // Customer-specific dynamic fields
   // Timestamps
   created_at?: string;
   updated_at?: string;
@@ -107,6 +113,9 @@ export interface ShipmentOrderFormData {
   
   // Customer Reference
   customer: number;
+  
+  // Custom field values
+  custom_field_values?: CustomFieldValue[];
   
   // Optional ID for editing
   id?: number;
@@ -206,6 +215,7 @@ export interface ShipmentListResponse {
   carrier_booking_number: string;
   customer: number;
   customer_name: string;
+  custom_field_values?: CustomFieldValue[];
   created_on: string;
   modified_on: string;
   created_by: number;
