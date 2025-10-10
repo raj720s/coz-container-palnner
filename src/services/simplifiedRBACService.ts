@@ -4,6 +4,12 @@ import { CustomerResponse } from '@/types/api';
 import { staticModuleDefinitions } from '@/config/staticModules';
 import { BASEURL } from '@/config/variables';
 import superAxios from '@/utils/superAxios';
+import { 
+  getCurrentUserRoleId, 
+  isMockUser as checkIfMockUser,
+  getAccessToken as getAuthAccessToken,
+  AUTH_STORAGE_KEYS
+} from '@/utils/authStateHelper';
 
 // Local storage keys
 export const STORAGE_KEYS = {
@@ -88,12 +94,9 @@ class SimplifiedRBACService {
   }>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  // Get authentication token
+  // Get authentication token (uses Redux-aware helper)
   private getAuthToken(): string {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth_token') || '';
-    }
-    return '';
+    return getAuthAccessToken() || '';
   }
 
   // Clear cache for a specific role or all roles
@@ -177,34 +180,14 @@ class SimplifiedRBACService {
     }
   }
 
-  // Helper method to get current user's role ID
+  // Helper method to get current user's role ID (uses Redux-aware helper)
   private getCurrentUserRoleId(): number | null {
-    try {
-      const storedUser = localStorage.getItem('auth_user');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        return user.role_id || null;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting current user role ID:', error);
-      return null;
-    }
+    return getCurrentUserRoleId();
   }
 
-  // Helper method to check if current user is a mock user
+  // Helper method to check if current user is a mock user (uses Redux-aware helper)
   private isMockUser(): boolean {
-    try {
-      const storedUser = localStorage.getItem('auth_user');
-      if (storedUser) {
-        const user = JSON.parse(storedUser);
-        return user.email === 'admin@company.com' || user.email === 'user@company.com';
-      }
-      return false;
-    } catch (error) {
-      console.error('Error checking if user is mock user:', error);
-      return false;
-    }
+    return checkIfMockUser();
   }
 
   // Get routes from server

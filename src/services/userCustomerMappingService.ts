@@ -199,4 +199,4 @@ class UserCustomerMappingService {
 export const userCustomerMappingService = new UserCustomerMappingService();
 
 // Export types
-export type { UserCustomerMapping, UserCustomerMappingsData };
+// export type { UserCustomerMapping, UserCustomerMappingsData };

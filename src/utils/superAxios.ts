@@ -2,6 +2,7 @@ import { BASEURL } from '@/config/variables';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { globalErrorService } from '@/services/globalErrorService';
+import { getAccessToken, AUTH_STORAGE_KEYS } from '@/utils/authStateHelper';
 
 const getToken = () => {
   return process.env.NEXT_PUBLIC_TOKEN;
@@ -17,8 +18,8 @@ const superAxios = axios.create({
 
 // Request interceptor to add authorization header
 superAxios.interceptors.request.use(req => {
-  // Get token from session storage
-  const authToken = localStorage.getItem('auth_token');
+  // Get token from Redux store or localStorage fallback
+  const authToken = getAccessToken();
   
   // Add authorization header if token exists
   if (authToken) {
@@ -81,9 +82,10 @@ superAxios.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, clear tokens and redirect to login
         console.error('Token refresh failed:', refreshError);
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('auth_user');
+        localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+        localStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+        localStorage.removeItem(AUTH_STORAGE_KEYS.FALLBACK_USER);
+        // Redux persist will be cleared by logout action
         
         // Redirect to login page
         if (typeof window !== 'undefined') {

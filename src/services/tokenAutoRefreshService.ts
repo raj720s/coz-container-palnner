@@ -101,7 +101,11 @@ class TokenAutoRefreshService {
       
       // If refresh fails, clear tokens and redirect to login
       authService.clearTokens();
-      localStorage.removeItem('auth_user');
+      // Clear user from all storage locations
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('auth_user_fallback');
+        localStorage.removeItem('persist:auth_user');
+      }
       
       // Dispatch a custom event to notify other parts of the app
       window.dispatchEvent(new CustomEvent('tokenRefreshFailed', {
