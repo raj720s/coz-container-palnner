@@ -339,7 +339,7 @@ export interface DynamicField {
 }
 
 export interface CustomField {
-  id: number;
+  id?: number; // Optional for new fields (will be assigned by API)
   name: string;
 }
 
@@ -353,6 +353,7 @@ export interface CreateCustomerRequest {
   country: string;
   tax_id: string;
   is_active: boolean;
+  optionals?: string[];
   custom_fields?: CustomField[];
 }
 
@@ -366,6 +367,7 @@ export interface UpdateCustomerRequest {
   country?: string;
   tax_id?: string;
   is_active?: boolean;
+  optionals?: string[];
   custom_fields?: CustomField[];
 }
 

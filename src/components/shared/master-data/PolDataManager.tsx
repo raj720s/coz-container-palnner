@@ -1,54 +1,96 @@
 "use client";
 
 import Button from "@/components/ui/button/Button";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  SortingState,
-} from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
-import Pagination from "@/components/tables/Pagination";
 import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
 import { polService } from "@/services";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 
-const columnHelper = createColumnHelper<POLResponse>();
+// AG Grid imports
+import type {
+  ColDef,
+  GridReadyEvent,
+  CellClickedEvent,
+  ValueFormatterParams,
+  ICellRendererParams,
+} from "ag-grid-community";
+import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Custom Cell Renderers
+const StatusRenderer = (params: ICellRendererParams) => {
+  const isActive = params.value;
+  return (
+    <span
+      className={`px-2 py-1 text-xs font-medium rounded-full ${
+        isActive
+          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+      }`}
+    >
+      {isActive ? "Active" : "Inactive"}
+    </span>
+  );
+};
+
+const CityRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+      {params.value}
+    </span>
+  );
+};
+
+const TimezoneRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+      {params.value}
+    </span>
+  );
+};
+
+const CodeRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="font-mono text-sm font-semibold">
+      {params.value}
+    </span>
+  );
+};
+
+const NameRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="font-medium">
+      {params.value}
+    </span>
+  );
+};
 
 interface PolDataManagerProps {
   rbacContext?: SimplifiedRBACProps['rbacContext'];
 }
 
 function PolDataManager({ rbacContext }: PolDataManagerProps) {
-  // Note: Port data is managed by services, not localStorage
-  // useLocalStorageData('ports'); // Removed - ports managed by polService
-  
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   
-  // Use RBAC context from withSimplifiedRBAC instead of duplicate hooks
   const { can, isAdmin, isSuperUser } = rbacContext || {};
   
-  // Local state for data management
   const [pols, setPols] = useState<POLResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   
-  // Local state for filtering and pagination
   const [filters, setFilters] = useState<POLListRequest>({
     page: 1,
     page_size: 10,
@@ -57,7 +99,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   });
   
   const [globalFilter, setGlobalFilter] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
 
@@ -70,38 +111,24 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     setLoading: setModalLoading,
   } = useFormModal<POLResponse>();
 
-  // Check if user can delete POL data using RBAC context
   const canDeletePOL = can?.("DELETE_POL") || isAdmin?.() || isSuperUser;
 
   // Auto-open modal if action=add
   useEffect(() => {
     if (action === 'add') {
       openModal(undefined);
-      // Clear the URL parameter
       const newSearchParams = new URLSearchParams(searchParams.toString());
       newSearchParams.delete('action');
       router.replace(`?${newSearchParams.toString()}`);
     }
   }, [action, openModal, router, searchParams]);
 
-  // Load POL ports on component mount and when filters change
+  // Load POL ports
   useEffect(() => {
     loadPOLs();
   }, [filters]);
 
-  // Sync table sorting with API filters
-  useEffect(() => {
-    if (sorting.length > 0) {
-      const sortConfig = sorting[0];
-      setFilters(prev => ({
-        ...prev,
-        order_by: sortConfig.id,
-        order_type: sortConfig.desc ? 'desc' : 'asc'
-      }));
-    }
-  }, [sorting]);
-
-  // Auto-clear errors after 5 seconds
+  // Auto-clear errors
   useEffect(() => {
     if (error) {
       const timer = setTimeout(() => {
@@ -126,153 +153,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   };
 
-  const columns = useMemo(() => [
-    columnHelper.accessor("code", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Port Code
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("name", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Port Name
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => <span className="font-medium">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("country", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Country
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => info.getValue() 
-    }),
-    columnHelper.accessor("city", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          City
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("timezone", { 
-      header: "Timezone",
-      cell: (info) => (
-        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("is_active", { 
-      header: "Status",
-      cell: (info) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          info.getValue() 
-            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-        }`}>
-          {info.getValue() ? "Active" : "Inactive"}
-        </span>
-      )
-    }),
-    columnHelper.display({
-      id: "actions",
-      header: "Actions",
-      cell: (info) => (
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openModal(info.row.original)}
-            className="p-1"
-          >
-            <PencilIcon className="w-4 h-4" />
-          </Button>
-          
-          {/* Only show delete button if user has permission */}
-          {canDeletePOL && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteClick(info.row.original)}
-              className="p-1 text-red-600 hover:text-red-700"
-            >
-              <TrashBinIcon className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      ),
-    }),
-  ], [openModal, canDeletePOL]);
-
-  const filteredData = useMemo(() => {
-    return pols.filter(item => {
-      const matchesSearch =
-        item.code.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.country.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.city.toLowerCase().includes(globalFilter.toLowerCase());
-
-      return matchesSearch;
-    });
-  }, [pols, globalFilter]);
-
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-  });
-
-  const handleAddNew = () => {
-    openModal(undefined);
-  };
-
   const handleDeleteClick = (pol: POLResponse) => {
-    // Double-check permission before allowing delete
     if (!canDeletePOL) {
       toast.error("You don't have permission to delete POL data");
       return;
@@ -282,10 +163,133 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     setDeleteModalOpen(true);
   };
 
+  // Actions Cell Renderer
+  const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    return (
+      <div className="flex space-x-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openModal(params.data)}
+          className="p-1"
+        >
+          <PencilIcon className="w-4 h-4" />
+        </Button>
+        
+        {canDeletePOL && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDeleteClick(params.data)}
+            className="p-1 text-red-600 hover:text-red-700"
+          >
+            <TrashBinIcon className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    );
+  }, [canDeletePOL, openModal]);
+
+  // Column Definitions
+  const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      field: "code",
+      headerName: "Port Code",
+      width: 150,
+      sortable: true,
+      filter: true,
+      cellRenderer: CodeRenderer,
+    },
+    {
+      field: "name",
+      headerName: "Port Name",
+      width: 200,
+      sortable: true,
+      filter: true,
+      cellRenderer: NameRenderer,
+    },
+    {
+      field: "country",
+      headerName: "Country",
+      width: 150,
+      sortable: true,
+      filter: true,
+    },
+    {
+      field: "city",
+      headerName: "City",
+      width: 150,
+      sortable: true,
+      filter: true,
+      cellRenderer: CityRenderer,
+    },
+    {
+      field: "timezone",
+      headerName: "Timezone",
+      width: 150,
+      sortable: true,
+      filter: true,
+      cellRenderer: TimezoneRenderer,
+    },
+    {
+      field: "is_active",
+      headerName: "Status",
+      width: 120,
+      sortable: true,
+      filter: true,
+      cellRenderer: StatusRenderer,
+    },
+    {
+      headerName: "Actions",
+      width: 150,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
+      pinned: "right",
+    },
+  ], [ActionsRenderer]);
+
+  // Default Column Definition
+  const defaultColDef = useMemo<ColDef>(() => ({
+    resizable: true,
+    sortable: true,
+    filter: true,
+  }), []);
+
+  const handleSubmit = async (formData: PortFormData) => {
+    try {
+      setModalLoading(true);
+      
+      const polData: CreatePOLRequest | UpdatePOLRequest = {
+        name: formData.name,
+        code: formData.code,
+        country: formData.country,
+        city: formData.city,
+        timezone: formData.timezone,
+        is_active: formData.is_active,
+      };
+      
+      if (editingItem) {
+        await polService.updatePOL(editingItem.id, polData);
+        toast.success('POL port updated successfully');
+      } else {
+        await polService.createPOL(polData as CreatePOLRequest);
+        toast.success('POL port created successfully');
+      }
+      
+      loadPOLs();
+      closeModal();
+    } catch (error: any) {
+      console.error('Error saving POL port:', error);
+      toast.error(error.message || 'Failed to save POL port');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
 
-    // Final permission check before deletion
     if (!canDeletePOL) {
       toast.error("You don't have permission to delete POL data");
       setDeleteModalOpen(false);
@@ -299,8 +303,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       toast.success('POL port deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
-      
-      // Refresh the list
       loadPOLs();
     } catch (error: any) {
       console.error('Error deleting POL port:', error);
@@ -310,51 +312,15 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   };
 
-  const handleSubmit = async (formData: PortFormData) => {
-    try {
-      setModalLoading(true);
-      
-      // Convert form data to API format
-      const polData: CreatePOLRequest | UpdatePOLRequest = {
-        name: formData.name,
-        code: formData.code,
-        country: formData.country,
-        city: formData.city,
-        timezone: formData.timezone,
-        is_active: formData.is_active,
-      };
-      
-      if (editingItem) {
-        console.log("editingItem", editingItem);
-        // Update existing port
-        await polService.updatePOL(editingItem.id, polData);
-        toast.success('POL port updated successfully');
-      } else {
-        // Create new port
-        await polService.createPOL(polData as CreatePOLRequest);
-        toast.success('POL port created successfully');
-      }
-      
-      // Refresh the list
-      loadPOLs();
-      closeModal();
-    } catch (error: any) {
-      console.error('Error saving POL port:', error);
-      toast.error(error.message || 'Failed to save POL port');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
   const handleExport = async () => {
     try {
+      setLoading(true);
       const exportData = await polService.exportPOLs({
         ...filters,
         export: true,
         page_size: 1000
       });
       
-      // Create CSV content
       const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status', 'Created On'];
       const csvRows = [
         headers.join(','),
@@ -384,25 +350,19 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     } catch (error: any) {
       console.error('Error exporting POL ports:', error);
       toast.error('Failed to export POL ports');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleFilterChange = (newFilters: Partial<POLListRequest>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-  };
-
-  const handlePageChange = (page: number) => {
-    handleFilterChange({ page });
   };
 
   const handleSearch = (searchTerm: string) => {
     setGlobalFilter(searchTerm);
-    handleFilterChange({ 
+    setFilters(prev => ({ 
+      ...prev,
       name: searchTerm,
       page: 1 
-    });
+    }));
   };
-
 
   return (
     <div className="p-6">
@@ -415,7 +375,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           Manage Port of Loading (POL) ports and their configurations
         </p>
         
-        {/* Permission indicator */}
         {!canDeletePOL && (
           <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-md">
             <div className="flex items-center">
@@ -474,184 +433,44 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-      <div className="p-4">
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search ports by Port Name
-"
-            value={globalFilter}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="max-w-md"
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <Button type="button" onClick={handleExport} size="sm" variant="outline">
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export
-          </Button>
-          <Button type="button" onClick={handleAddNew} size="sm">
-            <PlusIcon className="w-4 h-4 mr-2" />
-            Add POL Port
-          </Button>
-        </div>
-      </div>
-      </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading POL ports...</p>
+        <div className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Search ports by Port Name"
+                value={globalFilter}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="max-w-md"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button type="button" onClick={handleExport} size="sm" variant="outline" disabled={loading}>
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+              <Button type="button" onClick={() => openModal()} size="sm">
+                <PlusIcon className="w-4 h-4 mr-2" />
+                Add POL Port
+              </Button>
             </div>
           </div>
-        )}
-        
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    {loading ? 'Loading...' : 'No POL ports found'}
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="lg:hidden">
-          {table.getRowModel().rows.length === 0 ? (
-            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-              {loading ? 'Loading...' : 'No POL ports found'}
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <div className="space-y-3">
-                    {/* Port Name and Code */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {row.original.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {row.original.code}
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        row.original.is_active 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {row.original.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-
-                    {/* Country and City */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Country:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {row.original.country || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">City:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {row.original.city || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openModal(row.original)}
-                          className="flex-1"
-                        >
-                          <PencilIcon className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteClick(row.original)}
-                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-                        >
-                          <TrashBinIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Pagination */}
-      {filteredData.length > 0 && (
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-            {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
-            )}{" "}
-            of {table.getFilteredRowModel().rows.length} results
-          </div>
-          <div className="order-1 sm:order-2">
-            <Pagination
-              currentPage={table.getState().pagination.pageIndex + 1}
-              totalPages={table.getPageCount()}
-              onPageChange={(page) => table.setPageIndex(page - 1)}
-            />
-          </div>
-        </div>
-      )}
-
+      {/* AG Grid Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden" style={{ height: '600px' }}>
+        <AgGridReact
+          rowData={pols}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          loading={loading}
+          pagination={true}
+          paginationPageSize={filters.page_size}
+          domLayout="normal"
+          animateRows={true}
+          className="ag-theme-alpine"
+        />
+      </div>
 
       {/* Form Modal */}
       <FormModal
@@ -696,10 +515,10 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
 
 export default withSimplifiedRBAC(PolDataManager, {
   privilege: "VIEW_POL_PORTS",
-  module: [60], // Port & Customer Management module
+  module: [60],
   allowSuperUserBypass: true,
   redirectTo: "/dashboard"
 });
 
-// DEBUG: This component should have role [1, 2, 3] - if you see [2, 3], there's a caching issue
+// DEBUG: This component should have role [1, 2, 3]
 console.log('🔐 PolDataManager loaded with role config:', [1, 2, 3]);

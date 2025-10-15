@@ -53,6 +53,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<ShipmentListResponse | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<ShipmentOrderStatus | "">("");
   const [transportationModeFilter, setTransportationModeFilter] = useState<TransportationMode | "">("");
@@ -238,7 +239,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
         // Map custom_fields from API to DynamicField format with actual field IDs
         if (customer.custom_fields && customer.custom_fields.length > 0) {
           const customerDynamicFields: DynamicField[] = customer.custom_fields.map((field) => ({
-            id: field.id.toString(), // Use actual field ID from API
+            id: field.id?.toString() || '', // Use actual field ID from API
             label: field.name,
             value: ''
           }));
@@ -277,11 +278,13 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     } else {
       setEditingOrder(null);
     }
+    setIsSubmitting(false);
     setIsModalOpen(true);
   };
 
   const handleEdit = (order: ShipmentListResponse) => {
     setEditingOrder(order);
+    setIsSubmitting(false);
     setIsModalOpen(true);
   };
 
@@ -305,28 +308,61 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
     }
   };
 
-  const handleSubmit = async (data: ShipmentOrderFormData) => {
+  const handleSubmit = async (data: any) => {
+    // return console.log("ShipmentOrderManager handleSubmit called with data:", data);
     console.log("ShipmentOrderManager handleSubmit called with data:", data);
+    console.log("Editing order:", editingOrder);
+    console.log("Is editing:", !!editingOrder);
+    
+    if (isSubmitting) {
+      console.log("Already submitting, ignoring duplicate submission");
+      return;
+    }
+    
     try {
+      setIsSubmitting(true);
+      
       if (editingOrder) {
         console.log("Updating shipment order:", editingOrder.id);
-        await shipmentOrderService.updateShipmentOrder(editingOrder.id, {
+        console.log("Update payload:", {
           ...data,
           vendor_booking_status: editingOrder.vendor_booking_status, // Preserve existing status
         });
+        
+        const updateResult = await shipmentOrderService.updateShipmentOrder(editingOrder.id, {
+          ...data,
+          vendor_booking_status: editingOrder.vendor_booking_status, // Preserve existing status
+        });
+        
+        console.log("Update result:", updateResult);
       } else {
         console.log("Creating new shipment order");
-        await shipmentOrderService.createShipmentOrder({
+        console.log("Create payload:", {
           ...data,
           vendor_booking_status: 'draft' as ShipmentOrderStatus, // Default status for new orders
         });
+        
+        const createResult = await shipmentOrderService.createShipmentOrder({
+          ...data,
+          vendor_booking_status: 'draft' as ShipmentOrderStatus, // Default status for new orders
+        });
+        
+        console.log("Create result:", createResult);
       }
       console.log("Shipment order saved successfully");
       setIsModalOpen(false);
       setEditingOrder(null);
       await loadShipmentOrders();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to save shipment order:", error);
+      console.error("Error details:", {
+        message: error?.message,
+        response: error?.response?.data,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1472,6 +1508,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
         onClose={() => {
           setIsModalOpen(false);
           setEditingOrder(null);
+          setIsSubmitting(false);
         }}
         title={editingOrder?.id ? "Edit Shipment Order" : "Create Shipment Order"}
         size="xl"
@@ -1504,8 +1541,9 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({ rbacContext
           onCancel={() => {
             setIsModalOpen(false);
             setEditingOrder(null);
+            setIsSubmitting(false);
           }}
-          isLoading={loading}
+          isLoading={isSubmitting}
         />
       </FormModal>
 

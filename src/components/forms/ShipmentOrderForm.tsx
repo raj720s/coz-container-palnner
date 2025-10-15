@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Input from "@/components/form/input/InputField";
@@ -18,6 +18,7 @@ import {
   CARGO_TYPE_OPTIONS,
   CustomerDynamicField
 } from "@/types/shipmentOrder";
+import { ShipmentOrderInput, ShipmentFieldValue } from "@/services/shipmentOrderService";
 import { 
   getCustomerDynamicFieldsById,
   type DynamicField 
@@ -56,6 +57,10 @@ const shipmentOrderSchema = z.object({
   carrier: z.string().optional(),
   carrier_booking_number: z.string().optional(),
   customer: z.number().min(1, "Customer is required"),
+  custom_field_values: z.array(z.object({
+    field: z.union([z.number(), z.string()]), // Accept both number and string
+    value: z.string() // Allow empty values, will be filtered on submit
+  })).optional(),
 }).refine((data) => {
   if (data.cargo_type === "dg" && !data.dangerous_goods_notes?.trim()) {
     return false;
@@ -81,6 +86,8 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
   onCancel,
   isLoading = false,
 }) => {
+
+  console.log("initialData", initialData);
   const [customerDynamicFields, setCustomerDynamicFields] = useState<CustomerDynamicField[]>([]);
   const [customFieldValues, setCustomFieldValues] = useState<{[key: string]: string}>({});
   const [isClient, setIsClient] = useState(false);
@@ -94,9 +101,11 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
     register,
     handleSubmit,
     reset,
+    formState,
     formState: { errors },
     setValue,
     watch,
+    control,
   } = useForm<ShipmentOrderFormSchema>({
     resolver: zodResolver(shipmentOrderSchema),
     defaultValues: {
@@ -116,18 +125,23 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
       carrier: "",
       carrier_booking_number: "",
       customer: 0,
+      custom_field_values: [],
     },
   });
 
   const isEditing = !!initialData?.id; // ✅ Check for id, not just initialData
   const selectedCustomerId = watch("customer");
   const cargoType = watch("cargo_type");
+  
+  // Watch custom field values to trigger form updates
+  const watchedCustomFieldValues = watch("custom_field_values");
 
   // Load customer dynamic fields when customer changes (optimized with caching)
   useEffect(() => {
     const loadCustomerDynamicFields = async () => {
       if (!selectedCustomerId || !isClient) {
         setCustomerDynamicFields([]);
+        setCustomFieldValues({});
         return;
       }
 
@@ -136,47 +150,64 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
         return;
       }
 
-      // Check cache first
-      const cachedCustomer = customerCacheRef.current.get(selectedCustomerId);
-      if (cachedCustomer) {
-        // Use cached data
-        if (cachedCustomer.custom_fields && cachedCustomer.custom_fields.length > 0) {
-          const dynamicFields: CustomerDynamicField[] = cachedCustomer.custom_fields.map((field) => ({
-            id: field.id.toString(),
-            label: field.name,
-            value: ''
-          }));
-          setCustomerDynamicFields(dynamicFields);
-        } else {
-          setCustomerDynamicFields([]);
-        }
-        return;
-      }
-
-      // Load from API
       try {
         setIsLoadingCustomerFields(true);
         loadingCustomerRef.current = selectedCustomerId;
         
-        const customer = await customerService.getCustomer(selectedCustomerId);
+        // Get customer data (from cache or API)
+        let customer = customerCacheRef.current.get(selectedCustomerId);
+        if (!customer) {
+          customer = await customerService.getCustomer(selectedCustomerId);
+          customerCacheRef.current.set(selectedCustomerId, customer);
+        }
         
-        // Cache the customer data
-        customerCacheRef.current.set(selectedCustomerId, customer);
-        
-        // Map custom_fields from API to CustomerDynamicField format
         if (customer.custom_fields && customer.custom_fields.length > 0) {
           const dynamicFields: CustomerDynamicField[] = customer.custom_fields.map((field) => ({
-            id: field.id.toString(),
+            id: field.id?.toString() || '',
             label: field.name,
             value: ''
           }));
           setCustomerDynamicFields(dynamicFields);
+          
+          // Create custom field values array
+          const customFieldValuesArray = customer.custom_fields.map((field) => {
+            // If editing, find existing value
+            const existingValue = initialData?.custom_field_values?.find(
+              cfv => cfv.field === field.id
+            );
+            
+            return {
+              field: field.id || 0,
+              value: existingValue?.value || ''
+            };
+          });
+          
+          // Set form values using setValue with shouldValidate and shouldDirty
+          setValue("custom_field_values", customFieldValuesArray, { 
+            shouldValidate: true,
+            shouldDirty: true 
+          });
+          
+          // Update local state for UI
+          if (initialData?.custom_field_values) {
+            const fieldValuesMap: {[key: string]: string} = {};
+            initialData.custom_field_values.forEach(cfv => {
+              fieldValuesMap[cfv.field.toString()] = cfv.value;
+            });
+            setCustomFieldValues(fieldValuesMap);
+          } else {
+            setCustomFieldValues({});
+          }
         } else {
           setCustomerDynamicFields([]);
+          setValue("custom_field_values", []);
+          setCustomFieldValues({});
         }
       } catch (error) {
         console.error("Failed to load customer dynamic fields:", error);
         setCustomerDynamicFields([]);
+        setValue("custom_field_values", []);
+        setCustomFieldValues({});
       } finally {
         setIsLoadingCustomerFields(false);
         loadingCustomerRef.current = null;
@@ -184,7 +215,7 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
     };
 
     loadCustomerDynamicFields();
-  }, [selectedCustomerId, isClient]);
+  }, [selectedCustomerId, isClient, setValue, initialData]);
 
   // Initialize form data
   useEffect(() => {
@@ -210,7 +241,9 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
                 return initialData.cargo_readiness_date;
               }
             })()
-          : initialData.cargo_readiness_date
+          : initialData.cargo_readiness_date,
+        // Initialize custom_field_values as empty array initially
+        custom_field_values: []
       };
       
       console.log("Transformed data:", transformedData);
@@ -231,32 +264,70 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
               setIsLoadingCustomerFields(false);
             }
 
-            // Set customer dynamic fields
+            // Set customer dynamic fields (even if empty)
             if (customer.custom_fields && customer.custom_fields.length > 0) {
               const dynamicFields: CustomerDynamicField[] = customer.custom_fields.map((field) => ({
-                id: field.id.toString(),
+                id: field.id?.toString() || '',
                 label: field.name,
                 value: ''
               }));
               setCustomerDynamicFields(dynamicFields);
-            }
-
-            // Populate custom field values from initialData
-            if (initialData.custom_field_values && initialData.custom_field_values.length > 0) {
-              const fieldValuesMap: {[key: string]: string} = {};
-              initialData.custom_field_values.forEach(cfv => {
-                fieldValuesMap[cfv.field.toString()] = cfv.value;
-              });
-              setCustomFieldValues(fieldValuesMap);
+              
+              // Initialize custom_field_values array for React Hook Form
+              const customFieldValuesArray = customer.custom_fields.map((field) => ({
+                field: field.id || 0,
+                value: ''
+              }));
+              
+              // If editing, populate with existing values
+              if (initialData.custom_field_values && initialData.custom_field_values.length > 0) {
+                const fieldValuesMap: {[key: string]: string} = {};
+                initialData.custom_field_values.forEach(cfv => {
+                  fieldValuesMap[cfv.field.toString()] = cfv.value;
+                });
+                setCustomFieldValues(fieldValuesMap);
+                
+                // Map existing values to the correct structure
+                const populatedCustomFieldValues = customer.custom_fields.map((field) => {
+                  const existingValue = initialData.custom_field_values?.find(cfv => cfv.field === field.id);
+                  return {
+                    field: field.id || 0,
+                    value: existingValue?.value || ''
+                  };
+                });
+                setValue("custom_field_values", populatedCustomFieldValues);
+              } else {
+                setCustomFieldValues({});
+                setValue("custom_field_values", customFieldValuesArray);
+              }
+            } else {
+              // Important: Set empty array even if no custom fields
+              setCustomerDynamicFields([]);
+              setCustomFieldValues({});
+              setValue("custom_field_values", []);
             }
           } catch (error) {
             console.error("Failed to load customer data for edit:", error);
             setIsLoadingCustomerFields(false);
+            // Set empty values on error
+            setCustomerDynamicFields([]);
+            setCustomFieldValues({});
+            setValue("custom_field_values", []);
           }
+        } else {
+          // No customer selected, clear dynamic fields
+          setCustomerDynamicFields([]);
+          setCustomFieldValues({});
+          setValue("custom_field_values", []);
         }
       };
 
       loadInitialCustomerData();
+    } else {
+      // No initial data, clear everything
+      setCustomerDynamicFields([]);
+      setCustomFieldValues({});
+      setValue("custom_field_values", []);
     }
   }, [initialData, reset]);
 
@@ -291,49 +362,52 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
 
   // Memoize custom field value handler to prevent re-renders
   const handleCustomFieldChange = useCallback((fieldId: string, value: string) => {
+    // Update local state for UI display (if needed)
     setCustomFieldValues(prev => ({
       ...prev,
       [fieldId]: value
     }));
+    
+    // Note: Controller handles React Hook Form updates automatically
   }, []);
 
   // Memoize form submission handler
   const handleFormSubmit = useCallback((data: ShipmentOrderFormSchema) => {
     console.log("Form submitted with data:", data);
     console.log("Form errors:", errors);
+    console.log("Current form values:", watch());
+    console.log("Form state:", formState);
     
-    // Build custom_field_values array from customFieldValues state
-    const custom_field_values = customerDynamicFields
-      .filter(field => customFieldValues[field.id]?.trim())
-      .map(field => ({
-        field: parseInt(field.id),
-        value: customFieldValues[field.id]
+    // Filter out empty custom field values
+    const custom_field_values: ShipmentFieldValue[] = (data.custom_field_values || [])
+      .filter(cfv => cfv && cfv.field && cfv.value && cfv.value.trim().length > 0)
+      .map(cfv => ({
+        field: typeof cfv.field === 'string' ? parseInt(cfv.field) : cfv.field,
+        value: cfv.value.trim()
       }));
     
-    // Transform date to ISO format for API
-    const transformedData = {
+    console.log("Filtered custom field values:", custom_field_values);
+    
+    // Transform data for API
+    const transformedData: ShipmentOrderInput = {
       ...data,
       cargo_readiness_date: data.cargo_readiness_date 
-        ? (() => {
-            try {
-              const date = new Date(data.cargo_readiness_date);
-              if (isNaN(date.getTime())) {
-                console.warn("Invalid date format for submission:", data.cargo_readiness_date);
-                return data.cargo_readiness_date;
-              }
-              return date.toISOString();
-            } catch (error) {
-              console.warn("Error parsing date for submission:", error);
-              return data.cargo_readiness_date;
-            }
-          })()
+        ? new Date(data.cargo_readiness_date).toISOString()
         : data.cargo_readiness_date,
+      cargo_description: data.cargo_description || null,
+      marks_and_numbers: data.marks_and_numbers || null,
+      cargo_type: data.cargo_type || null,
+      dangerous_goods_notes: data.dangerous_goods_notes || null,
+      place_of_receipt: data.place_of_receipt || null,
+      place_of_delivery: data.place_of_delivery || null,
+      carrier: data.carrier || null,
+      carrier_booking_number: data.carrier_booking_number || null,
       custom_field_values: custom_field_values.length > 0 ? custom_field_values : undefined
     };
     
     console.log("Transformed data for API:", transformedData);
-    onSubmit(transformedData);
-  }, [customerDynamicFields, customFieldValues, errors, onSubmit]);
+    onSubmit(transformedData as any);
+  }, [errors, onSubmit, watch, formState]);
 
   const handleCancel = () => {
     if (onCancel) {
@@ -341,6 +415,44 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
     } else {
       window.history.back();
     }
+  };
+
+  const  handleUpdate = () => {
+    console.log("Form submitted with data:", watch());
+    console.log("Form errors:", errors);
+    console.log("Current form values:", watch());
+    console.log("Form state:", formState);
+    
+    // Filter out empty custom field values
+    const custom_field_values: ShipmentFieldValue[] = (watch("custom_field_values") || [])
+      .filter(cfv => cfv && cfv.field && cfv.value && cfv.value.trim().length > 0)
+      .map(cfv => ({
+        field: typeof cfv.field === 'string' ? parseInt(cfv.field) : cfv.field,
+        value: cfv.value.trim()
+      }));
+    
+    console.log("Filtered custom field values:", custom_field_values);
+    
+    // Transform data for API
+    const transformedData: ShipmentOrderInput = {
+        ...watch(),
+      cargo_readiness_date: watch("cargo_readiness_date") 
+        ? new Date(watch("cargo_readiness_date")).toISOString()
+        : watch("cargo_readiness_date"),
+      cargo_description: watch("cargo_description") || null,
+      marks_and_numbers: watch("marks_and_numbers") || null,
+      cargo_type: watch("cargo_type") || null,
+      dangerous_goods_notes: watch("dangerous_goods_notes") || null,
+      place_of_receipt: watch("place_of_receipt") || null,
+      place_of_delivery: watch("place_of_delivery") || null,
+      carrier: watch("carrier") || null,
+      carrier_booking_number: watch("carrier_booking_number") || null,
+      custom_field_values: custom_field_values.length > 0 ? custom_field_values : undefined
+    };
+    
+    console.log("Transformed data for API:", transformedData);
+    onSubmit(transformedData as ShipmentOrderFormData);
+    console.log("Form submitted with data:", watch("place_of_delivery"));
   };
 
 
@@ -633,12 +745,34 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
                 <Label htmlFor={`custom_field_${field.id}`}>
                   {field.label}
                 </Label>
-                <Input
-                  id={`custom_field_${field.id}`}
-                  value={customFieldValues[field.id] || ''}
-                  onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
-                  placeholder={`Enter ${field.label.toLowerCase()}`}
-                  disabled={isLoadingCustomerFields}
+                
+                {/* Value Controller */}
+                <Controller
+                  name={`custom_field_values.${index}.value` as any}
+                  control={control}
+                  defaultValue=""
+                  rules={{ required: false }}
+                  render={({ field: controllerField, fieldState }) => (
+                    <Input
+                      id={`custom_field_${field.id}`}
+                      value={controllerField.value as string || ""}
+                      onChange={controllerField.onChange}
+                      onBlur={controllerField.onBlur}
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                      disabled={isLoadingCustomerFields}
+                      error={fieldState.error?.message}
+                    />
+                  )}
+                />
+                
+                {/* Hidden Field Controller */}
+                <Controller
+                  name={`custom_field_values.${index}.field` as any}
+                  control={control}
+                  defaultValue={parseInt(field.id)}
+                  render={({ field: hiddenField }) => (
+                    <input type="hidden" value={hiddenField.value} onChange={hiddenField.onChange} />
+                  )}
                 />
               </div>
             ))}
@@ -655,12 +789,26 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Saving...' : (isEditing ? 'Update Shipment Order' : 'Create Shipment Order')}
-        </Button>
+
+        {
+          isEditing ? (
+            <Button
+              // type="submit"
+              disabled={isLoading}  
+              onClick={handleUpdate}
+            >
+              {isLoading ? 'Saving...' : 'Update Shipment Order'}
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              disabled={isLoading}  
+            >
+              {isLoading ? 'Saving...' : 'Create Shipment Order'}
+            </Button>
+          )
+        }
+        
       </div>
     </form>
   );

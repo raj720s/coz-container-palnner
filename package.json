@@ -29,6 +29,8 @@
     "@types/react-dom": "^19",
     "@types/react-transition-group": "^4.4.12",
     "@types/xlsx": "^0.0.35",
+    "ag-grid-enterprise": "^34.2.0",
+    "ag-grid-react": "^34.2.0",
     "apexcharts": "^4.3.0",
     "autoprefixer": "^10.4.20",
     "axios": "^1.11.0",
