@@ -1,32 +1,104 @@
 "use client";
 
 import Button from "@/components/ui/button/Button";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  SortingState,
-} from "@tanstack/react-table";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, ChevronLeftIcon, ChevronUpIcon, ChevronDownIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import { useFormModal } from "@/hooks/useFormModal";
 import toast from "react-hot-toast";
 
-import Pagination from "@/components/tables/Pagination";
 import { customerService } from "@/services";
 import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 
-const columnHelper = createColumnHelper<CustomerResponse>();
+// AG Grid imports
+import type {
+  ColDef,
+  ICellRendererParams,
+} from "ag-grid-community";
+import { 
+  AllCommunityModule, 
+  ModuleRegistry,
+  CsvExportModule,
+} from "ag-grid-community";
+import { 
+  AgGridReact,
+} from "ag-grid-react";
+import { ExcelExportModule } from "ag-grid-enterprise";
+
+ModuleRegistry.registerModules([
+  AllCommunityModule,
+  CsvExportModule,
+  ExcelExportModule,
+]);
+
+// Custom Cell Renderers
+const StatusRenderer = (params: ICellRendererParams) => {
+  const isActive = params.value;
+  return (
+    <span
+      className={`px-2 py-1 text-xs font-medium rounded-full ${
+        isActive
+          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+      }`}
+    >
+      {isActive ? "Active" : "Inactive"}
+    </span>
+  );
+};
+
+const CountryRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="px-2 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
+      {params.value}
+    </span>
+  );
+};
+
+const CodeRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="font-mono text-sm font-semibold">
+      {params.value}
+    </span>
+  );
+};
+
+const NameRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="font-medium">
+      {params.value}
+    </span>
+  );
+};
+
+const EmailRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="text-sm text-blue-600 dark:text-blue-400">
+      {params.value}
+    </span>
+  );
+};
+
+const PhoneRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="text-sm text-gray-600 dark:text-gray-400">
+      {params.value}
+    </span>
+  );
+};
+
+const TaxIdRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+      {params.value}
+    </span>
+  );
+};
 
 interface CustomerManagerProps {
   rbacContext?: SimplifiedRBACProps['rbacContext'];
@@ -36,6 +108,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
+  const gridRef = useRef<AgGridReact<CustomerResponse>>(null);
   
   // Use RBAC context from withSimplifiedRBAC instead of duplicate hooks
   const { can, isAdmin, isSuperUser } = rbacContext || {};
@@ -49,7 +122,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   });
 
   const [globalFilter, setGlobalFilter] = useState("");
-  const [sorting, setSorting] = useState<SortingState>([]);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<CustomerResponse | null>(null);
 
@@ -62,22 +134,29 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
 
+  // Pagination state for AG Grid
+  const [paginationInfo, setPaginationInfo] = useState({
+    currentPage: 0,
+    totalPages: 0,
+    totalRecords: 0,
+    pageSize: 10,
+  });
+
   // Load customers on component mount and when filters change
   useEffect(() => {
     loadCustomers();
   }, [filters]);
 
-  // Sync table sorting with API filters
+  // Sync grid pagination with our state when data loads
   useEffect(() => {
-    if (sorting.length > 0) {
-      const sortConfig = sorting[0];
-      setFilters(prev => ({
-        ...prev,
-        order_by: sortConfig.id,
-        order_type: sortConfig.desc ? 'desc' : 'asc'
-      }));
+    if (gridRef.current && paginationInfo.totalRecords > 0) {
+      const api = gridRef.current.api;
+      // Set the current page in the grid
+      api.paginationGoToPage(paginationInfo.currentPage);
+      // Update the total row count
+      api.setGridOption('rowData', customers);
     }
-  }, [sorting]);
+  }, [paginationInfo, customers]);
 
   // Auto-clear errors after 5 seconds
   useEffect(() => {
@@ -94,9 +173,24 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     try {
       setLoading(true);
       setError(null);
+      console.log('Loading customers with filters:', filters);
       const response = await customerService.getCustomers(filters);
+      console.log('API response:', response);
+      
       setCustomers(response.results);
       setTotal(response.count);
+      
+      // Update pagination info for AG Grid
+      const totalPages = Math.ceil((response.count || 0) / (filters.page_size || 10));
+      const paginationInfo = {
+        currentPage: (filters.page || 1) - 1, // Convert to 0-based for AG Grid
+        totalPages,
+        totalRecords: response.count || 0,
+        pageSize: filters.page_size || 10,
+      };
+      
+      console.log('Updated pagination info:', paginationInfo);
+      setPaginationInfo(paginationInfo);
     } catch (err: any) {
       setError(err?.message || 'Failed to load customers');
       console.error('Error loading customers:', err);
@@ -125,200 +219,168 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     }
   }, [action, openModal, router, searchParams]);
 
-  const columns = useMemo(() => [
-    columnHelper.accessor("customer_code", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Customer Code
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => <span className="font-mono text-sm font-semibold">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("name", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Company Name
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => <span className="font-medium">{info.getValue()}</span>
-    }),
-    columnHelper.accessor("contact_person", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Contact Person
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => info.getValue() 
-    }),
-    columnHelper.accessor("email", { 
-      header: "Email",
-      cell: (info) => (
-        <span className="text-sm text-blue-600 dark:text-blue-400">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("phone", { 
-      header: "Phone",
-      cell: (info) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {info.getValue()}
-          </span>
-      )
-    }),
-    columnHelper.accessor("country", { 
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Country
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="px-2 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded-full">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("tax_id", { 
-      header: "Tax ID",
-      cell: (info) => (
-        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-          {info.getValue()}
-        </span>
-      )
-    }),
-    columnHelper.accessor("is_active", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Status
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          info.getValue()
-            ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-            : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-        }`}>
-          {info.getValue() ? "Active" : "Inactive"}
-        </span>
-      ),
-    }),
-    // columnHelper.accessor("created_on", {
-    //   header: ({ column }) => (
-    //     <button
-    //       onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-    //       className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-    //     >
-    //       Created
-    //       <span className="text-xs">
-    //         {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-    //       </span>
-    //     </button>
-    //   ),
-    //   cell: (info) => (
-    //     <span className="text-sm text-gray-500 dark:text-gray-400">
-    //       {info.getValue() ? new Date(info.getValue()!).toLocaleDateString() : "N/A"}
-    //     </span>
-    //   ),
-    // }),
-    columnHelper.display({
-      id: "actions",
-      header: "Actions",
-      cell: (info) => (
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openModal(info.row.original)}
-            className="p-1"
-          >
-            <PencilIcon className="w-4 h-4" />
-          </Button>
-          
-          {/* Only show delete button if user has permission */}
-          {canDeleteCustomer && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleDeleteClick(info.row.original)}
-              className="p-1 text-red-600 hover:text-red-700"
-            >
-              <TrashBinIcon className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-      ),
-    }),
-  ], [openModal, canDeleteCustomer]);
-
-  const filteredData = useMemo(() => {
-    return customers.filter(item => {
-      const matchesSearch =
-        item.customer_code.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.contact_person.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.email.toLowerCase().includes(globalFilter.toLowerCase()) ||
-        item.country.toLowerCase().includes(globalFilter.toLowerCase());
-
-      return matchesSearch;
-    });
-  }, [customers, globalFilter]);
-
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    state: {
-      sorting,
-    },
-    onSortingChange: setSorting,
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
-  });
-
   const handleAddNew = () => {
     openModal(undefined);
   };
 
   const handleDeleteClick = (customer: CustomerResponse) => {
+    if (!canDeleteCustomer) {
+      toast.error("You don't have permission to delete customer data");
+      return;
+    }
+    
     setDeletingItem(customer);
     setDeleteModalOpen(true);
   };
+
+  // Actions Cell Renderer
+  const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    return (
+      <div className="flex space-x-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openModal(params.data)}
+          className="p-1"
+        >
+          <PencilIcon className="w-4 h-4" />
+        </Button>
+        
+        {canDeleteCustomer && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleDeleteClick(params.data)}
+            className="p-1 text-red-600 hover:text-red-700"
+          >
+            <TrashBinIcon className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    );
+  }, [canDeleteCustomer, openModal]);
+
+  // Column Definitions
+  const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      field: "customer_code",
+      headerName: "Customer Code",
+      minWidth: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: CodeRenderer,
+      pinned: "left",
+    },
+    {
+      field: "name",
+      headerName: "Company Name",
+      minWidth: 200,
+      flex: 2,
+      sortable: true,
+      filter: true,
+      cellRenderer: NameRenderer,
+    },
+    {
+      field: "contact_person",
+      headerName: "Contact Person",
+      minWidth: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      minWidth: 200,
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      cellRenderer: EmailRenderer,
+    },
+    {
+      field: "phone",
+      headerName: "Phone",
+      minWidth: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: PhoneRenderer,
+    },
+    {
+      field: "country",
+      headerName: "Country",
+      minWidth: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: CountryRenderer,
+    },
+    {
+      field: "tax_id",
+      headerName: "Tax ID",
+      minWidth: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: TaxIdRenderer,
+    },
+    {
+      field: "is_active",
+      headerName: "Status",
+      minWidth: 120,
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      cellRenderer: StatusRenderer,
+    },
+    {
+      headerName: "Actions",
+      minWidth: 150,
+      flex: 0.8,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
+      pinned: "right",
+    },
+  ], [ActionsRenderer]);
+
+  // Default Column Definition
+  const defaultColDef = useMemo<ColDef>(() => ({
+    resizable: true,
+    sortable: true,
+    filter: true,
+    flex: 1,
+    minWidth: 100,
+  }), []);
+
+  // Handle pagination changes
+  const onPaginationChanged = useCallback(() => {
+    if (gridRef.current) {
+      const api = gridRef.current.api;
+      const currentPage = api.paginationGetCurrentPage();
+      const pageSize = api.paginationGetPageSize();
+      
+      // Update filters with new page (convert from 0-based to 1-based)
+      const newPage = currentPage + 1;
+      
+      console.log('Pagination changed:', {
+        currentPage,
+        newPage,
+        pageSize,
+        currentFilters: filters
+      });
+      
+      if (newPage !== filters.page || pageSize !== filters.page_size) {
+        console.log('Updating filters with new pagination:', { newPage, pageSize });
+        setFilters(prev => ({
+          ...prev,
+          page: newPage,
+          page_size: pageSize,
+        }));
+      }
+    }
+  }, [filters.page, filters.page_size]);
 
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
@@ -387,8 +449,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     }
   };
 
-  const handleExport = async () => {
+  const handleExportCSV = async () => {
     try {
+      setLoading(true);
       const exportData = await customerService.getCustomers({
         ...filters,
         page_size: 1000
@@ -423,29 +486,43 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       link.click();
       document.body.removeChild(link);
       
-      toast.success('Customers exported successfully');
+      toast.success('Customers exported to CSV successfully');
     } catch (error: any) {
-      console.error('Error exporting customers:', error);
-      toast.error('Failed to export customers');
+      console.error('Error exporting customers to CSV:', error);
+      toast.error('Failed to export customers to CSV');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFilterChange = (newFilters: Partial<CustomerListRequest>) => {
-    setFilters(prev => ({ ...prev, ...newFilters }));
-  };
+  const handleExportExcel = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsExcel({
+          fileName: `customers_${new Date().toISOString().split('T')[0]}.xlsx`,
+          sheetName: "Customers",
+        });
+        toast.success("Customers exported to Excel successfully");
+      } catch (error: any) {
+        console.error("Error exporting to Excel:", error);
+        toast.error("Failed to export to Excel");
+      }
+    }
+  }, []);
 
-  const handlePageChange = (page: number) => {
-    handleFilterChange({ page });
+  const handleExport = () => {
+    // Default to Excel export
+    handleExportExcel();
   };
 
   const handleSearch = (searchTerm: string) => {
     setGlobalFilter(searchTerm);
-    handleFilterChange({ 
+    setFilters(prev => ({
+      ...prev,
       name: searchTerm,
-      page: 1 
-    });
+      page: 1,
+    }));
   };
-
 
   return (
     <div className="p-6">
@@ -557,17 +634,29 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
               />
             </div>
 
-            {/* Export Button */}
-            <Button 
-              type="button"
-              onClick={handleExport} 
-              size="sm" 
-              variant="outline"
-              className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
-            >
-              <DownloadIcon className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            {/* Export Buttons */}
+            <div className="flex gap-3">
+              <Button 
+                type="button"
+                onClick={handleExport} 
+                size="sm" 
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+              >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button 
+                type="button"
+                onClick={handleExportCSV} 
+                size="sm" 
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+              >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
 
             {/* Add Button */}
             <Button 
@@ -583,183 +672,45 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading customers...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    {loading ? 'Loading...' : 'No customers found'}
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="lg:hidden">
-          {table.getRowModel().rows.length === 0 ? (
-            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-              {loading ? 'Loading...' : 'No customers found'}
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <div className="space-y-3">
-                    {/* Customer Name and Status */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {row.original.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {row.original.customer_code}
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        row.original.is_active 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {row.original.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-
-                    {/* Contact Information */}
-                    <div className="grid grid-cols-1 gap-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Contact:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">{row.original.contact_person}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Email:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">{row.original.email}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Phone:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">{row.original.phone}</p>
-                      </div>
-                    </div>
-
-                    {/* Country and Created Date */}
-                    {/* <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Country:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">{row.original.country}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {row.original.created_on ? new Date(row.original.created_on).toLocaleDateString() : 'N/A'}
-                        </p>
-                      </div>
-                    </div> */}
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openModal(row.original)}
-                          className="flex-1"
-                        >
-                          <PencilIcon className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteClick(row.original)}
-                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-                        >
-                          <TrashBinIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* AG Grid Table */}
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
+        style={{ height: "600px" }}
+      >
+        <AgGridReact
+          ref={gridRef}
+          rowData={customers}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          loading={loading}
+          pagination={true}
+          paginationPageSize={filters.page_size}
+          paginationAutoPageSize={false}
+          suppressPaginationPanel={false}
+          domLayout="normal"
+          animateRows={true}
+          className="ag-theme-alpine"
+          onPaginationChanged={onPaginationChanged}
+          // Server-side pagination configuration
+          paginationPageSizeSelector={[10, 25, 50, 100]}
+          // Ensure pagination is server-side
+          suppressRowClickSelection={false}
+          rowSelection="single"
+        />
       </div>
-
-      {/* Pagination */}
-      {filteredData.length > 0 && (
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-            {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              table.getFilteredRowModel().rows.length
-            )}{" "}
-            of {table.getFilteredRowModel().rows.length} results
-          </div>
-          <div className="order-1 sm:order-2">
-            <Pagination
-              currentPage={table.getState().pagination.pageIndex + 1}
-              totalPages={table.getPageCount()}
-              onPageChange={(page) => table.setPageIndex(page - 1)}
-            />
-          </div>
-        </div>
-      )}
-
 
       {/* Form Modal */}
       <FormModal
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingItem ? "Edit Customer" : "Add New Customer"}
+        size="xl"
       >
         <CustomerForm
           initialData={editingItem ? {
-            customer_code: editingItem.customer_code,
+            id: editingItem.id.toString(),
             name: editingItem.name,
+            customer_code: editingItem.customer_code,
             contact_person: editingItem.contact_person,
             email: editingItem.email,
             phone: editingItem.phone,
@@ -770,7 +721,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             custom_fields: editingItem.custom_fields || []
           } : undefined}
           onSubmit={handleSubmit}
-          onCancel={closeModal}
           isLoading={isModalLoading}
         />
       </FormModal>
@@ -793,11 +743,9 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   );
 }
 
-
-
 export default withSimplifiedRBAC(CustomerManager, {
-  privilege: "VIEW_CUSTOMERS", // Minimum required privilege to access
-  module: [60], // Port & Customer Management module
-  allowSuperUserBypass: true, // Superusers can always access
-  redirectTo: "/dashboard" // Redirect if no access
+  privilege: "VIEW_CUSTOMERS",
+  module: [50],
+  allowSuperUserBypass: true,
+  redirectTo: "/dashboard"
 });

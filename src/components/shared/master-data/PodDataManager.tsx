@@ -188,7 +188,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     {
       field: "code",
       headerName: "Port Code",
-      width: 150,
+      minWidth: 150,
+      flex: 1,
       sortable: true,
       filter: true,
       cellRenderer: CodeRenderer,
@@ -196,7 +197,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     {
       field: "name",
       headerName: "Port Name",
-      width: 200,
+      minWidth: 200,
+      flex: 2,
       sortable: true,
       filter: true,
       cellRenderer: NameRenderer,
@@ -204,14 +206,16 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     {
       field: "country",
       headerName: "Country",
-      width: 150,
+      minWidth: 150,
+      flex: 1,
       sortable: true,
       filter: true,
     },
     {
       field: "city",
       headerName: "City",
-      width: 150,
+      minWidth: 150,
+      flex: 1,
       sortable: true,
       filter: true,
       cellRenderer: CityRenderer,
@@ -219,7 +223,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     {
       field: "timezone",
       headerName: "Timezone",
-      width: 150,
+      minWidth: 150,
+      flex: 1,
       sortable: true,
       filter: true,
       cellRenderer: TimezoneRenderer,
@@ -227,14 +232,16 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     {
       field: "is_active",
       headerName: "Status",
-      width: 120,
+      minWidth: 120,
+      flex: 0.8,
       sortable: true,
       filter: true,
       cellRenderer: StatusRenderer,
     },
     {
       headerName: "Actions",
-      width: 150,
+      minWidth: 150,
+      flex: 0.8,
       cellRenderer: ActionsRenderer,
       sortable: false,
       filter: false,
@@ -247,6 +254,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     resizable: true,
     sortable: true,
     filter: true,
+    flex: 1,
+    minWidth: 100,
   }), []);
 
   const handleSubmit = async (formData: PortFormData) => {
