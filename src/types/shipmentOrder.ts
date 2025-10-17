@@ -34,7 +34,7 @@ export interface ShipmentOrder {
   updated_by?: string;
 }
 
-export type ShipmentOrderStatus = 'draft' | 'confirmed' | 'booked' | 'cancelled' | 'shipped';
+export type ShipmentOrderStatus = 'draft' | 'confirmed' | 'booked' | 'modified' | 'cancelled' | 'shipped';
 export type TransportationMode = 'ocean' | 'air' | 'road' | 'rail';
 export type ServiceType = 'cy' | 'cfs';
 export type CargoType = 'normal' | 'reefer' | 'dg';
@@ -187,10 +187,10 @@ export interface ShipmentListRequest {
   created_on_end_date?: string;
   modified_on_start_date?: string;
   modified_on_end_date?: string;
-  vendor_booking_status?: ShipmentOrderStatus;
-  transportation_mode?: TransportationMode;
-  service_type?: ServiceType;
-  cargo_type?: CargoType;
+  vendor_booking_status?: ShipmentOrderStatus | number;
+  transportation_mode?: TransportationMode | number;
+  service_type?: ServiceType | number;
+  cargo_type?: CargoType | number;
 }
 
 export interface ShipmentListResponse {

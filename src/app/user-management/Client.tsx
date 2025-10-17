@@ -1,35 +1,130 @@
 "use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, SortingState } from "@tanstack/react-table";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 
 import { UserForm, type UserFormData } from "@/components/forms/UserForm";
 import { FormModal } from "@/components/ui/modal/FormModal";
-// Removed CommonModalWrapper - no longer needed
-// Removed PrivilegeModal - using role management for privilege viewing
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon } from "@/icons";
 import { User } from "@/types/user";
 
-import Pagination from "@/components/tables/Pagination";
 import { userService } from "@/services/userService";
 import { UserListResponseV2 } from "@/types/api";
 import { roleService, RoleResponse } from "@/services/roleService";
 
-// Removed useRoles - using roleService directly
 import { staticModuleDefinitions } from "@/config/staticModules";
 
-const columnHelper = createColumnHelper<User>();
+// AG Grid imports
+import type {
+  ColDef,
+  ICellRendererParams,
+} from "ag-grid-community";
+import { 
+  AllCommunityModule, 
+  ModuleRegistry,
+  CsvExportModule,
+} from "ag-grid-community";
+import { 
+  AgGridReact,
+} from "ag-grid-react";
+import { ExcelExportModule } from "ag-grid-enterprise";
+
+ModuleRegistry.registerModules([
+  AllCommunityModule,
+  CsvExportModule,
+  ExcelExportModule,
+]);
+
+// Custom Cell Renderers
+const UserInfoRenderer = (params: ICellRendererParams) => {
+  const user = params.data;
+  return (
+    <div className="flex items-center">
+      <UserCircleIcon className="w-8 h-8 text-gray-400 mr-3" />
+      <div>
+        <div className="font-medium text-gray-900 dark:text-white">
+          {user.firstName} {user.lastName}
+        </div>
+        <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+      </div>
+    </div>
+  );
+};
+
+const StatusRenderer = (params: ICellRendererParams) => {
+  const isActive = params.value === 'active';
+  return (
+    <span
+      className={`px-2 py-1 text-xs font-medium rounded-full ${
+        isActive
+          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+          : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+      }`}
+    >
+      {params.value}
+    </span>
+  );
+};
+
+const RoleRenderer = (params: ICellRendererParams) => {
+  const user = params.data;
+  const isSuperuser = user.is_superuser;
+  const roleData = user.role_data || [];
+  
+  return (
+    <div className="flex flex-wrap gap-1">
+      {isSuperuser && (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+          Superuser
+        </span>
+      )}
+      {roleData.map((role: any, index: number) => (
+        <span 
+          key={index}
+          className={`px-2 py-1 text-xs font-medium rounded-full ${
+            role.role_name === 'Vendor' 
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              : role.role_name === 'Origin Agent'
+              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+              : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+          }`}
+        >
+          {role.role_name}
+        </span>
+      ))}
+      {!isSuperuser && roleData.length === 0 && (
+        <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
+          No Role
+        </span>
+      )}
+    </div>
+  );
+};
+
+const OrganizationRenderer = (params: ICellRendererParams) => {
+  return (
+    <span className="text-sm text-gray-600 dark:text-gray-400">
+      {params.value}
+    </span>
+  );
+};
+
+const DateRenderer = (params: ICellRendererParams) => {
+  return (
+    <div className="text-sm text-gray-500 dark:text-gray-400">
+      {new Date(params.value).toLocaleDateString()}
+    </div>
+  );
+};
 
 function AdminUserManagementClient() {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterLoading, setFilterLoading] = useState(false);
-  const [globalFilter, setGlobalFilter] = useState("");
   const [nameSearch, setNameSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<boolean | null>(null);
@@ -38,9 +133,15 @@ function AdminUserManagementClient() {
     pageSize: 10,
   });
   const [totalCount, setTotalCount] = useState(0);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const gridRef = useRef<AgGridReact<User>>(null);
 
-
+  // Pagination state for AG Grid
+  const [paginationInfo, setPaginationInfo] = useState({
+    currentPage: 0,
+    totalPages: 0,
+    totalRecords: 0,
+    pageSize: 10,
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<User | null>(null);
@@ -55,15 +156,12 @@ function AdminUserManagementClient() {
     setEditingItem(null);
   };
 
-  // Removed privilege and access control modal states - using role management instead
-
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Get roles from Redux
   // State for roles
   const [roles, setRoles] = useState<RoleResponse[]>([]);
   
@@ -80,8 +178,6 @@ function AdminUserManagementClient() {
     fetchRoles();
   }, []);
 
-
-
   // Helper function to get module info
   const getModuleInfo = (moduleId: string) => {
     const module = staticModuleDefinitions.modules[parseInt(moduleId)];
@@ -91,8 +187,6 @@ function AdminUserManagementClient() {
       color: 'gray'
     };
   };
-
-  // Removed privilege and access control modal functions - using role management instead
 
   // Delete user functions
   const openDeleteModal = (user: User) => {
@@ -141,13 +235,10 @@ function AdminUserManagementClient() {
         page: pagination.pageIndex + 1,
         page_size: pagination.pageSize,
         first_name: nameSearch || undefined,
-        // last_name: nameSearch || undefined, // Commented out - only searching first name
-        // email: globalFilter || undefined, // Commented out - not using global filter for email
-        // organisation_name: globalFilter || undefined, // Commented out - not using global filter for organization
         role_name: roleFilter ? roles.find(r => r.id === roleFilter)?.role_name : undefined,
         status: statusFilter !== null ? (statusFilter ? 1 : 0) : undefined,
-        order_by: sorting.length > 0 ? sorting[0].id : undefined,
-        order_type: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
+        order_by: undefined, // Will be handled by AG Grid sorting
+        order_type: undefined, // Will be handled by AG Grid sorting
         export: false,
       };
       
@@ -175,6 +266,17 @@ function AdminUserManagementClient() {
       }));
       
       setData(transformedUsers);
+      
+      // Update pagination info for AG Grid
+      const totalPages = Math.ceil((response.count || 0) / (pagination.pageSize || 10));
+      const paginationInfo = {
+        currentPage: pagination.pageIndex,
+        totalPages,
+        totalRecords: response.count || 0,
+        pageSize: pagination.pageSize || 10,
+      };
+      
+      setPaginationInfo(paginationInfo);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users');
@@ -182,12 +284,23 @@ function AdminUserManagementClient() {
       setLoading(false);
       setFilterLoading(false);
     }
-  }, [pagination.pageIndex, pagination.pageSize, nameSearch, roleFilter, statusFilter, sorting]);
+  }, [pagination.pageIndex, pagination.pageSize, nameSearch, roleFilter, statusFilter, roles]);
 
   // Fetch users on component mount and when filters change
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Sync grid pagination with our state when data loads
+  useEffect(() => {
+    if (gridRef.current && paginationInfo.totalRecords > 0) {
+      const api = gridRef.current.api;
+      // Set the current page in the grid
+      api.paginationGoToPage(paginationInfo.currentPage);
+      // Update the total row count
+      api.setGridOption('rowData', data);
+    }
+  }, [paginationInfo, data]);
 
   const handleDeleteUser = async (userId: string) => {
     const user = data.find(u => u.id === userId);
@@ -197,196 +310,126 @@ function AdminUserManagementClient() {
   };
 
   const handleClearFilters = () => {
-    // setGlobalFilter(""); // Commented out - not using global filter
     setNameSearch("");
     setRoleFilter(null);
     setStatusFilter(null);
     setPagination(prev => ({ ...prev, pageIndex: 0 }));
   };
 
-  // Filter data based on search and filters
-  const filteredData = useMemo(() => {
-    // Since we're now filtering on the server side, we can just return the data
-    // The API will handle the filtering based on the request body
-    return data;
-  }, [data]);
+  // Actions Cell Renderer
+  const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    return (
+      <div className="flex space-x-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => openModal(params.data)}
+          className="p-1"
+        >
+          <PencilIcon className="w-4 h-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleDeleteUser(params.data.id)}
+          className="p-1 text-red-600 hover:text-red-700"
+        >
+          <TrashBinIcon className="w-4 h-4" />
+        </Button>
+      </div>
+    );
+  }, []);
 
-  // Define columns inside the component to access the handler functions
-  const columns = useMemo(() => [
-    columnHelper.accessor("firstName", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Name
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <div className="flex items-center">
-          <UserCircleIcon className="w-8 h-8 text-gray-400 mr-3" />
-          <div>
-            <div className="font-medium text-gray-900 dark:text-white">
-              {info.getValue()} {info.row.original.lastName}
-            </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">{info.row.original.email}</div>
-          </div>
-        </div>
-      ),
-    }),
-    columnHelper.accessor("roleName", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Role
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => {
-        const roleName = info.getValue();
-        const isSuperuser = info.row.original.is_superuser;
-        const roleData = info.row.original.role_data || [];
-        
-        return (
-          <div className="flex flex-wrap gap-1">
-            {isSuperuser && (
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                Superuser
-              </span>
-            )}
-            {roleData.map((role: any, index: number) => (
-              <span 
-                key={index}
-                className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  role.role_name === 'Vendor' 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    : role.role_name === 'Origin Agent'
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                    : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                }`}
-              >
-                {role.role_name}
-              </span>
-            ))}
-            {!isSuperuser && roleData.length === 0 && (
-              <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
-                No Role
-              </span>
-            )}
-          </div>
-        );
-      },
-    }),
-    columnHelper.accessor("status", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Status
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-          info.getValue() === 'active' 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-        }`}>
-          {info.getValue()}
-        </span>
-      ),
-    }),
-    columnHelper.accessor("organisation_name", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Organization
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {info.getValue()}
-        </span>
-      ),
-    }),
-    columnHelper.accessor("createdAt", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Created
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue()).toLocaleDateString()}
-        </div>
-      ),
-    }),
-    // Removed Access Control column - using role management for privilege viewing
-    columnHelper.display({
-      id: "actions",
-      header: "Actions",
-      cell: (info) => (
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openModal(info.row.original)}
-            className="p-1"
-          >
-            <PencilIcon className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleDeleteUser(info.row.original.id)}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
-        </div>
-      ),
-    }),
-  ], [openModal, handleDeleteUser]);
-
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    state: {
-      // globalFilter, // Commented out - not using global filter
-      pagination,
-      sorting,
+  // Column Definitions
+  const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      field: "firstName",
+      headerName: "User",
+      minWidth: 250,
+      flex: 2,
+      sortable: true,
+      filter: true,
+      cellRenderer: UserInfoRenderer,
+      pinned: "left",
     },
-    onSortingChange: setSorting,
-    // onGlobalFilterChange: setGlobalFilter, // Commented out - not using global filter
-    onPaginationChange: setPagination,
-  });
+    {
+      field: "roleName",
+      headerName: "Role",
+      minWidth: 200,
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      cellRenderer: RoleRenderer,
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      minWidth: 120,
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      cellRenderer: StatusRenderer,
+    },
+    {
+      field: "organisation_name",
+      headerName: "Organization",
+      minWidth: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: OrganizationRenderer,
+    },
+    {
+      field: "createdAt",
+      headerName: "Created",
+      minWidth: 120,
+      flex: 0.8,
+      sortable: true,
+      filter: true,
+      cellRenderer: DateRenderer,
+    },
+    {
+      headerName: "Actions",
+      minWidth: 150,
+      flex: 0.8,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
+      pinned: "right",
+    },
+  ], [ActionsRenderer]);
 
+  // Default Column Definition
+  const defaultColDef = useMemo<ColDef>(() => ({
+    resizable: true,
+    sortable: true,
+    filter: true,
+    flex: 1,
+    minWidth: 100,
+  }), []);
 
+  // Handle pagination changes
+  const onPaginationChanged = useCallback(() => {
+    if (gridRef.current) {
+      const api = gridRef.current.api;
+      const currentPage = api.paginationGetCurrentPage();
+      const pageSize = api.paginationGetPageSize();
+      
+      console.log('Pagination changed:', {
+        currentPage,
+        pageSize,
+        currentPagination: pagination
+      });
+      
+      if (currentPage !== pagination.pageIndex || pageSize !== pagination.pageSize) {
+        console.log('Updating pagination:', { currentPage, pageSize });
+        setPagination({
+          pageIndex: currentPage,
+          pageSize: pageSize,
+        });
+      }
+    }
+  }, [pagination.pageIndex, pagination.pageSize]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -405,12 +448,71 @@ function AdminUserManagementClient() {
     openModal();
   };
 
-  const handleExport = () => {
-    // Implement export functionality
-    toast.success('Export functionality coming soon');
+  const handleExportCSV = async () => {
+    try {
+      setLoading(true);
+      const exportData = await userService.getUsers({
+        page: 1,
+        page_size: 1000,
+        first_name: nameSearch || undefined,
+        role_name: roleFilter ? roles.find(r => r.id === roleFilter)?.role_name : undefined,
+        status: statusFilter !== null ? (statusFilter ? 1 : 0) : undefined,
+        export: false,
+      });
+      
+      // Create CSV content
+      const headers = ['Name', 'Email', 'Role', 'Status', 'Organization', 'Created'];
+      const csvRows = [
+        headers.join(','),
+        ...exportData.results.map((user: any) => [
+          `"${user.first_name} ${user.last_name}"`,
+          user.email,
+          user.role_data?.[0]?.role_name || (user.is_superuser ? "Superuser" : "User"),
+          user.status ? 'Active' : 'Inactive',
+          user.organisation_name || '',
+          new Date(user.created_on).toLocaleDateString()
+        ].join(','))
+      ];
+      
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `users_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Users exported to CSV successfully');
+    } catch (error: any) {
+      console.error('Error exporting users to CSV:', error);
+      toast.error('Failed to export users to CSV');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleExportExcel = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsExcel({
+          fileName: `users_${new Date().toISOString().split('T')[0]}.xlsx`,
+          sheetName: "Users",
+        });
+        toast.success("Users exported to Excel successfully");
+      } catch (error: any) {
+        console.error("Error exporting to Excel:", error);
+        toast.error("Failed to export to Excel");
+      }
+    }
+  }, []);
 
+  const handleExport = () => {
+    // Default to Excel export
+    handleExportExcel();
+  };
 
   return (
     <div className="p-6">
@@ -553,11 +655,24 @@ function AdminUserManagementClient() {
               >
                 Clear Filters
               </Button>
-              {/* Commented out export option as requested */}
-              {/* <Button onClick={handleExport} size="sm" variant="outline" className="px-4 py-2.5">
+              <Button 
+                onClick={handleExport} 
+                size="sm" 
+                variant="outline" 
+                className="px-4 py-2.5"
+              >
                 <DownloadIcon className="w-4 h-4 mr-2" />
-                Export
-              </Button> */}
+                Export Excel
+              </Button>
+              <Button 
+                onClick={handleExportCSV} 
+                size="sm" 
+                variant="outline" 
+                className="px-4 py-2.5"
+              >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
               <Button 
                 onClick={handleAddNew} 
                 size="sm"
@@ -579,190 +694,32 @@ function AdminUserManagementClient() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading users...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    {loading ? 'Loading...' : 'No users found'}
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="lg:hidden">
-          {table.getRowModel().rows.length === 0 ? (
-            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-              {loading ? 'Loading...' : 'No users found'}
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <div className="space-y-3">
-                    {/* User Name and Status */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <UserCircleIcon className="w-8 h-8 text-gray-400" />
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
-                            {row.original.firstName} {row.original.lastName}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{row.original.email}</div>
-                        </div>
-                      </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        row.original.status === 'active' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {row.original.status}
-                      </span>
-                    </div>
-
-                    {/* Role and Organization */}
-                    <div className="grid grid-cols-1 gap-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Role:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {row.original.is_superuser && (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                              Superuser
-                            </span>
-                          )}
-                          {row.original.role_data?.map((role: any, index: number) => (
-                            <span 
-                              key={index}
-                              className={`px-2 py-1 text-xs font-medium rounded-full ${
-                                role.role_name === 'Vendor' 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                                  : role.role_name === 'Origin Agent'
-                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                              }`}
-                            >
-                              {role.role_name}
-                            </span>
-                          ))}
-                          {!row.original.is_superuser && (!row.original.role_data || row.original.role_data.length === 0) && (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200">
-                              No Role
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {row.original.organisation_name && (
-                        <div>
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Organization:</span>
-                          <p className="text-sm text-gray-900 dark:text-white">{row.original.organisation_name}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Created Date */}
-                    <div>
-                      <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(row.original.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openModal(row.original)}
-                          className="flex-1"
-                        >
-                          <PencilIcon className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteUser(row.original.id)}
-                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-                        >
-                          <TrashBinIcon className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* AG Grid Table */}
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
+        style={{ height: "600px" }}
+      >
+        <AgGridReact
+          ref={gridRef}
+          rowData={data}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          loading={loading}
+          pagination={true}
+          paginationPageSize={pagination.pageSize}
+          paginationAutoPageSize={false}
+          suppressPaginationPanel={false}
+          domLayout="normal"
+          animateRows={true}
+          className="ag-theme-alpine"
+          onPaginationChanged={onPaginationChanged}
+          // Server-side pagination configuration
+          paginationPageSizeSelector={[10, 25, 50, 100]}
+          // Ensure pagination is server-side
+          suppressRowClickSelection={false}
+          rowSelection="single"
+        />
       </div>
-
-      {/* Pagination */}
-      {filteredData.length > 0 && (
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
-            Showing {pagination.pageIndex * pagination.pageSize + 1} to{" "}
-            {Math.min(
-              (pagination.pageIndex + 1) * pagination.pageSize,
-              totalCount
-            )}{" "}
-            of {totalCount} results
-          </div>
-          <div className="order-1 sm:order-2">
-            <Pagination
-              currentPage={pagination.pageIndex + 1}
-              totalPages={Math.ceil(totalCount / pagination.pageSize)}
-              onPageChange={(page) => setPagination(prev => ({ ...prev, pageIndex: page - 1 }))}
-            />
-          </div>
-        </div>
-      )}
-
 
       {/* FormModal Wrapper for User Form */}
       <FormModal
@@ -782,26 +739,24 @@ function AdminUserManagementClient() {
           onCancel={closeModal}
           isEditing={!!editingItem}
         />
-              </FormModal>
+      </FormModal>
 
-        {/* Removed Privilege and Access Control modals - using role management instead */}
-
-        {/* Delete Confirmation Modal */}
-        <DeleteConfirmationModal
-          isOpen={isDeleteModalOpen}
-          onClose={closeDeleteModal}
-          onConfirm={confirmDeleteUser}
-          title="Delete User"
-          message="Are you sure you want to delete this user? This action cannot be undone and will remove all associated data and permissions."
-          itemName={userToDelete ? `${userToDelete.firstName} ${userToDelete.lastName}` : undefined}
-          isLoading={isDeleting}
-          variant="danger"
-          error={deleteError}
-        />
-      </div>
-    );
-  }
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        onConfirm={confirmDeleteUser}
+        title="Delete User"
+        message="Are you sure you want to delete this user? This action cannot be undone and will remove all associated data and permissions."
+        itemName={userToDelete ? `${userToDelete.firstName} ${userToDelete.lastName}` : undefined}
+        isLoading={isDeleting}
+        variant="danger"
+        error={deleteError}
+      />
+    </div>
+  );
+}
 
 export default withSimplifiedRBAC(AdminUserManagementClient, {
   privilege: "VIEW_USER_LIST"
-}); 
+});

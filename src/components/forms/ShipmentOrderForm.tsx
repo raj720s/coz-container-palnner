@@ -24,6 +24,14 @@ import {
   type DynamicField 
 } from "@/utils/customerDynamicFieldsUtils";
 import { shipmentOrderService } from "@/services/shipmentOrderService";
+import { 
+  convertFormDataToApiFormat,
+  convertApiResponseToFormFormat,
+  getShipmentStatusText,
+  getTransportModeText,
+  getServiceTypeText,
+  getCargoTypeText
+} from "./statusUtils";
 import { polService } from "@/services/polService";
 import { podService } from "@/services/podService";
 import { customerService } from "@/services/customerService";
@@ -388,22 +396,21 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
     
     console.log("Filtered custom field values:", custom_field_values);
     
-    // Transform data for API
-    const transformedData: ShipmentOrderInput = {
+    // Transform data for API using status utility
+    const transformedData: ShipmentOrderInput = convertFormDataToApiFormat({
       ...data,
       cargo_readiness_date: data.cargo_readiness_date 
         ? new Date(data.cargo_readiness_date).toISOString()
         : data.cargo_readiness_date,
       cargo_description: data.cargo_description || null,
       marks_and_numbers: data.marks_and_numbers || null,
-      cargo_type: data.cargo_type || null,
       dangerous_goods_notes: data.dangerous_goods_notes || null,
       place_of_receipt: data.place_of_receipt || null,
       place_of_delivery: data.place_of_delivery || null,
       carrier: data.carrier || null,
       carrier_booking_number: data.carrier_booking_number || null,
       custom_field_values: custom_field_values.length > 0 ? custom_field_values : undefined
-    };
+    });
     
     console.log("Transformed data for API:", transformedData);
     onSubmit(transformedData as any);
