@@ -45,19 +45,32 @@ export default function SignInForm() {
     console.log("Sign in form loading:", isLoading);
     setIsLoading(true);
     try {
-      const result = await login(data.email, data.password);
+      // const result = await login(data.email, data.password);
       
-      if (result.success) {
-        toast.success("Signed in successfully!");
-        router.push("/dashboard");
-      } else {
-        toast.error(result.error || "Sign in failed");
-      }
-    } catch (error) {
+      // if (result.success) {
+      //   toast.success("Signed in successfully!");
+      //   // Add a small delay before redirect to ensure success message is seen
+      //   setTimeout(() => {
+      //     router.push("/dashboard");
+      //   }, 500);
+      // } else {
+      //   // Display the specific error message from the API
+      //   const errorMessage = result.error || "Sign in failed";
+      //   console.error("Login failed:", errorMessage);
+      //   // Show error message immediately
+      //   toast.error(errorMessage);
+      // }
+    } catch (error: any) {
       console.error("Sign in error:", error);
-      toast.error("An error occurred during sign in");
+      // Display the error message if available, otherwise show generic message
+      const errorMessage = error?.message || error?.toString() || "An error occurred during sign in";
+      // Show error message immediately
+      toast.error(errorMessage);
     } finally {
-      setIsLoading(false);
+      // Add a small delay before stopping loading to ensure error message is visible
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
     }
   };
 
@@ -170,7 +183,7 @@ export default function SignInForm() {
                   className="w-full bg-theme-purple-600 hover:bg-theme-purple-700 focus:ring-theme-purple-500 dark:bg-theme-purple-500 dark:hover:bg-theme-purple-600"
                   disabled={isLoading}
                 >
-                  {isLoading ? (
+              {isLoading ? (
                     <div className="flex items-center justify-center">
                       <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useSidebar } from "@/context/SidebarContext";
-import AppHeader from "@/layout/AppHeader";
-import AppSidebar from "@/layout/AppSidebar";
-import Backdrop from "@/layout/Backdrop";
+import AuthLoadingMessage from "./AuthLoadingMessage";
+import AccessDeniedMessage from "./AccessDeniedMessage";
 
 interface Props {
   children: React.ReactNode;
@@ -18,33 +16,20 @@ const UnifiedAuthGuard: React.FC<Props> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
-  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
   
   const redirecting = useRef(false);
   const initializationTimeout = useRef<NodeJS.Timeout | null>(null);
+  const redirectTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Calculate mainMargin at the top to maintain hook order
-  const mainMargin = useMemo(
-    () =>
-      isMobileOpen
-        ? "ml-0"
-        : isExpanded || isHovered
-        ? "lg:ml-[290px]"
-        : "lg:ml-[90px]",
-    [isMobileOpen, isExpanded, isHovered]
-  );
+  const authState = {
+    isAuthenticated: auth.isAuthenticated,
+    hasUser: !!auth.user,
+    contextReady: auth.contextAvailable && auth.isInitialized,
+    loading: auth.loading,
+    isLoginAttempt: auth.isLoginAttempt,
+  };
 
-  const authState = useMemo(
-    () => ({
-      isAuthenticated: auth.isAuthenticated,
-      hasUser: !!auth.user,
-      contextReady: auth.contextAvailable && auth.isInitialized,
-      loading: auth.loading,
-    }),
-    [auth.isAuthenticated, auth.user, auth.contextAvailable, auth.isInitialized, auth.loading]
-  );
-
-  const isPublic = useMemo(() => PUBLIC_ROUTES.includes(pathname), [pathname]);
+  const isPublic = PUBLIC_ROUTES.includes(pathname);
 
  
 
@@ -80,114 +65,83 @@ const UnifiedAuthGuard: React.FC<Props> = ({ children }) => {
       initializationTimeout.current = null;
     }
 
+    // If user is on a public route, don't redirect them
     if (isPublic) return;
 
+    // Don't redirect during login attempts to prevent clearing error messages
+    if (authState.isLoginAttempt) {
+      return;
+    }
+
+    // Handle root path redirect
     if (pathname === "/") {
       router.push(authState.isAuthenticated ? "/dashboard" : "/signin");
       return;
     }
 
+    // Only redirect to signin if user is not authenticated and not already on signin page
     if (!authState.isAuthenticated || !authState.hasUser) {
-      clearAndRedirect("/signin");
+      // Don't redirect if already on signin page to prevent clearing error messages
+      if (pathname !== "/signin") {
+        // Add a small delay to prevent interfering with login attempts
+        if (redirectTimeout.current) {
+          clearTimeout(redirectTimeout.current);
+        }
+        redirectTimeout.current = setTimeout(() => {
+          clearAndRedirect("/signin");
+        }, 1000); // 1 second delay
+      }
     }
   }, [authState, isPublic, pathname, router]);
 
-  // Cleanup timeout on unmount
+  // Separate effect to handle signin page specifically
+  useEffect(() => {
+    // Only run this effect on signin page
+    if (pathname !== "/signin") return;
+    
+    // Don't redirect if login attempt is in progress
+    if (authState.isLoginAttempt) {
+      return;
+    }
+    
+    // Don't redirect if user is already authenticated (they shouldn't be on signin page)
+    if (authState.isAuthenticated && authState.hasUser) {
+      // Add a small delay to prevent interfering with login success flow
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 100);
+    }
+  }, [pathname, authState.isLoginAttempt, authState.isAuthenticated, authState.hasUser, router]);
+
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (initializationTimeout.current) {
         clearTimeout(initializationTimeout.current);
       }
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
+      }
     };
   }, []);
 
   if (authState.loading || !authState.contextReady) {
-    return <FullScreenMessage text="Initializing..." spinnerColor="border-blue-500" />;
+    return <AuthLoadingMessage text="Initializing..." spinnerColor="border-blue-500" />;
   }
 
   if (isPublic) return <>{children}</>;
 
   if (!authState.isAuthenticated || !authState.hasUser) {
-    return <FullScreenMessage text="Redirecting to sign in..." spinnerColor="border-yellow-500" />;
+    return <AuthLoadingMessage text="Redirecting to sign in..." spinnerColor="border-yellow-500" />;
   }
 
-  // Authenticated route - show layout with access control
-  // Check route permissions
+  // Authenticated route - check route permissions
   if (!auth.canAccessRoute(pathname)) {
-    return (
-      <Layout mainMargin={mainMargin}>
-        <AccessDeniedMessage pathname={pathname} />
-      </Layout>
-    );
+    return <AccessDeniedMessage pathname={pathname} />;
   }
 
-  return (
-    <Layout mainMargin={mainMargin}>
-      {children}
-    </Layout>
-  );
+  // Return children for authenticated users with proper access
+  return <>{children}</>;
 };
 
 export default UnifiedAuthGuard;
-
-/* ---------- Layout & Subcomponents ---------- */
-
-const Layout = ({ mainMargin, children }: { mainMargin: string; children: React.ReactNode }) => (
-  <div className="min-h-screen xl:flex">
-    <AppSidebar />
-    <div className={`flex-1 transition-all duration-300 ease-in-out ${mainMargin}`}>
-      <AppHeader />
-      <div className="p-4 mx-auto max-w-full md:p-6">{children}</div>
-    </div>
-    <Backdrop />
-  </div>
-);
-
-const FullScreenMessage = ({ text, spinnerColor }: { text: string; spinnerColor: string }) => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-    <div className="text-center p-8">
-      <div
-        className={`animate-spin rounded-full h-12 w-12 border-b-2 ${spinnerColor} mx-auto mb-4`}
-        role="status"
-        aria-label="Loading"
-      />
-      <p className="text-gray-600 dark:text-gray-400 text-lg font-medium">{text}</p>
-      <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">Please wait...</p>
-    </div>
-  </div>
-);
-
-const AccessDeniedMessage = ({ pathname }: { pathname: string }) => {
-  const router = useRouter();
-  return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="text-center p-6 max-w-lg">
-        <div className="mb-6">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-            <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Access Denied</h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            You don't have permission to access <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">{pathname}</code>
-          </p>
-          <p className="text-gray-500 dark:text-gray-500 text-sm mb-6">
-            Please contact your administrator if you believe this is an error.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button onClick={() => router.back()}
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
-            Go Back
-          </button>
-          <button onClick={() => router.push("/dashboard")}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Go to Dashboard
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};

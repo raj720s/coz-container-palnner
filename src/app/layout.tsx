@@ -1,6 +1,7 @@
 import { Outfit } from 'next/font/google';
 import './globals.css';
 import { Metadata } from 'next';
+import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community'; 
 
 import { ReduxProvider } from '@/components/providers/ReduxProvider';
 import { SidebarProvider } from '@/context/SidebarContext';
@@ -8,6 +9,7 @@ import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { MessageProvider } from '@/components/ui/MessageBox';
 import UnifiedAuthGuard from '@/components/auth/UnifiedAuthGuard';
+import ConditionalLayout from '@/components/layout/ConditionalLayout';
 import { GlobalErrorHandler } from '@/components/providers/GlobalErrorHandler';
 
 export const metadata: Metadata = {
@@ -29,7 +31,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${outfit.className} dark:bg-gray-900`}>
-        
         <ReduxProvider>
           <AuthProvider>
             <ThemeProvider>
@@ -37,7 +38,9 @@ export default function RootLayout({
                 <MessageProvider>
                   <GlobalErrorHandler />
                   <UnifiedAuthGuard>
-                    {children}
+                    <ConditionalLayout>
+                      {children}
+                    </ConditionalLayout>
                   </UnifiedAuthGuard>
                 </MessageProvider>
               </SidebarProvider>

@@ -33,7 +33,13 @@ class AuthService {
       return response.data;
     } catch (error: any) {
       console.error('Login API error:', error);
-      throw new Error(error.response?.data?.detail || 'Login failed');
+      // Handle various error response formats from API
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.response?.data?.error ||
+                          error.message ||
+                          'Login failed';
+      throw new Error(errorMessage);
     }
   }
 
@@ -50,7 +56,13 @@ class AuthService {
       return response.data;
     } catch (error: any) {
       console.error('Token refresh error:', error);
-      throw new Error(error.response?.data?.detail || 'Token refresh failed');
+      // Handle various error response formats from API
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.response?.data?.error ||
+                          error.message ||
+                          'Token refresh failed';
+      throw new Error(errorMessage);
     }
   }
 
@@ -109,7 +121,13 @@ class AuthService {
       return response.data;
     } catch (error: any) {
       console.error('❌ AuthService: Token verification or profile fetch failed:', error);
-      throw new Error(error.response?.data?.detail || 'Token verification failed');
+      // Handle various error response formats from API
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.response?.data?.error ||
+                          error.message ||
+                          'Token verification failed';
+      throw new Error(errorMessage);
     }
   }
 
@@ -123,7 +141,13 @@ class AuthService {
       return response.data;
     } catch (error: any) {
       console.error('Get user profile error:', error);
-      throw new Error(error.response?.data?.detail || 'Failed to fetch user profile');
+      // Handle various error response formats from API
+      const errorMessage = error.response?.data?.detail || 
+                          error.response?.data?.message || 
+                          error.response?.data?.error ||
+                          error.message ||
+                          'Failed to fetch user profile';
+      throw new Error(errorMessage);
     }
   }
 }

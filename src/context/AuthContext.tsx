@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { createContext, useContext, useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   loginUser, 
@@ -50,6 +50,7 @@ export interface AuthContextType {
   error: string | null;
   profileError: string | null;
   privilegesError: string | null;
+  isLoginAttempt: boolean;
 
   // Actions
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -152,6 +153,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const initializationRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+  const [isLoginAttempt, setIsLoginAttempt] = useState(false);
 
   // Memoized RBAC properties
   const rbacData = useMemo(() => ({
@@ -292,6 +294,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Optimized login function
   const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    setIsLoginAttempt(true);
     try {
       // Dispatch Redux action for login
       const result = await dispatch(loginUser({ email, password })).unwrap();
@@ -307,7 +310,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error: any) {
       console.error('Login failed:', error);
-      return { success: false, error: error || "Login failed" };
+      // Extract error message from various possible formats
+      const errorMessage = error?.message || 
+                          error?.toString() || 
+                          "Login failed";
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoginAttempt(false);
     }
   }, [dispatch]);
 
@@ -441,6 +450,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error: errors.auth,
     profileError: errors.profile,
     privilegesError: errors.privileges,
+    isLoginAttempt,
 
     // Actions
     login,
