@@ -9,6 +9,7 @@ export { containerPriorityService } from './containerPriorityService';
 export { containerThresholdService } from './containerThresholdService';
 export { default as privilegeService } from './privilegeService';
 export { authService } from './authService';
+export { companyService } from './companyService';
 
 // Export base service class for inheritance
 export { BaseService } from './baseService';

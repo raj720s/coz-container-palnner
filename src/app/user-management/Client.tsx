@@ -694,32 +694,122 @@ function AdminUserManagementClient() {
         </div>
       </div>
 
-      {/* AG Grid Table */}
-      <div
-        className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
-        style={{ height: "600px" }}
-      >
-        <AgGridReact
-          ref={gridRef}
-          rowData={data}
-          columnDefs={columnDefs}
-          defaultColDef={defaultColDef}
-          loading={loading}
-          pagination={true}
-          paginationPageSize={pagination.pageSize}
-          paginationAutoPageSize={false}
-          suppressPaginationPanel={false}
-          domLayout="normal"
-          animateRows={true}
-          className="ag-theme-alpine"
-          onPaginationChanged={onPaginationChanged}
-          // Server-side pagination configuration
-          paginationPageSizeSelector={[10, 25, 50, 100]}
-          // Ensure pagination is server-side
-          suppressRowClickSelection={false}
-          rowSelection="single"
-        />
+     {/* AG Grid Table */}
+<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+  <div
+    style={{ height: "calc(100vh - 340px)", minHeight: "500px" }}
+    className="ag-theme-alpine"
+  >
+    <AgGridReact
+      ref={gridRef}
+      rowData={data}
+      columnDefs={columnDefs}
+      defaultColDef={defaultColDef}
+      loading={loading}
+      pagination={false} // We'll use custom pagination below
+      domLayout="normal"
+      animateRows={true}
+      suppressMenuHide={false}
+      rowSelection="multiple"
+      suppressRowClickSelection={false}
+      rowHeight={48}
+      headerHeight={44}
+      suppressCellFocus={true}
+      className="transition-all duration-200"
+    />
+  </div>
+
+  {/* Custom Pagination */}
+  <div className="px-6 py-3 border-t border-gray-200 bg-white dark:bg-gray-800 flex items-center justify-between">
+    {/* Rows per page selector */}
+    <div className="flex items-center gap-3">
+      <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">Rows per page:</span>
+      <div className="relative">
+        <select
+          value={pagination.pageSize}
+          onChange={(e) =>
+            setPagination((prev) => ({
+              ...prev,
+              pageIndex: 0,
+              pageSize: Number(e.target.value),
+            }))
+          }
+          className="appearance-none bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-700 dark:text-gray-200 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+        >
+          <option value={10}>10</option>
+          <option value={25}>25</option>
+          <option value={50}>50</option>
+          <option value={100}>100</option>
+        </select>
+        <svg
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
+    </div>
+
+    {/* Pagination Controls */}
+    <div className="flex items-center gap-6">
+      <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">
+        {paginationInfo.totalRecords > 0
+          ? `${paginationInfo.currentPage * paginationInfo.pageSize + 1}-${Math.min(
+              (paginationInfo.currentPage + 1) * paginationInfo.pageSize,
+              paginationInfo.totalRecords
+            )} of ${paginationInfo.totalRecords}`
+          : "0 of 0"}
+      </span>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() =>
+            setPagination((prev) => ({
+              ...prev,
+              pageIndex: Math.max(prev.pageIndex - 1, 0),
+            }))
+          }
+          disabled={paginationInfo.currentPage === 0}
+          className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Previous page"
+        >
+          <svg
+            className="w-5 h-5 text-gray-600 dark:text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        <button
+          onClick={() =>
+            setPagination((prev) => ({
+              ...prev,
+              pageIndex: Math.min(prev.pageIndex + 1, paginationInfo.totalPages - 1),
+            }))
+          }
+          disabled={paginationInfo.currentPage >= paginationInfo.totalPages - 1}
+          className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Next page"
+        >
+          <svg
+            className="w-5 h-5 text-gray-600 dark:text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       {/* FormModal Wrapper for User Form */}
       <FormModal

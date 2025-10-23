@@ -96,6 +96,21 @@ export const staticModules: Record<number, StaticModule> = {
     color: "teal",
     group: "master-data"
   },
+
+  // Module 65: Company Management
+  65: {
+    id: 65,
+    name: "Company Management",
+    description: "Manage companies, company types, and company relationships",
+    routes: ["/company-management"],
+    privileges: [
+      "VIEW_COMPANIES", "CREATE_COMPANY", "VIEW_COMPANY", "UPDATE_COMPANY", "DELETE_COMPANY",
+      "EXPORT_COMPANIES", "VIEW_COMPANY_TYPES", "MANAGE_COMPANY_RELATIONSHIPS"
+    ],
+    icon: "building-office-2",
+    color: "indigo",
+    group: "master-data"
+  },
   
   // Module 70: Shipment Operations
   70: {

@@ -4,7 +4,6 @@ import { Metadata } from 'next';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community'; 
 
 import { ReduxProvider } from '@/components/providers/ReduxProvider';
-import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { MessageProvider } from '@/components/ui/MessageBox';
@@ -34,16 +33,14 @@ export default function RootLayout({
         <ReduxProvider>
           <AuthProvider>
             <ThemeProvider>
-              <SidebarProvider>
-                <MessageProvider>
-                  <GlobalErrorHandler />
-                  {/* <AuthWrapper> */}
-                    <ConditionalLayout>
-                      {children}
-                    </ConditionalLayout>
-                  {/* </AuthWrapper> */}
-                </MessageProvider>
-              </SidebarProvider>
+              <MessageProvider>
+                <GlobalErrorHandler />
+                {/* <AuthWrapper> */}
+                  <ConditionalLayout>
+                    {children}
+                  </ConditionalLayout>
+                {/* </AuthWrapper> */}
+              </MessageProvider>
             </ThemeProvider>
           </AuthProvider>
         </ReduxProvider>

@@ -43,6 +43,7 @@ import {
   FiMapPin,
   FiTruck,
   FiFilter,
+  FiHome,
   
 } from 'react-icons/fi';
 
@@ -101,3 +102,4 @@ export const PackageIcon = FiPackage;
 export const MapPinIcon = FiMapPin;
 export const TruckIcon = FiTruck;
 export const FilterIcon = FiFilter;
+export const BuildingIcon = FiHome;
