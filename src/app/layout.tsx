@@ -8,7 +8,7 @@ import { SidebarProvider } from '@/context/SidebarContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { MessageProvider } from '@/components/ui/MessageBox';
-import UnifiedAuthGuard from '@/components/auth/UnifiedAuthGuard';
+import AuthWrapper from '@/components/auth/AuthWrapper';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';
 import { GlobalErrorHandler } from '@/components/providers/GlobalErrorHandler';
 
@@ -37,11 +37,11 @@ export default function RootLayout({
               <SidebarProvider>
                 <MessageProvider>
                   <GlobalErrorHandler />
-                  <UnifiedAuthGuard>
+                  {/* <AuthWrapper> */}
                     <ConditionalLayout>
                       {children}
                     </ConditionalLayout>
-                  </UnifiedAuthGuard>
+                  {/* </AuthWrapper> */}
                 </MessageProvider>
               </SidebarProvider>
             </ThemeProvider>
