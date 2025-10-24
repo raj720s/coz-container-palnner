@@ -93,7 +93,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   
   const [filters, setFilters] = useState<POLListRequest>({
     page: 1,
-    page_size: 10,
+    page_size: 12,
     order_by: "created_on",
     order_type: "desc"
   });

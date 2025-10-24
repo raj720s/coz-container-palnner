@@ -44,12 +44,12 @@ const UserInfoRenderer = (params: ICellRendererParams) => {
   const user = params.data;
   return (
     <div className="flex items-center">
-      <UserCircleIcon className="w-8 h-8 text-gray-400 mr-3" />
+      {/* <UserCircleIcon className="w-8 h-8 text-gray-400 mr-3" /> */}
       <div>
         <div className="font-medium text-gray-900 dark:text-white">
           {user.firstName} {user.lastName}
         </div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+        {/* <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div> */}
       </div>
     </div>
   );

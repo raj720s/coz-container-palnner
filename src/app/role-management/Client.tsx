@@ -1,8 +1,7 @@
 "use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
-import { useReactTable, getCoreRowModel, flexRender, createColumnHelper, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, SortingState } from "@tanstack/react-table";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import { FormModal } from "@/components/ui/modal/FormModal";
@@ -12,17 +11,35 @@ import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmatio
 import { useFormModal } from "@/hooks/useFormModal";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon, EyeIcon, InformationCircleIcon } from "@/icons";
-import Pagination from "@/components/tables/Pagination";
 import { roleService } from "@/services/roleService";
 import { CreateRoleRequest, UpdateRoleRequest } from "@/services/roleService";
 import { RoleListResponseV2 } from "@/types/api";
 import { RoleForm } from "@/components/forms/RoleForm";
-// Removed useRoles - using roleService directly
 import { staticModuleDefinitions } from "@/config/staticModules";
 import { useUsersJson } from "@/hooks/useCommonData";
 import { useSelector } from "react-redux";
 
-const columnHelper = createColumnHelper<RoleListResponseV2>();
+// AG Grid imports
+import type {
+  ColDef,
+  ICellRendererParams,
+  GridApi,
+} from "ag-grid-community";
+import { 
+  AllCommunityModule, 
+  ModuleRegistry,
+  CsvExportModule,
+} from "ag-grid-community";
+import { 
+  AgGridReact,
+} from "ag-grid-react";
+import { ExcelExportModule } from "ag-grid-enterprise";
+
+ModuleRegistry.registerModules([
+  AllCommunityModule,
+  CsvExportModule,
+  ExcelExportModule,
+]);
 
 // Helper function to get module information
 const getModuleInfo = (moduleId: string) => {
@@ -36,6 +53,8 @@ const getModuleInfo = (moduleId: string) => {
 };
 
 function AdminRoleManagementClient() {
+  const gridRef = useRef<AgGridReact<RoleListResponseV2>>(null);
+  
   // State management for roles
   const [roles, setRoles] = useState<RoleListResponseV2[]>([]);
   const [rolesWithPrivileges, setRolesWithPrivileges] = useState<RoleListResponseV2[]>([]);
@@ -44,14 +63,36 @@ function AdminRoleManagementClient() {
   const [totalCount, setTotalCount] = useState(0);
   const [privileges, setPrivileges] = useState<{ count: number; results: any[] } | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
+  
+  // Pagination state
+  const [paginationInfo, setPaginationInfo] = useState({
+    currentPage: 1,
+    totalPages: 0,
+    totalRecords: 0,
     pageSize: 10,
   });
 
+  const autoSizeStrategy = useMemo(() => ({
+    type: 'fitGridWidth',
+    defaultMinWidth: 100,
+    columnLimits: [
+      {
+        colId: 'role_name',
+        minWidth: 150
+      },
+      {
+        colId: 'role_description', 
+        minWidth: 200
+      },
+      {
+        colId: 'actions',
+        minWidth: 120
+      }
+    ]
+  }), []);
+
   // Get users JSON data using specialized useUsersJson hook
   const { usersJson, loading: usersLoading, error: usersError, refresh: refreshUsers } = useUsersJson();
-  const [sorting, setSorting] = useState<SortingState>([]);
 
   // Helper function to get user name by ID
   const getUserName = useCallback((userId: number | null): string => {
@@ -63,7 +104,7 @@ function AdminRoleManagementClient() {
   
   
   // Fetch roles function
-  const fetchRoles = useCallback(async () => {
+  const fetchRoles = useCallback(async (page = 1, pageSize = 10, searchTerm = '', orderBy = 'created_on', orderType = 'desc') => {
     try {
       setLoading(true);
       setError(null);
@@ -71,23 +112,42 @@ function AdminRoleManagementClient() {
       // Build request parameters
       const requestParams = {
         include_privilege_data: true,
-        role_name: globalFilter || undefined,
-        order_by: sorting.length > 0 ? sorting[0].id : undefined,
-        order_type: sorting.length > 0 ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
-        page: pagination.pageIndex + 1,
-        page_size: pagination.pageSize,
+        role_name: searchTerm || undefined,
+        order_by: orderBy,
+        order_type: orderType,
+        page: page,
+        page_size: pageSize,
       };
       
       const response = await roleService.getRoles(requestParams);
+      console.log('Roles API response:', response);
+      
       // Handle paginated response format: { count: number, results: RoleListResponseV2[] }
       if (Array.isArray(response)) {
         setRoles(response);
         setRolesWithPrivileges(response);
         setTotalCount(response.length);
+        setPaginationInfo({
+          currentPage: 1,
+          totalPages: 1,
+          totalRecords: response.length,
+          pageSize: response.length,
+        });
       } else {
-        setRoles((response as any).results || []);
-        setRolesWithPrivileges((response as any).results || []);
-        setTotalCount((response as any).count || 0);
+        const results = (response as any).results || [];
+        const count = (response as any).count || 0;
+        
+        setRoles(results);
+        setRolesWithPrivileges(results);
+        setTotalCount(count);
+        
+        const totalPages = Math.ceil(count / pageSize);
+        setPaginationInfo({
+          currentPage: page,
+          totalPages,
+          totalRecords: count,
+          pageSize,
+        });
       }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch roles');
@@ -95,12 +155,56 @@ function AdminRoleManagementClient() {
     } finally {
       setLoading(false);
     }
-  }, [globalFilter, sorting, pagination.pageIndex, pagination.pageSize]);
+  }, []);
 
   // Load roles on component mount
   useEffect(() => {
     fetchRoles();
-  }, [fetchRoles]);
+  }, []); // Empty dependency array - only run on mount
+
+  // AG Grid Cell Renderers
+  const DateRenderer = (params: ICellRendererParams) => {
+    if (!params.value) return <span className="text-gray-400">N/A</span>;
+    try {
+      const date = new Date(params.value);
+      return <span className="text-sm">{date.toLocaleDateString()}</span>;
+    } catch {
+      return <span className="text-gray-400">Invalid Date</span>;
+    }
+  };
+
+  const UserRenderer = (params: ICellRendererParams) => {
+    const userId = params.value;
+    if (!userId) return <span className="text-gray-400">-</span>;
+    
+    if (usersLoading) {
+      return <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>;
+    }
+    
+    return (
+      <div className="flex items-center">
+        <span className="text-sm text-gray-900 dark:text-white">
+          {getUserName(userId)}
+        </span>
+      </div>
+    );
+  };
+
+  const PrivilegesRenderer = (params: ICellRendererParams) => {
+    return (
+      <button
+        onClick={() => openPrivilegesModal(params.data)}
+        className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer group"
+      >
+        <div className="flex items-center gap-2">
+          <span className="font-medium">View</span>
+          <span>privileges</span>
+          <InformationCircleIcon className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+        </div>
+      </button>
+    );
+  };
+
   
 
 
@@ -130,13 +234,24 @@ function AdminRoleManagementClient() {
     fetchPrivileges();
   }, []);
 
-  // Refetch roles when filters change
-  useEffect(() => {
-    if (!loading) {
-      // Filter roles locally since they're already in Redux state
-      // The useRoles hook handles fetching from API
-    }
-  }, [globalFilter, pagination.pageIndex, pagination.pageSize, loading]);
+  // Handle search
+  const handleSearch = (searchTerm: string) => {
+    setGlobalFilter(searchTerm);
+    fetchRoles(1, paginationInfo.pageSize, searchTerm);
+  };
+
+  // Handle page change
+  const handlePageChange = (newPage: number) => {
+    fetchRoles(newPage, paginationInfo.pageSize, globalFilter);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (newPageSize: number) => {
+    fetchRoles(1, newPageSize, globalFilter);
+  };
+
+  // Note: We're using custom pagination, so we don't need onPaginationChanged
+  // AG Grid pagination is disabled and we handle it with our custom controls
 
   const fetchPrivileges = async () => {
     try {
@@ -167,7 +282,7 @@ function AdminRoleManagementClient() {
       toast.success('Role created successfully');
       
       // Refresh the role list
-      fetchRoles();
+      fetchRoles(paginationInfo.currentPage, paginationInfo.pageSize, globalFilter);
       
       // Close the modal
       closeModal();
@@ -190,7 +305,7 @@ function AdminRoleManagementClient() {
       toast.success('Role updated successfully');
       
       // Refresh the role list
-      fetchRoles();
+      fetchRoles(paginationInfo.currentPage, paginationInfo.pageSize, globalFilter);
       
       // Close the modal
       closeModal();
@@ -225,7 +340,7 @@ function AdminRoleManagementClient() {
         setDeleteError(null); // Clear any errors on success
         closeDeleteModal();
         // Refresh the roles list
-        await fetchRoles();
+        await fetchRoles(paginationInfo.currentPage, paginationInfo.pageSize, globalFilter);
       } else {
         // Handle service response error - result only has success boolean
         const errorMessage = result.message || 'Failed to delete role';
@@ -333,212 +448,126 @@ function AdminRoleManagementClient() {
     setDeleteError(null); // Clear errors when closing
   };
 
+  // Actions Cell Renderer
+  const ActionsRenderer = useCallback(
+    (params: ICellRendererParams) => {
+      return (
+        <div className="flex items-center justify-center gap-1">
+        <button
+            onClick={() => openModal(params.data)}
+            className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded"
+            title="Edit role"
+        >
+            <PencilIcon className="w-4 h-4" />
+        </button>
+        <button
+            onClick={() => handleDeleteRole(params.data.id.toString())}
+            className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
+            title="Delete role"
+        >
+            <TrashBinIcon className="w-4 h-4" />
+        </button>
+        </div>
+      );
+    },
+    [openModal, handleDeleteRole]
+  );
+
   // Server-side filtering is now handled in fetchRoles
 
-  // Define columns
-  const columns = useMemo(() => [
-    columnHelper.accessor("role_name", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Role Name
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
+  // AG Grid Column Definitions
+  const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      field: "role_name",
+      headerName: "Role Name",
+      width: 200,
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+      cellRenderer: (params: ICellRendererParams) => (
         <div className="font-medium text-gray-900 dark:text-white">
-          {info.getValue()}
-        </div>
-      ),
-    }),
-    columnHelper.accessor("role_description", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Role Description
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
-          {info.getValue()}
-        </div>
-      ),
-    }),
-    columnHelper.accessor("id", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Role Privileges
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <button
-          onClick={() => openPrivilegesModal(info.row.original)}
-          className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer group"
-        >
-          <div className="flex items-center gap-2">
-            <span className="font-medium">View</span>
-            <span>privileges</span>
-            <InformationCircleIcon className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-blue-500" />
+          {params.value}
           </div>
-        </button>
       ),
-    }),
-    columnHelper.display({
-      id: "created_by",
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Created By
-          {/* <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span> */}
-        </button>
-      ),
-              cell: (info) => (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {usersLoading ? (
-              <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
-            ) : (
-              <div className="flex items-center">
-                {/* <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-blue-600 font-semibold text-xs">
-                    {info.row.original.created_by}
-                  </span>
-                </div> */}
-                <span>{getUserName(info.row.original.created_by)}</span>
-              </div>
-            )}
-          </div>
-        ),
-    }),
-    columnHelper.accessor("created_on", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Created On
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {new Date(info.getValue() as string).toLocaleDateString()}
-        </div>
-      ),
-    }),
-    columnHelper.display({
-      id: "modified_by",
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Modified By
-          {/* <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span> */}
-        </button>
-      ),
-              cell: (info) => (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {usersLoading ? (
-              <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
-            ) : info.row.original.modified_by ? (
-              <div className="flex items-center">
-                {/* <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                  <span className="text-green-600 font-semibold text-xs">
-                    {info.row.original.modified_by}
-                  </span>
-                </div> */}
-                <span>{getUserName(info.row.original.modified_by)}</span>
-              </div>
-            ) : (
-              <span className="text-gray-400 italic">Not modified</span>
-            )}
-          </div>
-        ),
-    }),
-    columnHelper.accessor("modified_on", {
-      header: ({ column }) => (
-        <button
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-        >
-          Modified On
-          <span className="text-xs">
-            {column.getIsSorted() === "asc" ? "↑" : column.getIsSorted() === "desc" ? "↓" : "↕"}
-          </span>
-        </button>
-      ),
-      cell: (info) => (
-        <div className="text-sm text-gray-500 dark:text-gray-400">
-          {info.getValue() ? new Date(info.getValue() as string).toLocaleDateString() : '-'}
-        </div>
-      ),
-    }),
-    columnHelper.display({
-      id: "actions",
-      header: "Actions",
-      cell: (info) => (
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => openModal(info.row.original)}
-            className="p-1"
-          >
-            <PencilIcon className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleDeleteRole(info.row.original.id.toString())}
-            className="p-1 text-red-600 hover:text-red-700"
-          >
-            <TrashBinIcon className="w-4 h-4" />
-          </Button>
-        </div>
-      ),
-    }),
-  ], [openModal, handleDeleteRole, openPrivilegesModal]);
-
-  const table = useReactTable({
-    data: roles,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    manualPagination: true,
-    manualSorting: true,
-    pageCount: Math.ceil(totalCount / pagination.pageSize),
-    state: {
-      globalFilter,
-      pagination,
-      sorting,
     },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
-  });
+    {
+      field: "role_description",
+      headerName: "Role Description",
+      width: 300,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: (params: ICellRendererParams) => (
+        <div className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
+          {params.value || 'No description'}
+          </div>
+        ),
+    },
+    {
+      field: "privilege_names",
+      headerName: "Privileges",
+      width: 150,
+      flex: 1,
+      sortable: false,
+      filter: false,
+      cellRenderer: PrivilegesRenderer,
+    },
+    {
+      field: "created_by",
+      headerName: "Created By",
+      width: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: UserRenderer,
+    },
+    {
+      field: "created_on",
+      headerName: "Created On",
+      width: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: DateRenderer,
+    },
+    {
+      field: "modified_by",
+      headerName: "Modified By",
+      width: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: UserRenderer,
+    },
+    {
+      field: "modified_on",
+      headerName: "Modified On",
+      width: 150,
+      flex: 1,
+      sortable: true,
+      filter: true,
+      cellRenderer: DateRenderer,
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      width: 120,
+      flex: 0.3,
+      sortable: false,
+      filter: false,
+      cellRenderer: ActionsRenderer,
+    },
+  ], [PrivilegesRenderer, UserRenderer, ActionsRenderer, usersLoading, getUserName]);
+
+  // Default Column Definition
+  const defaultColDef = useMemo<ColDef>(
+    () => ({
+      resizable: true,
+      sortable: true,
+      filter: true,
+    }),
+    []
+  );
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -573,7 +602,7 @@ function AdminRoleManagementClient() {
 
   const clearSearch = () => {
     setGlobalFilter("");
-    setPagination({ pageIndex: 0, pageSize: 10 });
+    fetchRoles(1, paginationInfo.pageSize, "");
   };
 
 
@@ -641,7 +670,7 @@ function AdminRoleManagementClient() {
              <Input
                placeholder="Search by role name..."
                value={globalFilter}
-               onChange={(e) => setGlobalFilter(e.target.value)}
+               onChange={(e) => handleSearch(e.target.value)}
                className="w-full"
              />
            </div>
@@ -665,18 +694,8 @@ function AdminRoleManagementClient() {
          </div>
        </div>
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden relative">
-        {loading && (
-          <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 flex items-center justify-center z-10">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-              <p className="text-gray-600 dark:text-gray-400">Loading roles...</p>
-            </div>
-          </div>
-        )}
-        
-        {/* Users Data Loading Indicator */}
+      {/* AG Grid Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {usersLoading && (
           <div className="bg-blue-50 border-l-4 border-blue-400 p-3">
             <div className="flex items-center">
@@ -686,195 +705,81 @@ function AdminRoleManagementClient() {
           </div>
         )}
         
-        {/* Desktop Table */}
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </th>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.length === 0 ? (
-                <tr>
-                  <td colSpan={columns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    {loading ? 'Loading...' : 'No roles found'}
-                  </td>
-                </tr>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div style={{ height: "calc(100vh - 400px)", minHeight: "500px" }} className="ag-theme-alpine">
+          <AgGridReact
+            ref={gridRef}
+            rowData={roles}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            loading={loading}
+            pagination={false}
+            domLayout="normal"
+            animateRows={true}
+            suppressMenuHide={false}
+            rowSelection="multiple"
+            suppressRowClickSelection={false}
+            rowHeight={48}
+            headerHeight={44}
+            suppressCellFocus={true}
+          />
         </div>
 
-        {/* Mobile Cards */}
-        <div className="lg:hidden">
-          {table.getRowModel().rows.length === 0 ? (
-            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
-              {loading ? 'Loading...' : 'No roles found'}
+        {/* Custom Pagination */}
+        <div className="px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-600 font-medium">Rows per page:</span>
+            <div className="relative">
+              <select
+                value={paginationInfo.pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {table.getRowModel().rows.map((row) => (
-                <div key={row.id} className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <div className="space-y-3">
-                    {/* Role Name and Description */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          {row.original.role_name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {row.original.role_description || 'No description'}
-                        </div>
-                      </div>
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                        Active
-                      </span>
                     </div>
 
-                    {/* Privilege Count and Created Date */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Privileges:</span>
-                        <p className="text-sm text-gray-900 dark:text-white">
-                          {row.original.privilege_names?.length || 0}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created:</span>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {new Date(row.original.created_on).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Created By and Modified By */}
-                    <div className="grid grid-cols-1 gap-2">
-                      <div>
-                        <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Created By:</span>
-                        <div className="flex items-center mt-1">
-                          {usersLoading ? (
-                            <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
-                          ) : (
-                            <>
-                              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                                <span className="text-blue-600 font-semibold text-xs">
-                                  {row.original.created_by}
+          <div className="flex items-center gap-6">
+            <span className="text-sm text-gray-600 font-medium">
+              {paginationInfo.totalRecords > 0 
+                ? `${(paginationInfo.currentPage - 1) * paginationInfo.pageSize + 1}-${Math.min(paginationInfo.currentPage * paginationInfo.pageSize, paginationInfo.totalRecords)} of ${paginationInfo.totalRecords}`
+                : '0 of 0'
+              }
                                 </span>
-                              </div>
-                              <span className="text-sm text-gray-900 dark:text-white">
-                                {getUserName(row.original.created_by)}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {row.original.modified_by && (
-                        <div>
-                          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Modified By:</span>
-                          <div className="flex items-center mt-1">
-                            {usersLoading ? (
-                              <div className="animate-pulse bg-gray-200 h-4 w-20 rounded"></div>
-                            ) : (
-                              <>
-                                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                                  <span className="text-green-600 font-semibold text-xs">
-                                    {row.original.modified_by}
-                                  </span>
-                                </div>
-                                <span className="text-sm text-gray-900 dark:text-white">
-                                  {getUserName(row.original.modified_by)}
-                                </span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openModal(row.original)}
-                          className="flex-1"
-                        >
-                          <PencilIcon className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPrivilegesModal(row.original)}
-                          className="flex-1"
-                        >
-                          <EyeIcon className="w-4 h-4 mr-1" />
-                          View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeleteRole(row.original.id.toString())}
-                          className="text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20"
-                        >
-                          <TrashBinIcon className="w-4 h-4" />
-                        </Button>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(paginationInfo.currentPage - 1)}
+                disabled={paginationInfo.currentPage === 1}
+                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                aria-label="Previous page"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
+              <button
+                onClick={() => handlePageChange(paginationInfo.currentPage + 1)}
+                disabled={paginationInfo.currentPage >= paginationInfo.totalPages}
+                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                aria-label="Next page"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Pagination */}
-      {roles.length > 0 && (
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-700 dark:text-gray-300 order-2 sm:order-1">
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-            {Math.min(
-              (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-              totalCount
-            )}{" "}
-            of {totalCount} results
-          </div>
-          <div className="order-1 sm:order-2">
-            <Pagination
-              currentPage={table.getState().pagination.pageIndex + 1}
-              totalPages={table.getPageCount()}
-              onPageChange={(page) => table.setPageIndex(page - 1)}
-            />
-          </div>
-        </div>
-      )}
 
 
              {/* Form Modal */}
