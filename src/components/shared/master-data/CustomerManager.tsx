@@ -271,8 +271,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         pinned: "left",
         sortable: false,
         filter: false,
-        width: 50,
-        flex: 0,
+        minWidth: 50,
+        flex: .3,
       },
     {
       field: "customer_code",
@@ -348,8 +348,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     },
     {
       headerName: "Actions",
-      minWidth: 150,
-      flex: 0.8,
+      minWidth: 120,
+      // flex: 0.8,
       cellRenderer: ActionsRenderer,
       sortable: false,
       filter: false,
@@ -731,7 +731,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
 export default withSimplifiedRBAC(CustomerManager, {
   privilege: "VIEW_CUSTOMERS",
-  module: [50],
+  module: [60],
   allowSuperUserBypass: true,
   redirectTo: "/dashboard"
 });

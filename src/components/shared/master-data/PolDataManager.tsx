@@ -1,7 +1,7 @@
 "use client";
 
 import Button from "@/components/ui/button/Button";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
@@ -22,10 +22,22 @@ import type {
   ValueFormatterParams,
   ICellRendererParams,
 } from "ag-grid-community";
-import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import { 
+  AllCommunityModule, 
+  ModuleRegistry, 
+  CsvExportModule,
+} from "ag-grid-community";
+import { 
+  AgGridReact,
+} from "ag-grid-react";
+import { ExcelExportModule, SetFilterModule } from "ag-grid-enterprise";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+ModuleRegistry.registerModules([
+  AllCommunityModule,
+  CsvExportModule,
+  ExcelExportModule,
+  SetFilterModule,
+]);
 
 // Custom Cell Renderers
 const StatusRenderer = (params: ICellRendererParams) => {
@@ -90,6 +102,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
+  const gridRef = useRef<AgGridReact<POLResponse>>(null);
   
   const [filters, setFilters] = useState<POLListRequest>({
     page: 1,
@@ -153,6 +167,39 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   };
 
+  // Handle export to Excel
+  const handleExportExcel = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsExcel({
+          fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.xlsx`,
+          sheetName: "POL Ports",
+          onlySelected: exportSelectedOnly,
+        });
+        toast.success("POL ports exported to Excel successfully");
+      } catch (error: any) {
+        console.error("Error exporting to Excel:", error);
+        toast.error("Failed to export to Excel");
+      }
+    }
+  }, [exportSelectedOnly]);
+
+  // Handle export to CSV
+  const handleExportCSV = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsCsv({
+          fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.csv`,
+          onlySelected: exportSelectedOnly,
+        });
+        toast.success("POL ports exported to CSV successfully");
+      } catch (error: any) {
+        console.error("Error exporting to CSV:", error);
+        toast.error("Failed to export to CSV");
+      }
+    }
+  }, [exportSelectedOnly]);
+
   const handleDeleteClick = (pol: POLResponse) => {
     if (!canDeletePOL) {
       toast.error("You don't have permission to delete POL data");
@@ -192,6 +239,17 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      colId: "checkbox",
+      headerName: "",
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      pinned: "left",
+      sortable: false,
+      filter: false,
+      minWidth: 50,
+      flex: 0,
+    },
     {
       field: "code",
       headerName: "Port Code",
@@ -247,8 +305,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     },
     {
       headerName: "Actions",
-      minWidth: 150,
-      flex: 0.8,
+      minWidth: 120,
       cellRenderer: ActionsRenderer,
       sortable: false,
       filter: false,
@@ -452,13 +509,26 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                 className="max-w-md"
               />
             </div>
-            <div className="flex gap-3">
-              <Button type="button" onClick={handleExport} size="sm" variant="outline" disabled={loading}>
-                <DownloadIcon className="w-4 h-4 mr-2" />
-                Export
+            <div className="flex gap-2">
+              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={exportSelectedOnly}
+                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span>Selected Rows Only</span>
+              </label>
+              <Button type="button" onClick={handleExportExcel} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
+                <DownloadIcon className="w-4 h-4" />
+                Export Excel
               </Button>
-              <Button type="button" onClick={() => openModal()} size="sm">
-                <PlusIcon className="w-4 h-4 mr-2" />
+              <Button type="button" onClick={handleExportCSV} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
+                <DownloadIcon className="w-4 h-4" />
+                Export CSV
+              </Button>
+              <Button type="button" onClick={() => openModal()} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
+                <PlusIcon className="w-4 h-4" />
                 Add POL Port
               </Button>
             </div>
@@ -469,6 +539,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       {/* AG Grid Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden" style={{ height: '600px' }}>
         <AgGridReact
+          ref={gridRef}
           rowData={pols}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
@@ -481,6 +552,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"
+          suppressRowClickSelection={false}
+          rowSelection="multiple"
         />
       </div>
 

@@ -552,8 +552,8 @@ function AdminRoleManagementClient() {
     {
       field: "actions",
       headerName: "Actions",
-      width: 120,
-      flex: 0.3,
+      minWidth: 120,
+      // flex: 1,
       sortable: false,
       filter: false,
       cellRenderer: ActionsRenderer,
