@@ -492,7 +492,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             disabled={isSubmitting || rolesLoading}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
           >
-            {isSubmitting ? 'Saving...' : isEditing ? 'Update User' : 'Create User'}
+            {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Save'}
           </Button>
         </div>
       </form>

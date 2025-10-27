@@ -471,7 +471,7 @@ export function RoleForm({
                  {isEditing ? "Updating..." : "Creating..."}
                </div>
              ) : (
-               isEditing ? "Update Role" : "Create Role"
+               isEditing ? "Update" : "Save"
              )}
            </Button>
          </div>

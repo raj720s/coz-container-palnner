@@ -471,6 +471,9 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           loading={loading}
           pagination={true}
           paginationPageSize={filters.page_size}
+          paginationAutoPageSize={false}
+          suppressPaginationPanel={false}
+          paginationPageSizeSelector={[10, 25, 50, 100]}
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"

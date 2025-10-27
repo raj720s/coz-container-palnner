@@ -26,13 +26,27 @@ export interface CompanyFormData {
 export interface CompanyListRequest {
   page?: number;
   page_size?: number;
-  search?: string;
+  order_by?: string;
+  order_type?: string;
+  name?: string;
+  short_name?: string;
   company_type?: number;
   country?: string;
+  email?: string;
+  phone?: string;
+  parent_company?: string;
   is_third_party?: boolean;
   is_active?: boolean;
-  order_by?: string;
-  order_type?: 'asc' | 'desc';
+  created_by?: number;
+  created_by_name?: string;
+  modified_by?: number;
+  modified_by_name?: string;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  // Support search parameter for backwards compatibility
+  search?: string;
 }
 
 export interface CompanyListResponse {
@@ -68,11 +82,11 @@ export interface CompanyUpdateRequest {
 
 // Company type options
 export const COMPANY_TYPES = [
-  { value: 1, label: 'Customer' },
-  { value: 2, label: 'Vendor' },
-  { value: 3, label: 'Partner' },
-  { value: 4, label: 'Supplier' },
-  { value: 5, label: 'Subsidiary' },
+  { value: 5, label: '2PL' },
+  { value: 10, label: '3PL' },
+  // { value: 3, label: 'Partner' },
+  // { value: 4, label: 'Supplier' },
+  // { value: 5, label: 'Subsidiary' },
 ];
 
 // Country options (common countries)
@@ -131,20 +145,6 @@ export const COUNTRIES = [
   { value: 'NA', label: 'Namibia' },
   { value: 'SZ', label: 'Eswatini' },
   { value: 'LS', label: 'Lesotho' },
-  { value: 'MG', label: 'Madagascar' },
-  { value: 'MU', label: 'Mauritius' },
-  { value: 'SC', label: 'Seychelles' },
-  { value: 'KM', label: 'Comoros' },
-  { value: 'DJ', label: 'Djibouti' },
-  { value: 'SO', label: 'Somalia' },
-  { value: 'ER', label: 'Eritrea' },
-  { value: 'SS', label: 'South Sudan' },
-  { value: 'UG', label: 'Uganda' },
-  { value: 'RW', label: 'Rwanda' },
-  { value: 'BI', label: 'Burundi' },
-  { value: 'TZ', label: 'Tanzania' },
-  { value: 'MW', label: 'Malawi' },
-  { value: 'MZ', label: 'Mozambique' },
   { value: 'MG', label: 'Madagascar' },
   { value: 'MU', label: 'Mauritius' },
   { value: 'SC', label: 'Seychelles' },

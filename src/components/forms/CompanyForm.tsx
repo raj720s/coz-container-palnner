@@ -17,7 +17,9 @@ import { companyService } from "@/services/companyService";
 const companySchema = z.object({
   name: z.string().min(1, "Company name is required").max(255, "Company name must be less than 255 characters"),
   short_name: z.string().max(50, "Short name must be less than 50 characters").optional(),
-  company_type: z.number().min(1, "Company type is required"),
+  company_type: z.union([z.literal(5), z.literal(10)]).refine(val => val === 5 || val === 10, {
+    message: "Company type must be either 2PL (5) or 3PL (10)"
+  }),
   country: z.string().max(100, "Country must be less than 100 characters").optional(),
   email: z.string().email("Invalid email address").min(1, "Email is required"),
   phone: z.string().max(50, "Phone must be less than 50 characters").optional(),
@@ -49,7 +51,7 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
     defaultValues: {
       name: "",
       short_name: "",
-      company_type: 1,
+      company_type: 5,
       country: "",
       email: "",
       phone: "",
@@ -65,7 +67,7 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
       reset({
         name: initialData.name,
         short_name: initialData.short_name || "",
-        company_type: initialData.company_type,
+        company_type: (initialData.company_type === 5 || initialData.company_type === 10) ? initialData.company_type : 5,
         country: initialData.country || "",
         email: initialData.email,
         phone: initialData.phone || "",
@@ -216,7 +218,7 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
           type="submit"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Saving..." : (isEditing ? "Update Company" : "Create Company")}
+          {isSubmitting ? "Saving..." : (isEditing ? "Update" : "Save")}
         </Button>
       </div>
     </form>

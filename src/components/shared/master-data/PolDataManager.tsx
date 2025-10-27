@@ -93,7 +93,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   
   const [filters, setFilters] = useState<POLListRequest>({
     page: 1,
-    page_size: 12,
+    page_size: 10,
     order_by: "created_on",
     order_type: "desc"
   });
@@ -475,6 +475,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           loading={loading}
           pagination={true}
           paginationPageSize={filters.page_size}
+          paginationAutoPageSize={false}
+          suppressPaginationPanel={false}
+          paginationPageSizeSelector={[10, 25, 50, 100]}
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"

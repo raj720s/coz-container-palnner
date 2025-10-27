@@ -300,7 +300,7 @@ export const PortForm: React.FC<PortFormProps> = ({
               Saving...
             </div>
           ) : (
-            isEditing ? "Update Port" : "Create Port"
+            isEditing ? "Update" : "Save"
           )}
         </Button>
       </div>

@@ -22,20 +22,21 @@ import type {
   GridReadyEvent,
   PaginationChangedEvent,
 } from "ag-grid-community";
-import { 
-  AllCommunityModule, 
+import {
+  AllCommunityModule,
   ModuleRegistry,
   CsvExportModule,
 } from "ag-grid-community";
-import { 
+import {
   AgGridReact,
 } from "ag-grid-react";
-import { ExcelExportModule } from "ag-grid-enterprise";
+import { ExcelExportModule, SetFilterModule } from "ag-grid-enterprise";
 
 ModuleRegistry.registerModules([
   AllCommunityModule,
   CsvExportModule,
   ExcelExportModule,
+  SetFilterModule,
 ]);
 
 // Custom Cell Renderers
@@ -43,16 +44,10 @@ const CompanyInfoRenderer = (params: ICellRendererParams) => {
   const company = params.data;
   return (
     <div className="flex items-center">
-      <BuildingIcon className="w-8 h-8 text-gray-400 mr-3" />
       <div>
         <div className="font-medium text-gray-900 dark:text-white">
           {company.name}
         </div>
-        {company.short_name && (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {company.short_name}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -62,11 +57,10 @@ const StatusRenderer = (params: ICellRendererParams) => {
   const isActive = params.value;
   return (
     <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-        isActive
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isActive
           ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
           : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-      }`}
+        }`}
     >
       {isActive ? (
         <>
@@ -96,11 +90,10 @@ const ThirdPartyRenderer = (params: ICellRendererParams) => {
   const isThirdParty = params.value;
   return (
     <span
-      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-        isThirdParty
+      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isThirdParty
           ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
           : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
-      }`}
+        }`}
     >
       {isThirdParty ? "Yes" : "No"}
     </span>
@@ -136,11 +129,12 @@ const CompanyManager: React.FC = () => {
   const [editingItem, setEditingItem] = useState<Company | null>(null);
   const [deleteItem, setDeleteItem] = useState<Company | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
 
   // Filters and pagination
   const [filters, setFilters] = useState<CompanyListRequest>({
     page: 1,
-    page_size: 12,
+    page_size: 10,
     search: "",
     company_type: undefined,
     country: "",
@@ -150,24 +144,31 @@ const CompanyManager: React.FC = () => {
     order_type: "asc",
   });
 
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 12,
-  });
   const [totalCount, setTotalCount] = useState(0);
   const gridRef = useRef<AgGridReact<Company>>(null);
 
-  // Pagination state for AG Grid
+  // Pagination state
   const [paginationInfo, setPaginationInfo] = useState({
     currentPage: 1,
     totalPages: 0,
     totalRecords: 0,
-    pageSize: 12,
+    pageSize: 10,
   });
 
   // Column definitions
   const columnDefs: ColDef<Company>[] = useMemo(
     () => [
+      {
+        colId: "checkbox",
+        headerName: "",
+        checkboxSelection: true,
+        headerCheckboxSelection: true,
+        pinned: "left",
+        sortable: false,
+        filter: false,
+        minWidth: 50,
+        flex: 0,
+      },
       {
         field: "name",
         headerName: "Company",
@@ -311,30 +312,6 @@ const CompanyManager: React.FC = () => {
     params.api.sizeColumnsToFit();
   }, []);
 
-  // Handle pagination change
-  const onPaginationChanged = useCallback((event: PaginationChangedEvent) => {
-    if (event.api.paginationGetPageSize() !== pagination.pageSize) {
-      setPagination(prev => ({
-        ...prev,
-        pageSize: event.api.paginationGetPageSize(),
-      }));
-      setFilters(prev => ({
-        ...prev,
-        page_size: event.api.paginationGetPageSize(),
-        page: 1,
-      }));
-    } else if (event.api.paginationGetCurrentPage() !== pagination.pageIndex) {
-      setPagination(prev => ({
-        ...prev,
-        pageIndex: event.api.paginationGetCurrentPage(),
-      }));
-      setFilters(prev => ({
-        ...prev,
-        page: event.api.paginationGetCurrentPage() + 1,
-      }));
-    }
-  }, [pagination.pageSize, pagination.pageIndex]);
-
   // Handle search
   const handleSearch = useCallback((searchTerm: string) => {
     setFilters(prev => ({
@@ -353,22 +330,25 @@ const CompanyManager: React.FC = () => {
     }));
   }, []);
 
-  // Handle page size change
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setFilters(prev => ({
-      ...prev,
-      page_size: newPageSize,
-      page: 1,
-    }));
-  }, []);
-
-  // Handle page change
-  const handlePageChange = useCallback((newPage: number) => {
-    setFilters(prev => ({
-      ...prev,
-      page: newPage,
-    }));
-  }, []);
+  // Handle pagination changes
+  const onPaginationChanged = useCallback(() => {
+    if (gridRef.current) {
+      const api = gridRef.current.api;
+      const currentPage = api.paginationGetCurrentPage();
+      const pageSize = api.paginationGetPageSize();
+      
+      // Update filters with new page (convert from 0-based to 1-based)
+      const newPage = currentPage + 1;
+      
+      if (newPage !== filters.page || pageSize !== filters.page_size) {
+        setFilters(prev => ({
+          ...prev,
+          page: newPage,
+          page_size: pageSize,
+        }));
+      }
+    }
+  }, [filters.page, filters.page_size]);
 
   // Handle create
   const handleCreate = useCallback(() => {
@@ -412,24 +392,38 @@ const CompanyManager: React.FC = () => {
     setIsSubmitting(false);
   }, []);
 
-  // Handle export
-  const handleExport = useCallback(async () => {
-    try {
-      const blob = await companyService.exportCompanies(filters);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `companies-${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success("Companies exported successfully");
-    } catch (error: any) {
-      console.error("Error exporting companies:", error);
-      toast.error("Failed to export companies");
+  // Handle export to Excel
+  const handleExportExcel = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsExcel({
+          fileName: `companies_${new Date().toISOString().split('T')[0]}.xlsx`,
+          sheetName: "Companies",
+          onlySelected: exportSelectedOnly,
+        });
+        toast.success("Companies exported to Excel successfully");
+      } catch (error: any) {
+        console.error("Error exporting to Excel:", error);
+        toast.error("Failed to export to Excel");
+      }
     }
-  }, [filters]);
+  }, [exportSelectedOnly]);
+
+  // Handle export to CSV
+  const handleExportCSV = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsCsv({
+          fileName: `companies_${new Date().toISOString().split('T')[0]}.csv`,
+          onlySelected: exportSelectedOnly,
+        });
+        toast.success("Companies exported to CSV successfully");
+      } catch (error: any) {
+        console.error("Error exporting to CSV:", error);
+        toast.error("Failed to export to CSV");
+      }
+    }
+  }, [exportSelectedOnly]);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -441,158 +435,152 @@ const CompanyManager: React.FC = () => {
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <Input
-              placeholder="Search companies..."
-              value={filters.search || ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
-              className="w-full"
-            />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Companies</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {totalCount}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+              <span className="text-blue-600 dark:text-blue-400 text-sm font-bold">🏢</span>
+            </div>
           </div>
-          <div>
-            <Select
-              value={filters.company_type || ""}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleFilterChange("company_type", e.target.value ? Number(e.target.value) : undefined)}
-            >
-              <option value="">All Types</option>
-              {COMPANY_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </Select>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {data.filter(c => c.is_active).length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <span className="text-green-600 dark:text-green-400 text-sm font-bold">✓</span>
+            </div>
           </div>
-          <div>
-            <Select
-              value={filters.country || ""}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleFilterChange("country", e.target.value || undefined)}
-            >
-              <option value="">All Countries</option>
-              {COUNTRIES.map((country) => (
-                <option key={country.value} value={country.value}>
-                  {country.label}
-                </option>
-              ))}
-            </Select>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Third Party</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {data.filter(c => c.is_third_party).length}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+              <span className="text-purple-600 dark:text-purple-400 text-sm font-bold">🤝</span>
+            </div>
           </div>
-          <div>
-            <Select
-              value={filters.is_third_party === undefined ? "" : filters.is_third_party.toString()}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleFilterChange("is_third_party", e.target.value === "" ? undefined : e.target.value === "true")}
-            >
-              <option value="">All Companies</option>
-              <option value="false">Internal</option>
-              <option value="true">Third Party</option>
-            </Select>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Countries</p>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {new Set(data.map(c => c.country).filter(Boolean)).size}
+              </p>
+            </div>
+            <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+              <span className="text-orange-600 dark:text-orange-400 text-sm font-bold">🌍</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="mb-6 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <Button
-            onClick={handleCreate}
-            className="flex items-center space-x-2"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span>Add Company</span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleExport}
-            className="flex items-center space-x-2"
-          >
-            <DownloadIcon className="w-4 h-4" />
-            <span>Export</span>
-          </Button>
-        </div>
-        <div className="text-sm text-gray-500">
-          {paginationInfo.totalRecords} companies found
+      {/* Filters and Controls */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Search */}
+            <div className="flex-1 min-w-0">
+              <Input
+                placeholder="Search companies..."
+                value={filters.search || ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSearch(e.target.value)}
+                className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
+              />
+            </div>
+
+            {/* Export Buttons */}
+            <div className="flex items-center gap-3">
+              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={exportSelectedOnly}
+                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span>Selected Rows Only</span>
+              </label>
+              <Button 
+                type="button"
+                onClick={handleExportExcel} 
+                size="sm" 
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+              >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export Excel
+              </Button>
+              <Button 
+                type="button"
+                onClick={handleExportCSV} 
+                size="sm" 
+                variant="outline"
+                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
+              >
+                <DownloadIcon className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+
+            {/* Add Button */}
+            <Button 
+              type="button"
+              onClick={handleCreate} 
+              size="sm"
+              className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Add Company
+            </Button>
+          </div>
         </div>
       </div>
+
 
       {/* AG Grid Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div style={{ height: "calc(100vh - 340px)", minHeight: "500px" }} className="ag-theme-alpine">
-          <AgGridReact
-            ref={gridRef}
-            rowData={data}
-            columnDefs={columnDefs}
-            defaultColDef={defaultColDef}
-            loading={loading}
-            pagination={true}
-            paginationPageSize={pagination.pageSize}
-            paginationAutoPageSize={false}
-            suppressPaginationPanel={false}
-            domLayout="normal"
-            animateRows={true}
-            onGridReady={onGridReady}
-            onPaginationChanged={onPaginationChanged}
-            paginationPageSizeSelector={[12, 25, 50, 100]}
-            suppressRowClickSelection={false}
-            rowSelection="single"
-            context={{
-              onEdit: handleEdit,
-              onDelete: handleDelete,
-            }}
-          />
-        </div>
-
-        {/* Custom Pagination */}
-        <div className="px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 font-medium">Rows per page:</span>
-            <div className="relative">
-              <select
-                value={filters.page_size}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
-              >
-                <option value={12}>12</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-gray-600 font-medium">
-              {paginationInfo.totalRecords > 0 
-                ? `${(paginationInfo.currentPage - 1) * paginationInfo.pageSize + 1}-${Math.min(paginationInfo.currentPage * paginationInfo.pageSize, paginationInfo.totalRecords)} of ${paginationInfo.totalRecords}`
-                : '0 of 0'
-              }
-            </span>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(paginationInfo.currentPage - 1)}
-                disabled={paginationInfo.currentPage === 1}
-                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                aria-label="Previous page"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <button
-                onClick={() => handlePageChange(paginationInfo.currentPage + 1)}
-                disabled={paginationInfo.currentPage >= paginationInfo.totalPages}
-                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                aria-label="Next page"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+      <div
+        className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
+        style={{ height: "600px" }}
+      >
+        <AgGridReact
+          ref={gridRef}
+          rowData={data}
+          columnDefs={columnDefs}
+          defaultColDef={defaultColDef}
+          loading={loading}
+          pagination={true}
+          paginationPageSize={filters.page_size}
+          paginationAutoPageSize={false}
+          suppressPaginationPanel={false}
+          domLayout="normal"
+          animateRows={true}
+          className="ag-theme-alpine"
+          onGridReady={onGridReady}
+          onPaginationChanged={onPaginationChanged}
+          paginationPageSizeSelector={[10, 25, 50, 100]}
+          suppressRowClickSelection={false}
+          rowSelection="multiple"
+          context={{
+            onEdit: handleEdit,
+            onDelete: handleDelete,
+          }}
+        />
       </div>
 
       {/* Form Modal */}

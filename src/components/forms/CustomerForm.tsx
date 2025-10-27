@@ -312,7 +312,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
           disabled={isLoading}
           type="submit"
         >
-          {isLoading ? 'Saving...' : (isEditing ? 'Update Customer' : 'Create Customer')}
+          {isLoading ? 'Saving...' : (isEditing ? 'Update' : 'Save')}
         </Button>
       </div>
     </form>

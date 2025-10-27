@@ -725,7 +725,11 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}
             loading={loading}
-            pagination={false}
+            pagination={true}
+            paginationPageSize={filters.page_size}
+            paginationAutoPageSize={false}
+            suppressPaginationPanel={false}
+            paginationPageSizeSelector={[10, 25, 50, 100]}
             domLayout="normal"
             animateRows={true}
             suppressMenuHide={false}
@@ -735,61 +739,6 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
             headerHeight={44}
             suppressCellFocus={true}
           />
-        </div>
-
-        {/* Custom Pagination */}
-        <div className="px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 font-medium">Rows per page:</span>
-            <div className="relative">
-              <select
-                value={filters.page_size}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-1.5 text-sm text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent cursor-pointer"
-              >
-                <option value={9}>9</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-              <svg className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <span className="text-sm text-gray-600 font-medium">
-              {paginationInfo.totalRecords > 0 
-                ? `${(paginationInfo.currentPage - 1) * paginationInfo.pageSize + 1}-${Math.min(paginationInfo.currentPage * paginationInfo.pageSize, paginationInfo.totalRecords)} of ${paginationInfo.totalRecords}`
-                : '0 of 0'
-              }
-            </span>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(paginationInfo.currentPage - 1)}
-                disabled={paginationInfo.currentPage === 1}
-                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                aria-label="Previous page"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <button
-                onClick={() => handlePageChange(paginationInfo.currentPage + 1)}
-                disabled={paginationInfo.currentPage >= paginationInfo.totalPages}
-                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
-                aria-label="Next page"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          </div>
         </div>
       </div>
       {/* Form Modal */}

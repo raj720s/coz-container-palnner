@@ -133,6 +133,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
+  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
 
   // Pagination state for AG Grid
   const [paginationInfo, setPaginationInfo] = useState({
@@ -262,6 +263,17 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
+      {
+        colId: "checkbox",
+        headerName: "",
+        checkboxSelection: true,
+        headerCheckboxSelection: true,
+        pinned: "left",
+        sortable: false,
+        filter: false,
+        width: 50,
+        flex: 0,
+      },
     {
       field: "customer_code",
       headerName: "Customer Code",
@@ -449,51 +461,20 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     }
   };
 
-  const handleExportCSV = async () => {
-    try {
-      setLoading(true);
-      const exportData = await customerService.getCustomers({
-        ...filters,
-        page_size: 1000
-      });
-      
-      // Create CSV content
-      const headers = ['Code', 'Company Name', 'Contact Person', 'Email', 'Phone', 'Address', 'Country', 'Tax ID', 'Status', 'Created On'];
-      const csvRows = [
-        headers.join(','),
-        ...exportData.results.map((customer: CustomerResponse) => [
-          customer.customer_code,
-          customer.name,
-          customer.contact_person,
-          customer.email,
-          customer.phone,
-          customer.address,
-          customer.country,
-          customer.tax_id,
-          customer.is_active ? 'Active' : 'Inactive',
-          customer.created_on ? new Date(customer.created_on).toLocaleDateString() : 'N/A'
-        ].join(','))
-      ];
-      
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `customers_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast.success('Customers exported to CSV successfully');
-    } catch (error: any) {
-      console.error('Error exporting customers to CSV:', error);
-      toast.error('Failed to export customers to CSV');
-    } finally {
-      setLoading(false);
+  const handleExportCSV = useCallback(() => {
+    if (gridRef.current) {
+      try {
+        gridRef.current.api.exportDataAsCsv({
+          fileName: `customers_${new Date().toISOString().split('T')[0]}.csv`,
+          onlySelected: exportSelectedOnly,
+        });
+        toast.success('Customers exported to CSV successfully');
+      } catch (error: any) {
+        console.error('Error exporting to CSV:', error);
+        toast.error('Failed to export to CSV');
+      }
     }
-  };
+  }, [exportSelectedOnly]);
 
   const handleExportExcel = useCallback(() => {
     if (gridRef.current) {
@@ -501,6 +482,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         gridRef.current.api.exportDataAsExcel({
           fileName: `customers_${new Date().toISOString().split('T')[0]}.xlsx`,
           sheetName: "Customers",
+          onlySelected: exportSelectedOnly,
         });
         toast.success("Customers exported to Excel successfully");
       } catch (error: any) {
@@ -508,12 +490,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         toast.error("Failed to export to Excel");
       }
     }
-  }, []);
-
-  const handleExport = () => {
-    // Default to Excel export
-    handleExportExcel();
-  };
+  }, [exportSelectedOnly]);
 
   const handleSearch = (searchTerm: string) => {
     setGlobalFilter(searchTerm);
@@ -635,10 +612,19 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             </div>
 
             {/* Export Buttons */}
-            <div className="flex gap-3">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={exportSelectedOnly}
+                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span>Selected Rows Only</span>
+              </label>
               <Button 
                 type="button"
-                onClick={handleExport} 
+                onClick={handleExportExcel} 
                 size="sm" 
                 variant="outline"
                 className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
@@ -695,7 +681,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           paginationPageSizeSelector={[10, 25, 50, 100]}
           // Ensure pagination is server-side
           suppressRowClickSelection={false}
-          rowSelection="single"
+          rowSelection="multiple"
         />
       </div>
 
