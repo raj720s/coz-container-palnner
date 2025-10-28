@@ -476,6 +476,59 @@ export interface ContainerTypeListResponse {
   results: ContainerTypeResponse[];
 }
 
+// Carrier Management Types
+export interface CreateCarrierRequest {
+  name: string;
+  carrier_code: string;
+  transportation_mode?: number;
+  is_active?: boolean;
+}
+
+export interface UpdateCarrierRequest {
+  name?: string;
+  carrier_code?: string;
+  transportation_mode?: number;
+  is_active?: boolean;
+}
+
+export interface CarrierResponse {
+  id: number;
+  name: string;
+  carrier_code: string;
+  transportation_mode: number;
+  is_active: boolean;
+  created_on?: string;
+  modified_on?: string;
+  created_by?: number;
+  modified_by?: number;
+}
+
+export interface CarrierListRequest {
+  name?: string;
+  carrier_code?: string;
+  transportation_mode?: number;
+  is_active?: boolean;
+  order_by?: string;
+  order_type?: string;
+  page?: number;
+  page_size?: number;
+  created_by?: number;
+  modified_by?: number;
+  created_by_name?: string;
+  created_on_start_date?: string;
+  created_on_end_date?: string;
+  modified_by_name?: string;
+  modified_on_start_date?: string;
+  modified_on_end_date?: string;
+  export?: boolean;
+  module_id?: number;
+}
+
+export interface CarrierListResponse {
+  count: number;
+  results: CarrierResponse[];
+}
+
 // Role Assignment Types
 export interface RoleAssignmentRequest {
   role_id: string;

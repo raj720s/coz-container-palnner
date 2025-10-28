@@ -34,7 +34,7 @@ export default function AuthLayout({
 
                 <div className="flex items-center justify-end pl-10 mb-6">
                   <div className=" pr-8">
-                    <h1 className="text-4xl font-bold text-white leading-tight">
+                    <h1 className="text-4xl lg:ml-[50px] xl:ml-[100px] 2xl:ml-[150px] font-bold text-white leading-tight">
                       Your <span className="text-purple-300">Vendor</span> Journey Starts Here
                     </h1>
                   </div>

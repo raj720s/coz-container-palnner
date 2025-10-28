@@ -111,6 +111,21 @@ export const staticModules: Record<number, StaticModule> = {
     color: "indigo",
     group: "master-data"
   },
+
+  // Module 68: Carrier Management
+  68: {
+    id: 68,
+    name: "Carrier Management",
+    description: "Manage carriers, carrier codes, and transportation modes",
+    routes: ["/carrier-management"],
+    privileges: [
+      "VIEW_CARRIERS", "CREATE_CARRIER", "VIEW_CARRIER", "UPDATE_CARRIER", "DELETE_CARRIER",
+      "EXPORT_CARRIERS"
+    ],
+    icon: "truck",
+    color: "cyan",
+    group: "master-data"
+  },
   
   // Module 70: Shipment Operations
   70: {
