@@ -221,6 +221,8 @@ export interface CreatePOLRequest {
   city: string;
   timezone: string;
   is_active: boolean;
+  latitude: string;
+  longitude: string;
 }
 
 export interface UpdatePOLRequest {
@@ -230,6 +232,8 @@ export interface UpdatePOLRequest {
   city?: string;
   timezone?: string;
   is_active?: boolean;
+  latitude?: string;
+  longitude?: string;
 }
 
 export interface POLResponse {
@@ -240,6 +244,8 @@ export interface POLResponse {
   city: string;
   timezone: string;
   is_active: boolean;
+  latitude: string;
+  longitude: string;
   created_on?: string;
   modified_on?: string;
   created_by?: number;
@@ -281,6 +287,8 @@ export interface CreatePODRequest {
   city: string;
   timezone: string;
   is_active: boolean;
+  latitude: string;
+  longitude: string;
 }
 
 export interface UpdatePODRequest {
@@ -290,6 +298,8 @@ export interface UpdatePODRequest {
   city?: string;
   timezone?: string;
   is_active?: boolean;
+  latitude?: string;
+  longitude?: string;
 }
 
 export interface PODResponse {
@@ -300,6 +310,8 @@ export interface PODResponse {
   city: string;
   timezone: string;
   is_active: boolean;
+  latitude: string;
+  longitude: string;
   created_on?: string;
   modified_on?: string;
   created_by?: number;

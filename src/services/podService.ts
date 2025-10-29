@@ -17,7 +17,7 @@ export class PODService extends BaseService {
    * @returns Promise<PODResponse>
    */
   async createPOD(podData: CreatePODRequest): Promise<PODResponse> {
-    this.validateRequiredFields(podData, ['name', 'code', 'country', 'city', 'timezone']);
+    this.validateRequiredFields(podData, ['name', 'code', 'country', 'city', 'timezone', 'latitude', 'longitude']);
     return this.post<PODResponse>(this.buildEndpoint('pod'), podData);
   }
 

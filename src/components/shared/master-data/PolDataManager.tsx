@@ -295,6 +295,22 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       cellRenderer: TimezoneRenderer,
     },
     {
+      field: "latitude",
+      headerName: "Latitude",
+      minWidth: 120,
+      flex: 1,
+      sortable: true,
+      filter: true,
+    },
+    {
+      field: "longitude",
+      headerName: "Longitude",
+      minWidth: 120,
+      flex: 1,
+      sortable: true,
+      filter: true,
+    },
+    {
       field: "is_active",
       headerName: "Status",
       minWidth: 120,
@@ -333,6 +349,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         city: formData.city,
         timezone: formData.timezone,
         is_active: formData.is_active,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       };
       
       if (editingItem) {
@@ -387,7 +405,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         page_size: 1000
       });
       
-      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status', 'Created On'];
+      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Latitude', 'Longitude', 'Status', 'Created On'];
       const csvRows = [
         headers.join(','),
         ...exportData.map(pol => [
@@ -396,6 +414,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           pol.country,
           pol.city,
           pol.timezone,
+          pol.latitude,
+          pol.longitude,
           pol.is_active ? 'Active' : 'Inactive',
           pol.created_on ? new Date(pol.created_on).toLocaleDateString() : 'N/A'
         ].join(','))
@@ -572,7 +592,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
             city: editingItem.city,
             timezone: editingItem.timezone,
             type: "POL" as const,
-            is_active: editingItem.is_active
+            is_active: editingItem.is_active,
+            latitude: editingItem.latitude,
+            longitude: editingItem.longitude
           } : undefined}
           onSubmit={handleSubmit}
           portType="POL"

@@ -288,6 +288,22 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       cellRenderer: TimezoneRenderer,
     },
     {
+      field: "latitude",
+      headerName: "Latitude",
+      minWidth: 120,
+      flex: 1,
+      sortable: true,
+      filter: true,
+    },
+    {
+      field: "longitude",
+      headerName: "Longitude",
+      minWidth: 120,
+      flex: 1,
+      sortable: true,
+      filter: true,
+    },
+    {
       field: "is_active",
       headerName: "Status",
       minWidth: 120,
@@ -326,7 +342,9 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           country: formData.country,
           city: formData.city,
           timezone: formData.timezone,
-          is_active: formData.is_active
+          is_active: formData.is_active,
+          latitude: formData.latitude,
+          longitude: formData.longitude
         };
         
         await podService.updatePOD(editingItem.id, updateData);
@@ -338,7 +356,9 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           country: formData.country,
           city: formData.city,
           timezone: formData.timezone,
-          is_active: formData.is_active
+          is_active: formData.is_active,
+          latitude: formData.latitude,
+          longitude: formData.longitude
         };
         
         await podService.createPOD(createData);
@@ -385,7 +405,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       setLoading(true);
       const response = await podService.getPODs({ ...filters, export: true });
       
-      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Status'];
+      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Latitude', 'Longitude', 'Status'];
       const csvContent = [
         headers.join(','),
         ...pods.map(pod => [
@@ -394,6 +414,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           pod.country,
           pod.city,
           pod.timezone,
+          pod.latitude,
+          pod.longitude,
           pod.is_active ? 'Active' : 'Inactive'
         ].join(','))
       ].join('\n');
@@ -570,7 +592,9 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
             city: editingItem.city,
             timezone: editingItem.timezone,
             type: "POD",
-            is_active: editingItem.is_active
+            is_active: editingItem.is_active,
+            latitude: editingItem.latitude,
+            longitude: editingItem.longitude
           } : undefined}
           onSubmit={handleSubmit}
           onCancel={closeModal}

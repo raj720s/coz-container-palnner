@@ -17,6 +17,8 @@ const portSchema = z.object({
   timezone: z.string().min(1, "Timezone is required"),
   type: z.enum(["POL", "POD"], { required_error: "Port type is required" }),
   is_active: z.boolean(),
+  latitude: z.string().min(1, "Latitude is required"),
+  longitude: z.string().min(1, "Longitude is required"),
 });
 
 export type PortFormData = z.infer<typeof portSchema>;
@@ -53,6 +55,8 @@ export const PortForm: React.FC<PortFormProps> = ({
       timezone: "",
       type: portType || "POL",
       is_active: true,
+      latitude: "",
+      longitude: "",
     },
   });
 
@@ -72,6 +76,8 @@ export const PortForm: React.FC<PortFormProps> = ({
         timezone: "",
         type: portType || "POL",
         is_active: true,
+        latitude: "",
+        longitude: "",
       });
     }
   }, [initialData, reset, portType]);
@@ -249,20 +255,25 @@ export const PortForm: React.FC<PortFormProps> = ({
             <p className="mt-1.5 text-xs text-red-500">{errors.timezone.message}</p>
           )}
         </div>
-        {/* <div>
-          <Label>Port Type *</Label>
-          <Select
-            options={typeOptions}
-            placeholder="Select port type"
-            value={watch("type")}
-            onChange={(value) => setValue("type", value as "POL" | "POD")}
-            className={errors.type ? "border-red-500" : ""}
-            disabled={!!portType} // Disable if portType is fixed
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <Label>Latitude *</Label>
+          <Input
+            placeholder="e.g., 31.2304"
+            {...register("latitude")}
+            error={errors.latitude?.message}
           />
-          {errors.type && (
-            <p className="mt-1.5 text-xs text-red-500">{errors.type.message}</p>
-          )}
-        </div> */}
+        </div>
+        <div>
+          <Label>Longitude *</Label>
+          <Input
+            placeholder="e.g., 121.4737"
+            {...register("longitude")}
+            error={errors.longitude?.message}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-3 pt-6">

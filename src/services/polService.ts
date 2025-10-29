@@ -17,7 +17,7 @@ export class POLService extends BaseService {
    * @returns Promise<POLResponse>
    */
   async createPOL(polData: CreatePOLRequest): Promise<POLResponse> {
-    this.validateRequiredFields(polData, ['name', 'code', 'country', 'city', 'timezone']);
+    this.validateRequiredFields(polData, ['name', 'code', 'country', 'city', 'timezone', 'latitude', 'longitude']);
     return this.post<POLResponse>(this.buildEndpoint('pol'), polData);
   }
 
