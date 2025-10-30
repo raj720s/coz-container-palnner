@@ -5,13 +5,10 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
-import { useFormModal } from "@/hooks/useFormModal";
-import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
-import { PODResponse, PODListRequest, CreatePODRequest, UpdatePODRequest } from "@/types/api";
+import { PODResponse, PODListRequest } from "@/types/api";
 import { podService } from "@/services";
 
 // AG Grid imports
@@ -116,26 +113,14 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<PODResponse | null>(null);
 
-  const {
-    isOpen: isModalOpen,
-    isLoading: isModalLoading,
-    editingItem,
-    openModal,
-    closeModal,
-    setLoading: setModalLoading,
-  } = useFormModal<PODResponse>();
-
   const canDeletePOD = can?.("DELETE_POD") || isAdmin?.() || isSuperUser;
 
-  // Auto-open modal if action=add
+  // Redirect to add page if action=add
   useEffect(() => {
     if (action === 'add') {
-      openModal(undefined);
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      newSearchParams.delete('action');
-      router.replace(`?${newSearchParams.toString()}`);
+      router.push('/port-customer-master/pod-ports/add');
     }
-  }, [action, openModal, router, searchParams]);
+  }, [action, router]);
 
   // Load POD ports
   useEffect(() => {
@@ -200,6 +185,16 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     }
   }, [exportSelectedOnly]);
 
+  const handleDeleteClick = (pod: PODResponse) => {
+    if (!canDeletePOD) {
+      toast.error("You don't have permission to delete POD data");
+      return;
+    }
+    
+    setDeletingItem(pod);
+    setDeleteModalOpen(true);
+  };
+
   // Actions Cell Renderer
   const ActionsRenderer = useCallback((params: ICellRendererParams) => {
     return (
@@ -207,7 +202,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => openModal(params.data)}
+          onClick={() => router.push(`/port-customer-master/pod-ports/edit?id=${params.data.id}`)}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -217,10 +212,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => {
-              setDeletingItem(params.data);
-              setDeleteModalOpen(true);
-            }}
+            onClick={() => handleDeleteClick(params.data)}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -228,7 +220,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
         )}
       </div>
     );
-  }, [canDeletePOD, openModal]);
+  }, [canDeletePOD, router]);
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -331,51 +323,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     minWidth: 100,
   }), []);
 
-  const handleSubmit = async (formData: PortFormData) => {
-    try {
-      setModalLoading(true);
-      
-      if (editingItem) {
-        const updateData: UpdatePODRequest = {
-          name: formData.name,
-          code: formData.code,
-          country: formData.country,
-          city: formData.city,
-          timezone: formData.timezone,
-          is_active: formData.is_active,
-          latitude: formData.latitude,
-          longitude: formData.longitude
-        };
-        
-        await podService.updatePOD(editingItem.id, updateData);
-        toast.success('POD port updated successfully');
-      } else {
-        const createData: CreatePODRequest = {
-          name: formData.name,
-          code: formData.code,
-          country: formData.country,
-          city: formData.city,
-          timezone: formData.timezone,
-          is_active: formData.is_active,
-          latitude: formData.latitude,
-          longitude: formData.longitude
-        };
-        
-        await podService.createPOD(createData);
-        toast.success('POD port created successfully');
-      }
-      
-      closeModal();
-      loadPODs();
-    } catch (error: any) {
-      console.error('Error saving POD port:', error);
-      toast.error(error.message || 'Failed to save POD port');
-    } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
+  const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
     
     if (!canDeletePOD) {
@@ -545,7 +493,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
                 <DownloadIcon className="w-4 h-4" />
                 Export CSV
               </Button>
-              <Button type="button" onClick={() => openModal()} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
+              <Button type="button" onClick={() => router.push('/port-customer-master/pod-ports/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
                 <PlusIcon className="w-4 h-4" />
                 Add POD Port
               </Button>
@@ -575,42 +523,19 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
         />
       </div>
 
-      {/* Form Modal */}
-      <FormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingItem ? "Edit POD Port" : "Add New POD Port"}
-        size="lg"
-        showFooter={false}
-      >
-        <PortForm
-          initialData={editingItem ? {
-            id: editingItem.id.toString(),
-            name: editingItem.name,
-            code: editingItem.code,
-            country: editingItem.country,
-            city: editingItem.city,
-            timezone: editingItem.timezone,
-            type: "POD",
-            is_active: editingItem.is_active,
-            latitude: editingItem.latitude,
-            longitude: editingItem.longitude
-          } : undefined}
-          onSubmit={handleSubmit}
-          onCancel={closeModal}
-          isLoading={isModalLoading}
-          portType="POD"
-        />
-      </FormModal>
-
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={deleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        onConfirm={handleDelete}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeletingItem(null);
+        }}
+        onConfirm={handleDeleteConfirm}
         title="Delete POD Port"
-        message={`Are you sure you want to delete the POD port "${deletingItem?.name}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete the POD port "${deletingItem?.name}" (${deletingItem?.code})? This action cannot be undone.`}
+        itemName={deletingItem?.name}
         isLoading={loading}
+        variant="danger"
       />
     </div>
   );

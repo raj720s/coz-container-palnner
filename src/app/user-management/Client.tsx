@@ -2,11 +2,11 @@
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 
-import { UserForm, type UserFormData } from "@/components/forms/UserForm";
-import { FormModal } from "@/components/ui/modal/FormModal";
+// Removed inline FormModal in favor of dedicated add/edit pages
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, UserCircleIcon, PencilIcon, PlusIcon, TrashBinIcon } from "@/icons";
@@ -145,18 +145,7 @@ function AdminUserManagementClient() {
     pageSize: 10,
   });
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<User | null>(null);
-
-  const openModal = (user?: User) => {
-    setEditingItem(user || null);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingItem(null);
-  };
+  const router = useRouter();
 
   // Delete confirmation modal state
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -325,7 +314,7 @@ function AdminUserManagementClient() {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => openModal(params.data)}
+          onClick={() => router.push(`/user-management/edit?id=${params.data.id}`)}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -340,7 +329,7 @@ function AdminUserManagementClient() {
         </Button>
       </div>
     );
-  }, []);
+  }, [router]);
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -447,7 +436,7 @@ function AdminUserManagementClient() {
   }, [data]);
 
   const handleAddNew = () => {
-    openModal();
+    router.push('/user-management/add');
   };
 
   const handleExportCSV = async () => {
@@ -723,25 +712,7 @@ function AdminUserManagementClient() {
 </div>
 
 
-      {/* FormModal Wrapper for User Form */}
-      <FormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingItem ? "Edit User" : "Add New User"}
-        size="lg"
-        showHeader={true}
-        showFooter={true}
-      >
-        <UserForm
-          initialData={editingItem || undefined}
-          onSuccess={() => {
-            closeModal();
-            fetchUsers(); // Refresh the user list
-          }}
-          onCancel={closeModal}
-          isEditing={!!editingItem}
-        />
-      </FormModal>
+      {/* Inline modal removed; using dedicated add/edit pages */}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

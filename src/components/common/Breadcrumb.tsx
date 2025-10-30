@@ -63,6 +63,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = "" }) => {
       'port-customer-master': 'Master Data',
       'pol-ports': 'POL Ports',
       'pod-ports': 'POD Ports',
+      'customers': 'Customers',
       'container-types': 'Container Types',
       'container-thresholds': 'Container Thresholds',
       'container-priority': 'Container Priority',
@@ -77,6 +78,8 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ className = "" }) => {
       'privilege-management': 'Privilege Management',
       'role-permission-management': 'Role Permissions',
       'system-administration': 'System Administration',
+      'add': 'Add',
+      'edit': 'Edit',
     };
 
     // Return special case or format the segment

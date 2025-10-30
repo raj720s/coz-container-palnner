@@ -5,14 +5,11 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
-import { useFormModal } from "@/hooks/useFormModal";
 import toast from "react-hot-toast";
 
 import { customerService } from "@/services";
-import { CustomerResponse, CustomerListRequest, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
-import { CustomerForm, CustomerFormData } from "@/components/forms/CustomerForm";
+import { CustomerResponse, CustomerListRequest } from "@/types/api";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 
 // AG Grid imports
@@ -200,29 +197,12 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     }
   };
 
-  const {
-    isOpen: isModalOpen,
-    isLoading: isModalLoading,
-    editingItem,
-    openModal,
-    closeModal,
-    setLoading: setModalLoading,
-  } = useFormModal<CustomerResponse>();
-
-  // Auto-open modal if action=add
+  // Redirect to add page if action=add
   useEffect(() => {
     if (action === 'add') {
-      openModal(undefined);
-      // Clear the URL parameter
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      newSearchParams.delete('action');
-      router.replace(`?${newSearchParams.toString()}`);
+      router.push('/port-customer-master/customers/add');
     }
-  }, [action, openModal, router, searchParams]);
-
-  const handleAddNew = () => {
-    openModal(undefined);
-  };
+  }, [action, router]);
 
   const handleDeleteClick = (customer: CustomerResponse) => {
     if (!canDeleteCustomer) {
@@ -241,7 +221,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => openModal(params.data)}
+          onClick={() => router.push(`/port-customer-master/customers/edit?id=${params.data.id}`)}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -259,7 +239,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         )}
       </div>
     );
-  }, [canDeleteCustomer, openModal]);
+  }, [canDeleteCustomer, router]);
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -406,7 +386,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     }
 
     try {
-      setModalLoading(true);
+      setLoading(true);
       await customerService.deleteCustomer(deletingItem.id);
       toast.success('Customer deleted successfully');
       setDeleteModalOpen(false);
@@ -415,49 +395,10 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       // Refresh the list
       await loadCustomers();
     } catch (error: any) {
-        console.error('Error deleting customer:', error);
+      console.error('Error deleting customer:', error);
       toast.error(error.message || 'Failed to delete customer');
     } finally {
-      setModalLoading(false);
-    }
-  };
-
-  const handleSubmit = async (formData: CustomerFormData) => {
-    try {
-      setModalLoading(true);
-      
-      // Convert form data to API format
-      const customerData: CreateCustomerRequest | UpdateCustomerRequest = {
-        name: formData.name,
-        customer_code: formData.customer_code,
-        contact_person: formData.contact_person,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        country: formData.country,
-        tax_id: formData.tax_id,
-        is_active: formData.is_active,
-        custom_fields: formData.custom_fields || [],
-      };
-      
-      if (editingItem) {
-        // Update existing customer
-        await customerService.updateCustomer(editingItem.id, customerData);
-        toast.success('Customer updated successfully');
-      } else {
-        // Create new customer
-        await customerService.createCustomer(customerData as CreateCustomerRequest);
-        toast.success('Customer created successfully');
-      }
-      
-      // Refresh the list
-      await loadCustomers();
-      closeModal();
-    } catch (error: any) {
-      console.error('Error saving customer:', error);
-      toast.error(error.message || 'Failed to save customer');
-    } finally {
-      setModalLoading(false);
+      setLoading(false);
     }
   };
 
@@ -647,7 +588,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
             {/* Add Button */}
             <Button 
               type="button"
-              onClick={handleAddNew} 
+              onClick={() => router.push('/port-customer-master/customers/add')} 
               size="sm"
               className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
             >
@@ -685,32 +626,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         />
       </div>
 
-      {/* Form Modal */}
-      <FormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingItem ? "Edit Customer" : "Add New Customer"}
-        size="xl"
-      >
-        <CustomerForm
-          initialData={editingItem ? {
-            id: editingItem.id.toString(),
-            name: editingItem.name,
-            customer_code: editingItem.customer_code,
-            contact_person: editingItem.contact_person,
-            email: editingItem.email,
-            phone: editingItem.phone,
-            address: editingItem.address,
-            country: editingItem.country,
-            tax_id: editingItem.tax_id,
-            is_active: editingItem.is_active,
-            custom_fields: editingItem.custom_fields || []
-          } : undefined}
-          onSubmit={handleSubmit}
-          isLoading={isModalLoading}
-        />
-      </FormModal>
-
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={deleteModalOpen}
@@ -722,7 +637,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         title="Delete Customer"
         message={`Are you sure you want to delete the customer "${deletingItem?.name}" (${deletingItem?.customer_code})? This action cannot be undone.`}
         itemName={deletingItem?.name}
-        isLoading={isModalLoading}
+        isLoading={loading}
         variant="danger"
       />
     </div>

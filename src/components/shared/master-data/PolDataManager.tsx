@@ -5,10 +5,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { FormModal } from "@/components/ui/modal/FormModal";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
-import { useFormModal } from "@/hooks/useFormModal";
-import { PortForm, type PortFormData } from "@/components/forms/PortForm";
 import toast from "react-hot-toast";
 import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
 import { polService } from "@/services";
@@ -116,26 +113,14 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
 
-  const {
-    isOpen: isModalOpen,
-    isLoading: isModalLoading,
-    editingItem,
-    openModal,
-    closeModal,
-    setLoading: setModalLoading,
-  } = useFormModal<POLResponse>();
-
   const canDeletePOL = can?.("DELETE_POL") || isAdmin?.() || isSuperUser;
 
-  // Auto-open modal if action=add
+  // Redirect to add page if action=add
   useEffect(() => {
     if (action === 'add') {
-      openModal(undefined);
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      newSearchParams.delete('action');
-      router.replace(`?${newSearchParams.toString()}`);
+      router.push('/port-customer-master/pol-ports/add');
     }
-  }, [action, openModal, router, searchParams]);
+  }, [action, router]);
 
   // Load POL ports
   useEffect(() => {
@@ -217,7 +202,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => openModal(params.data)}
+          onClick={() => router.push(`/port-customer-master/pol-ports/edit?id=${params.data.id}`)}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -235,7 +220,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         )}
       </div>
     );
-  }, [canDeletePOL, openModal]);
+  }, [canDeletePOL, router]);
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -338,38 +323,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     minWidth: 100,
   }), []);
 
-  const handleSubmit = async (formData: PortFormData) => {
-    try {
-      setModalLoading(true);
-      
-      const polData: CreatePOLRequest | UpdatePOLRequest = {
-        name: formData.name,
-        code: formData.code,
-        country: formData.country,
-        city: formData.city,
-        timezone: formData.timezone,
-        is_active: formData.is_active,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
-      };
-      
-      if (editingItem) {
-        await polService.updatePOL(editingItem.id, polData);
-        toast.success('POL port updated successfully');
-      } else {
-        await polService.createPOL(polData as CreatePOLRequest);
-        toast.success('POL port created successfully');
-      }
-      
-      loadPOLs();
-      closeModal();
-    } catch (error: any) {
-      console.error('Error saving POL port:', error);
-      toast.error(error.message || 'Failed to save POL port');
-    } finally {
-      setModalLoading(false);
-    }
-  };
 
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
@@ -382,7 +335,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
 
     try {
-      setModalLoading(true);
+      setLoading(true);
       await polService.deletePOL(deletingItem.id);
       toast.success('POL port deleted successfully');
       setDeleteModalOpen(false);
@@ -392,7 +345,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       console.error('Error deleting POL port:', error);
       toast.error(error.message || 'Failed to delete POL port');
     } finally {
-      setModalLoading(false);
+      setLoading(false);
     }
   };
 
@@ -547,7 +500,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                 <DownloadIcon className="w-4 h-4" />
                 Export CSV
               </Button>
-              <Button type="button" onClick={() => openModal()} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
+              <Button type="button" onClick={() => router.push('/port-customer-master/pol-ports/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
                 <PlusIcon className="w-4 h-4" />
                 Add POL Port
               </Button>
@@ -577,31 +530,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         />
       </div>
 
-      {/* Form Modal */}
-      <FormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingItem ? "Edit POL Port" : "Add New POL Port"}
-      >
-        <PortForm
-          initialData={editingItem ? {
-            id: editingItem.id.toString(),
-            code: editingItem.code,
-            name: editingItem.name,
-            country: editingItem.country,
-            city: editingItem.city,
-            timezone: editingItem.timezone,
-            type: "POL" as const,
-            is_active: editingItem.is_active,
-            latitude: editingItem.latitude,
-            longitude: editingItem.longitude
-          } : undefined}
-          onSubmit={handleSubmit}
-          portType="POL"
-          isLoading={isModalLoading}
-        />
-      </FormModal>
-
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={deleteModalOpen}
@@ -613,7 +541,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         title="Delete POL Port"
         message={`Are you sure you want to delete the POL port "${deletingItem?.name}" (${deletingItem?.code})? This action cannot be undone.`}
         itemName={deletingItem?.name}
-        isLoading={isModalLoading}
+        isLoading={loading}
         variant="danger"
       />
     </div>

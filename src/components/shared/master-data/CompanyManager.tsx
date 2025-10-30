@@ -2,11 +2,11 @@
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 
-import { CompanyForm, type CompanyFormData } from "@/components/forms/CompanyForm";
-import { FormModal } from "@/components/ui/modal/FormModal";
+// Removed inline modals in favor of dedicated add/edit pages
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/select/SelectField";
@@ -125,7 +125,7 @@ const ActionsRenderer = (params: ICellRendererParams) => {
 const CompanyManager: React.FC = () => {
   const [data, setData] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const router = useRouter();
   const [editingItem, setEditingItem] = useState<Company | null>(null);
   const [deleteItem, setDeleteItem] = useState<Company | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -350,17 +350,15 @@ const CompanyManager: React.FC = () => {
     }
   }, [filters.page, filters.page_size]);
 
-  // Handle create
+  // Handle create -> navigate to add page
   const handleCreate = useCallback(() => {
-    setEditingItem(null);
-    setIsModalOpen(true);
-  }, []);
+    router.push("/company-management/add");
+  }, [router]);
 
-  // Handle edit
+  // Handle edit -> navigate to edit page with id
   const handleEdit = useCallback((company: Company) => {
-    setEditingItem(company);
-    setIsModalOpen(true);
-  }, []);
+    router.push(`/company-management/edit?id=${company.id}`);
+  }, [router]);
 
   // Handle delete
   const handleDelete = useCallback((company: Company) => {
@@ -385,12 +383,7 @@ const CompanyManager: React.FC = () => {
     }
   }, [deleteItem, fetchCompanies]);
 
-  // Handle modal close
-  const closeModal = useCallback(() => {
-    setIsModalOpen(false);
-    setEditingItem(null);
-    setIsSubmitting(false);
-  }, []);
+  // No inline modal anymore
 
   // Handle export to Excel
   const handleExportExcel = useCallback(() => {
@@ -583,25 +576,7 @@ const CompanyManager: React.FC = () => {
         />
       </div>
 
-      {/* Form Modal */}
-      <FormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingItem ? "Edit Company" : "Add New Company"}
-        size="lg"
-        showHeader={true}
-        showFooter={true}
-      >
-        <CompanyForm
-          initialData={editingItem || undefined}
-          onSuccess={() => {
-            closeModal();
-            fetchCompanies();
-          }}
-          onCancel={closeModal}
-          isEditing={!!editingItem}
-        />
-      </FormModal>
+      {/* Inline modal removed; using dedicated add/edit pages */}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

@@ -82,8 +82,9 @@ export interface CompanyUpdateRequest {
 
 // Company type options
 export const COMPANY_TYPES = [
-  { value: 5, label: '2PL' },
-  { value: 10, label: '3PL' },
+  { value: 5, label: 'Vendor' },
+  { value: 10, label: 'Origin_agent' },
+  { value: 10, label: 'destination_agent' },
   // { value: 3, label: 'Partner' },
   // { value: 4, label: 'Supplier' },
   // { value: 5, label: 'Subsidiary' },

@@ -5,9 +5,8 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
 import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
-import { FormModal } from "@/components/ui/modal/FormModal";
+// Removed inline FormModal in favor of dedicated add/edit pages
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
-import { useFormModal } from "@/hooks/useFormModal";
 import { CarrierForm, type CarrierFormData } from "@/components/forms/CarrierForm";
 import toast from "react-hot-toast";
 import { CarrierResponse, CarrierListRequest, CreateCarrierRequest, UpdateCarrierRequest } from "@/types/api";
@@ -74,7 +73,7 @@ const NameRenderer = (params: ICellRendererParams) => {
 const TransportationModeRenderer = (params: ICellRendererParams) => {
   return (
     <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-      Mode {params.value}
+       {params.value}
     </span>
   );
 };
@@ -108,26 +107,16 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<CarrierResponse | null>(null);
 
-  const {
-    isOpen: isModalOpen,
-    isLoading: isModalLoading,
-    editingItem,
-    openModal,
-    closeModal,
-    setLoading: setModalLoading,
-  } = useFormModal<CarrierResponse>();
+  // Removed modal state
 
   const canDeleteCarrier = can?.("DELETE_CARRIER") || isAdmin?.() || isSuperUser;
 
-  // Auto-open modal if action=add
+  // Redirect to add page if action=add
   useEffect(() => {
     if (action === 'add') {
-      openModal(undefined);
-      const newSearchParams = new URLSearchParams(searchParams.toString());
-      newSearchParams.delete('action');
-      router.replace(`?${newSearchParams.toString()}`);
+      router.push('/carrier-management/add');
     }
-  }, [action, openModal, router, searchParams]);
+  }, [action, router]);
 
   // Load carriers
   useEffect(() => {
@@ -209,7 +198,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => openModal(params.data)}
+          onClick={() => router.push(`/carrier-management/edit?id=${params.data.id}`)}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -227,7 +216,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
         )}
       </div>
     );
-  }, [canDeleteCarrier, openModal]);
+  }, [canDeleteCarrier, router]);
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -297,34 +286,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
     minWidth: 100,
   }), []);
 
-  const handleSubmit = async (formData: CarrierFormData) => {
-    try {
-      setModalLoading(true);
-      
-      const carrierData: CreateCarrierRequest | UpdateCarrierRequest = {
-        name: formData.name,
-        carrier_code: formData.carrier_code,
-        transportation_mode: formData.transportation_mode,
-        is_active: formData.is_active,
-      };
-      
-      if (editingItem) {
-        await carrierService.updateCarrier(editingItem.id, carrierData);
-        toast.success('Carrier updated successfully');
-      } else {
-        await carrierService.createCarrier(carrierData as CreateCarrierRequest);
-        toast.success('Carrier created successfully');
-      }
-      
-      loadCarriers();
-      closeModal();
-    } catch (error: any) {
-      console.error('Error saving carrier:', error);
-      toast.error(error.message || 'Failed to save carrier');
-    } finally {
-      setModalLoading(false);
-    }
-  };
+  // Submit handled in edit client pages
 
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
@@ -498,7 +460,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
                 <DownloadIcon className="w-4 h-4" />
                 Export CSV
               </Button>
-              <Button type="button" onClick={() => openModal()} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white whitespace-nowrap">
+      <Button type="button" onClick={() => router.push('/carrier-management/add')} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-700 text-white whitespace-nowrap">
                 <PlusIcon className="w-4 h-4" />
                 Add Carrier
               </Button>
@@ -528,24 +490,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
         />
       </div>
 
-      {/* Form Modal */}
-      <FormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title={editingItem ? "Edit Carrier" : "Add New Carrier"}
-      >
-        <CarrierForm
-          initialData={editingItem ? {
-            name: editingItem.name,
-            carrier_code: editingItem.carrier_code,
-            transportation_mode: editingItem.transportation_mode,
-            is_active: editingItem.is_active
-          } : undefined}
-          onSubmit={handleSubmit}
-          onCancel={closeModal}
-          isLoading={isModalLoading}
-        />
-      </FormModal>
+      {/* Inline modal removed; using dedicated add/edit pages */}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
@@ -558,7 +503,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
         title="Delete Carrier"
         message={`Are you sure you want to delete the carrier "${deletingItem?.name}" (${deletingItem?.carrier_code})? This action cannot be undone.`}
         itemName={deletingItem?.name}
-        isLoading={isModalLoading}
+        isLoading={loading}
         variant="danger"
       />
     </div>

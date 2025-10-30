@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
+import SearchableSelect from "@/components/form/input/SearchableSelect";
+import { companyService } from "@/services/companyService";
 import Button from "@/components/ui/button/Button";
 import { CreateUserRequest } from "@/types/api";
 // Removed useRoles - using roleService directly
@@ -25,6 +27,7 @@ const createUserSchema = (isEditing: boolean) => z.object({
   role: z.string().min(1, "Please select a role"),
   status: z.string(),
   organisation_name: z.string().min(1, "Organisation name is required"),
+  company: z.number().optional(),
   password: isEditing ? z.string().optional() : z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: isEditing ? z.string().optional() : z.string().min(6, "Confirm password must be at least 6 characters"),
 }).superRefine((data, ctx) => {
@@ -128,6 +131,7 @@ export const UserForm: React.FC<UserFormProps> = ({
       role: "",
       status: "true",
       organisation_name: "",
+      company: undefined,
       password: "",
       confirmPassword: "",
     },
@@ -153,6 +157,7 @@ export const UserForm: React.FC<UserFormProps> = ({
         role: initialData.role.toString(), // Convert number to string for form
         status: initialData.status === "active" ? "true" : "false",
         organisation_name: initialData.organisation_name || "",
+        company: undefined,
         password: "",
         confirmPassword: "",
       });
@@ -197,6 +202,7 @@ export const UserForm: React.FC<UserFormProps> = ({
       organisation_name: formData.organisation_name,
       // Add password for new users
       ...(formData.password && { password: formData.password }),
+      ...(formData.company ? { company: formData.company } : {}),
     };
     
     console.log("📦 Transformed API data:", apiData);
@@ -306,13 +312,15 @@ export const UserForm: React.FC<UserFormProps> = ({
       {/* Form Content */}
       <form 
         onSubmit={(e) => {
-          console.log("📝 Form submit event triggered");
           e.preventDefault();
           handleSubmit(handleFormSubmit)(e);
         }}
-        className="space-y-6"
+        className="p-6 space-y-8"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Basic Details */}
+        <section>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Basic Details</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="first_name">First Name</Label>
             <Input
@@ -338,9 +346,13 @@ export const UserForm: React.FC<UserFormProps> = ({
               <p className="mt-1 text-sm text-red-600">{errors.last_name.message}</p>
             )}
           </div>
-        </div>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Role & Status */}
+        <section>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Role & Status</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="email">Email Address</Label>
             <Input
@@ -378,9 +390,13 @@ export const UserForm: React.FC<UserFormProps> = ({
               <p className="mt-1 text-sm text-gray-500">Loading roles...</p>
             )}
           </div>
-        </div>
+          </div>
+        </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Organization */}
+        <section>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Organization</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="status">Status</Label>
             <Select
@@ -410,7 +426,29 @@ export const UserForm: React.FC<UserFormProps> = ({
               <p className="mt-1 text-sm text-red-600">{errors.organisation_name.message}</p>
             )}
           </div>
-        </div>
+
+          {/* Company (Searchable) */}
+          <div className="md:col-span-2">
+            <SearchableSelect
+              id="company"
+              label="Company (optional)"
+              placeholder="Search and select company"
+              value={watch("company") ?? null}
+              onChange={(value) => setValue("company", (value as number) || undefined, { shouldDirty: true, shouldValidate: true })}
+              onSearch={async (query: string) => {
+                try {
+                  const res = await companyService.getCompanies({ page: 1, page_size: 10, search: query });
+                  return res.results || [];
+                } catch {
+                  return [];
+                }
+              }}
+              displayFormat={(option: any) => option.name}
+              searchPlaceholder="Search companies..."
+            />
+          </div>
+          </div>
+        </section>
 
         {/* Customer Assignment Section - commented out for next version */}
         {/* <ConditionalRender privilege="ASSIGN_CUSTOMERS_TO_USER">
@@ -440,7 +478,9 @@ export const UserForm: React.FC<UserFormProps> = ({
         </ConditionalRender> */}
 
         {!isEditing && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <section>
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Security</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Label htmlFor="password">Password</Label>
               <Input
@@ -470,11 +510,12 @@ export const UserForm: React.FC<UserFormProps> = ({
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
               )}
             </div>
-          </div>
+            </div>
+          </section>
         )}
 
         {/* Form Actions */}
-        <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
           {onCancel && (
             <Button
               data-form-action="cancel"
@@ -490,7 +531,7 @@ export const UserForm: React.FC<UserFormProps> = ({
             data-form-action="submit"
             onClick={() => handleSubmit(handleFormSubmit)()}
             disabled={isSubmitting || rolesLoading}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            className="min-w-[100px]"
           >
             {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Save'}
           </Button>

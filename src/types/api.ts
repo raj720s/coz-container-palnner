@@ -7,6 +7,7 @@ export interface CreateUserRequest {
   organisation_name: string;
   role: number;
   password?: string;
+  company?: number;
 }
 export interface UpdateUserRequest {
   status: boolean;
@@ -356,6 +357,7 @@ export interface CustomField {
 }
 
 export interface CreateCustomerRequest {
+  company: number;
   name: string;
   customer_code: string;
   contact_person: string;
@@ -370,6 +372,7 @@ export interface CreateCustomerRequest {
 }
 
 export interface UpdateCustomerRequest {
+  company?: number;
   name?: string;
   customer_code?: string;
   contact_person?: string;
@@ -385,6 +388,7 @@ export interface UpdateCustomerRequest {
 
 export interface CustomerResponse {
   id: number;
+  company?: number;
   name: string;
   customer_code: string;
   contact_person: string;
