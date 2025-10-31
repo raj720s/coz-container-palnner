@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${outfit.className} dark:bg-gray-900`}>
+      <body className={`${outfit.className} bg-gray-25 dark:bg-gray-900 min-h-screen`}>
         <ReduxProvider>
           <AuthProvider>
             <ThemeProvider>

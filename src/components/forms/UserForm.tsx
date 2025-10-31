@@ -268,7 +268,26 @@ export const UserForm: React.FC<UserFormProps> = ({
           // Note: Role assignment is handled by the API during user creation
           console.log("✅ User created with role successfully:", userId);
           
-          // Step 3: Assign customers to user (if any selected) - commented out for next version
+          // Step 3: Create user-company mapping (if company is selected)
+          if (formData.company) {
+            try {
+              console.log("🔗 Creating user-company mapping:", { userId, companyId: formData.company });
+              await userService.createUserCompanyMapping({
+                user: userId,
+                company: formData.company,
+                is_active: true,
+              });
+              console.log("✅ User-company mapping created successfully");
+              toast.success("User created and assigned to company successfully");
+            } catch (companyMappingError) {
+              console.error("❌ User-company mapping failed:", companyMappingError);
+              toast.error("User created successfully, but company assignment failed. Please assign company manually.");
+            }
+          } else {
+            toast.success("User created successfully");
+          }
+          
+          // Step 4: Assign customers to user (if any selected) - commented out for next version
           // if (selectedCustomers.length > 0) {
           //   try {
           //     console.log("🔗 Assigning customers to user:", { userId, customerIds: selectedCustomers });
@@ -283,8 +302,6 @@ export const UserForm: React.FC<UserFormProps> = ({
           //     toast.error("User created and role assigned, but customer assignment failed. Please assign customers manually.");
           //   }
           // }
-          
-          toast.success("User created and role assigned successfully");
           
         } catch (roleError) {
           console.error("❌ Role assignment failed:", roleError);

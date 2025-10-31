@@ -102,6 +102,16 @@ export const userService = {
   async getUserJsonInfo(): Promise<UserJsonInfoResponse> {
     const response = await superAxios.get(`${BASEURL}/user/v1/json-info`);
     return response.data;
+  },
+
+  // Create user-company mapping
+  async createUserCompanyMapping(data: { user: number; company: number; is_active?: boolean }): Promise<any> {
+    const response = await superAxios.post(`${BASEURL}/master-data/v1/user/company`, {
+      user: data.user,
+      company: data.company,
+      is_active: data.is_active ?? true,
+    });
+    return response.data;
   }
 };
 

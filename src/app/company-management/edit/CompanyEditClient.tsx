@@ -77,6 +77,13 @@ export default function CompanyEditClient() {
 
   return (
     <div className="p-0">
+      {/* Global error (create mode) */}
+      {error && !isEditMode && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
       {/* Form Card */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <CompanyForm

@@ -52,13 +52,7 @@ const StatusRenderer = (params: ICellRendererParams) => {
   );
 };
 
-const CityRenderer = (params: ICellRendererParams) => {
-  return (
-    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-      {params.value}
-    </span>
-  );
-};
+// CityRenderer removed - city field no longer exists in API
 
 const TimezoneRenderer = (params: ICellRendererParams) => {
   return (
@@ -225,15 +219,21 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
-      colId: "checkbox",
+      field: "checkbox",
       headerName: "",
+      width: 50,
       checkboxSelection: true,
       headerCheckboxSelection: true,
-      pinned: "left",
       sortable: false,
       filter: false,
-      minWidth: 50,
-      flex: 0,
+    },
+    {
+      field: "actions",
+      headerName: "Action",
+      width: 120,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
     },
     {
       field: "code",
@@ -262,13 +262,12 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       filter: true,
     },
     {
-      field: "city",
-      headerName: "City",
+      field: "unlocode",
+      headerName: "UNLOCODE",
       minWidth: 150,
       flex: 1,
       sortable: true,
       filter: true,
-      cellRenderer: CityRenderer,
     },
     {
       field: "timezone",
@@ -303,14 +302,6 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: StatusRenderer,
-    },
-    {
-      headerName: "Actions",
-      minWidth: 120,
-      cellRenderer: ActionsRenderer,
-      sortable: false,
-      filter: false,
-      pinned: "right",
     },
   ], [ActionsRenderer]);
 
@@ -351,19 +342,20 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   const handleExport = async () => {
     try {
       setLoading(true);
-      const response = await podService.getPODs({ ...filters, export: true });
+      const response = await podService.getPODs({ ...filters });
       
-      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Latitude', 'Longitude', 'Status'];
+      const headers = ['Code', 'Name', 'Country', 'UNLOCODE', 'Timezone', 'Latitude', 'Longitude', 'Address', 'Status'];
       const csvContent = [
         headers.join(','),
         ...pods.map(pod => [
           pod.code,
           pod.name,
           pod.country,
-          pod.city,
+          pod.unlocode || '',
           pod.timezone,
           pod.latitude,
           pod.longitude,
+          pod.address || '',
           pod.is_active ? 'Active' : 'Inactive'
         ].join(','))
       ].join('\n');
@@ -456,9 +448,9 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Cities</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Timezone Zones</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(pods.map(p => p.city)).size}
+            {new Set(pods.map(p => p.timezone)).size}
           </div>
         </div>
       </div>

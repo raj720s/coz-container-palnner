@@ -51,12 +51,17 @@ export default function POLPortEditClient() {
         name: formData.name,
         code: formData.code,
         country: formData.country,
-        city: formData.city,
+        unlocode: formData.unlocode || undefined,
         timezone: formData.timezone,
         is_active: formData.is_active,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        address: formData.address || undefined,
+        description: formData.description || undefined,
       };
+
+      // Debug: Log payload to verify city is not included
+      console.log('POL Payload:', JSON.stringify(payload, null, 2));
 
       if (isEditMode && id) {
         await polService.updatePOL(Number(id), payload);
@@ -142,12 +147,14 @@ export default function POLPortEditClient() {
                   code: polData.code,
                   name: polData.name,
                   country: polData.country,
-                  city: polData.city,
+                  unlocode: polData.unlocode || "",
                   timezone: polData.timezone,
                   type: "POL" as const,
                   is_active: polData.is_active,
                   latitude: polData.latitude,
                   longitude: polData.longitude,
+                  address: polData.address || "",
+                  description: polData.description || "",
                 }
               : undefined
           }

@@ -52,13 +52,7 @@ const StatusRenderer = (params: ICellRendererParams) => {
   );
 };
 
-const CityRenderer = (params: ICellRendererParams) => {
-  return (
-    <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded-full">
-      {params.value}
-    </span>
-  );
-};
+// CityRenderer removed - city field no longer exists in API
 
 const TimezoneRenderer = (params: ICellRendererParams) => {
   return (
@@ -225,15 +219,21 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
-      colId: "checkbox",
+      field: "checkbox",
       headerName: "",
+      width: 50,
       checkboxSelection: true,
       headerCheckboxSelection: true,
-      pinned: "left",
       sortable: false,
       filter: false,
-      minWidth: 50,
-      flex: 0,
+    },
+    {
+      field: "actions",
+      headerName: "Action",
+      width: 120,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
     },
     {
       field: "code",
@@ -262,13 +262,12 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       filter: true,
     },
     {
-      field: "city",
-      headerName: "City",
+      field: "unlocode",
+      headerName: "UNLOCODE",
       minWidth: 150,
       flex: 1,
       sortable: true,
       filter: true,
-      cellRenderer: CityRenderer,
     },
     {
       field: "timezone",
@@ -303,14 +302,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: StatusRenderer,
-    },
-    {
-      headerName: "Actions",
-      minWidth: 120,
-      cellRenderer: ActionsRenderer,
-      sortable: false,
-      filter: false,
-      pinned: "right",
     },
   ], [ActionsRenderer]);
 
@@ -354,21 +345,21 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       setLoading(true);
       const exportData = await polService.exportPOLs({
         ...filters,
-        export: true,
         page_size: 1000
       });
       
-      const headers = ['Code', 'Name', 'Country', 'City', 'Timezone', 'Latitude', 'Longitude', 'Status', 'Created On'];
+      const headers = ['Code', 'Name', 'Country', 'UNLOCODE', 'Timezone', 'Latitude', 'Longitude', 'Address', 'Status', 'Created On'];
       const csvRows = [
         headers.join(','),
         ...exportData.map(pol => [
           pol.code,
           pol.name,
           pol.country,
-          pol.city,
+          pol.unlocode || '',
           pol.timezone,
           pol.latitude,
           pol.longitude,
+          pol.address || '',
           pol.is_active ? 'Active' : 'Inactive',
           pol.created_on ? new Date(pol.created_on).toLocaleDateString() : 'N/A'
         ].join(','))
@@ -463,9 +454,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Cities</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Timezone Zones</div>
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(pols.map(p => p.city)).size}
+            {new Set(pols.map(p => p.timezone)).size}
           </div>
         </div>
       </div>

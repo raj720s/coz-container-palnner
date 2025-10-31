@@ -17,7 +17,7 @@ export class PODService extends BaseService {
    * @returns Promise<PODResponse>
    */
   async createPOD(podData: CreatePODRequest): Promise<PODResponse> {
-    this.validateRequiredFields(podData, ['name', 'code', 'country', 'city', 'timezone', 'latitude', 'longitude']);
+    this.validateRequiredFields(podData, ['name', 'code', 'country', 'timezone', 'latitude', 'longitude']);
     return this.post<PODResponse>(this.buildEndpoint('pod'), podData);
   }
 
@@ -109,13 +109,13 @@ export class PODService extends BaseService {
   }
 
   /**
-   * Get POD ports by city
-   * @param city - City name to search for
+   * Get POD ports by UNLOCODE
+   * @param unlocode - UNLOCODE to search for
    * @param params - Additional query parameters
    * @returns Promise<PODListResponse>
    */
-  async getPODsByCity(city: string, params: Omit<PODListRequest, 'city'> = {}): Promise<PODListResponse> {
-    const cleanParams = this.buildParams({ ...params, city });
+  async getPODsByUnlocode(unlocode: string, params: Omit<PODListRequest, 'unlocode'> = {}): Promise<PODListResponse> {
+    const cleanParams = this.buildParams({ ...params, unlocode });
     return this.post<PODListResponse>(this.buildEndpoint('pod', 'list'), cleanParams);
   }
 
@@ -138,7 +138,7 @@ export class PODService extends BaseService {
    * @returns Promise<PODResponse[]>
    */
   async exportPODs(params: PODListRequest = {}): Promise<PODResponse[]> {
-    const exportParams = { ...params, export: true, page_size: 1000 };
+    const exportParams = { ...params, page_size: 1000 };
     const response = await this.post<PODListResponse>(this.buildEndpoint('pod', 'list'), exportParams);
     return response.results;
   }

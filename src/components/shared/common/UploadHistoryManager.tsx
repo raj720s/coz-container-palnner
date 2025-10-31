@@ -1,3 +1,4 @@
+/*
 "use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";      
@@ -412,7 +413,7 @@ function UploadsHistoryManager() {
 
   return (
     <div className="p-6">
-      {/* Header */}
+      
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -422,19 +423,9 @@ function UploadsHistoryManager() {
             View and manage all shipment file uploads and their processing results. Shows last 10 upload records per user from the past 3 months.
           </p>
         </div>
-        {/* <div className="flex gap-3">
-          <Button onClick={exportHistory} size="sm" variant="outline">
-            <DownloadIcon className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button onClick={() => loadUploadHistory()} size="sm" variant="outline">
-            <RefreshIcon className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div> */}
+        
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
           <div className="flex items-center">
@@ -493,7 +484,7 @@ function UploadsHistoryManager() {
        
       </div>
 
-      {/* Filters */}
+      
       <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow mb-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
@@ -526,21 +517,7 @@ function UploadsHistoryManager() {
             />
           </div>
 
-          {/* <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              User Filter
-            </label>
-            <Select
-              value={selectedUser}
-              onChange={(value) => setSelectedUser(value)}
-              options={[
-                { value: "all", label: "All Users" },
-                ...mockUsers.map(user => ({ value: user.id, label: user.name }))
-              ]}
-              className="w-full"
-            />
-          </div>
-           */}
+          
           <div className="flex items-end">
             <Button onClick={resetFilters} size="sm" variant="outline" className="w-full">
               Reset Filters
@@ -549,7 +526,6 @@ function UploadsHistoryManager() {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -589,7 +565,6 @@ function UploadsHistoryManager() {
           </table>
         </div>
 
-        {/* Pagination */}
         <div className="bg-white dark:bg-gray-900 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
           <div className="flex-1 flex justify-between sm:hidden">
             <Button
@@ -657,7 +632,6 @@ function UploadsHistoryManager() {
       </div>
 
 
-      {/* Excel Viewer Modal */}
       <ExcelViewerModal
         isOpen={excelModal.isOpen}
         onClose={() => setExcelModal(prev => ({ ...prev, isOpen: false }))}
@@ -674,3 +648,5 @@ export default withSimplifiedRBAC(UploadsHistoryManager, {
   allowSuperUserBypass: true,
   redirectTo: "/dashboard"
 });
+
+*/

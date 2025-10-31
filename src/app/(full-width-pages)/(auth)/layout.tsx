@@ -32,19 +32,19 @@ export default function AuthLayout({
               <div className="max-w-full w-full">
                 {/* Top Flex Container - Header and First Image */}
 
-                <div className="flex items-center justify-end pl-10 mb-6">
-                  <div className=" pr-8">
-                    <h1 className="text-4xl lg:ml-[50px] xl:ml-[100px] 2xl:ml-[150px] font-bold text-white leading-tight">
-                      Your <span className="text-purple-300">Vendor</span> Journey Starts Here
+                <div className="flex items-center justify-end  mb-6">
+                  <div className="xl:ml-[10rem] self-center">
+                    <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight">
+                      Your <span className="text-purple-300">Vendor Booking</span> Journey Starts Here
                     </h1>
                   </div>
                   <div className=" self">
                     <Image
                       src="/assets/Button container.png"
                       alt="Security"
-                      width={400}
+                      width={500}
                       height={300}
-                      className=""
+                      className="w-[30rem] h-full object-fill"
                     />
                   </div>
                 </div>

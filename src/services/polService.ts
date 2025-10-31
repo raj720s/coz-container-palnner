@@ -17,7 +17,7 @@ export class POLService extends BaseService {
    * @returns Promise<POLResponse>
    */
   async createPOL(polData: CreatePOLRequest): Promise<POLResponse> {
-    this.validateRequiredFields(polData, ['name', 'code', 'country', 'city', 'timezone', 'latitude', 'longitude']);
+    this.validateRequiredFields(polData, ['name', 'code', 'country', 'timezone', 'latitude', 'longitude']);
     return this.post<POLResponse>(this.buildEndpoint('pol'), polData);
   }
 
@@ -99,13 +99,13 @@ export class POLService extends BaseService {
   }
 
   /**
-   * Get POL ports by city
-   * @param city - City name to search for
+   * Get POL ports by UNLOCODE
+   * @param unlocode - UNLOCODE to search for
    * @param params - Additional query parameters
    * @returns Promise<POLListResponse>
    */
-  async getPOLsByCity(city: string, params: Omit<POLListRequest, 'city'> = {}): Promise<POLListResponse> {
-    const cleanParams = this.buildParams({ ...params, city });
+  async getPOLsByUnlocode(unlocode: string, params: Omit<POLListRequest, 'unlocode'> = {}): Promise<POLListResponse> {
+    const cleanParams = this.buildParams({ ...params, unlocode });
     return this.post<POLListResponse>(this.buildEndpoint('pol', 'list'), cleanParams);
   }
 
@@ -128,7 +128,7 @@ export class POLService extends BaseService {
    * @returns Promise<POLResponse[]>
    */
   async exportPOLs(params: POLListRequest = {}): Promise<POLResponse[]> {
-    const exportParams = { ...params, export: true, page_size: 1000 };
+    const exportParams = { ...params, page_size: 1000 };
     const response = await this.post<POLListResponse>(this.buildEndpoint('pol', 'list'), exportParams);
     return response.results;
   }

@@ -11,7 +11,7 @@ import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmatio
 import Input from "@/components/form/input/InputField";
 import Select from "@/components/form/select/SelectField";
 import { DownloadIcon, AlertIcon, CheckCircleIcon, TimeIcon, BuildingIcon, PencilIcon, PlusIcon, TrashBinIcon } from "@/icons";
-import { Company, CompanyListRequest, COMPANY_TYPES, COUNTRIES } from "@/types/company";
+import { Company, CompanyListRequest, CompanyListResponse, COMPANY_TYPES, COUNTRIES } from "@/types/company";
 
 import { companyService } from "@/services/companyService";
 
@@ -78,10 +78,21 @@ const StatusRenderer = (params: ICellRendererParams) => {
 };
 
 const CompanyTypeRenderer = (params: ICellRendererParams) => {
-  const companyType = COMPANY_TYPES.find(type => type.value === params.value);
+  // Handle both string and number types from API
+  const value = params.value;
+  let companyType;
+  
+  if (typeof value === 'string') {
+    // API returns string like "Vendor", "Origin_agent"
+    companyType = COMPANY_TYPES.find(type => type.label === value);
+  } else {
+    // API might return number
+    companyType = COMPANY_TYPES.find(type => type.value === value);
+  }
+  
   return (
     <span className="text-sm text-gray-900 dark:text-white">
-      {companyType?.label || params.value}
+      {companyType?.label || value}
     </span>
   );
 };
@@ -100,33 +111,11 @@ const ThirdPartyRenderer = (params: ICellRendererParams) => {
   );
 };
 
-const ActionsRenderer = (params: ICellRendererParams) => {
-  const { onEdit, onDelete } = params.context;
-  return (
-    <div className="flex items-center space-x-2">
-      <button
-        onClick={() => onEdit(params.data)}
-        className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-        title="Edit company"
-      >
-        <PencilIcon className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => onDelete(params.data)}
-        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-        title="Delete company"
-      >
-        <TrashBinIcon className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
-
 const CompanyManager: React.FC = () => {
   const [data, setData] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const [editingItem, setEditingItem] = useState<Company | null>(null);
   const [deleteItem, setDeleteItem] = useState<Company | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
@@ -155,19 +144,64 @@ const CompanyManager: React.FC = () => {
     pageSize: 10,
   });
 
+  // Handle edit -> navigate to edit page with id
+  const handleEdit = useCallback((company: Company) => {
+    router.push(`/company-management/edit?id=${company.id}`);
+  }, [router]);
+
+  // Handle delete -> open delete confirmation modal
+  const handleDelete = useCallback((company: Company) => {
+    setDeleteItem(company);
+  }, []);
+
+  // Memoize context object to prevent AG Grid re-renders
+  const gridContext = useMemo(() => ({
+    onEdit: handleEdit,
+    onDelete: handleDelete,
+  }), [handleEdit, handleDelete]);
+
+  // Actions Cell Renderer - use context from grid (defined AFTER handleEdit/handleDelete)
+  const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    const { onEdit, onDelete } = params.context || {};
+    return (
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => onEdit?.(params.data)}
+          className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+          title="Edit company"
+        >
+          <PencilIcon className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onDelete?.(params.data)}
+          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+          title="Delete company"
+        >
+          <TrashBinIcon className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }, []);
+
   // Column definitions
-  const columnDefs: ColDef<Company>[] = useMemo(
+  const columnDefs = useMemo<ColDef[]>(
     () => [
       {
-        colId: "checkbox",
+        field: "checkbox",
         headerName: "",
+        width: 50,
         checkboxSelection: true,
         headerCheckboxSelection: true,
-        pinned: "left",
         sortable: false,
         filter: false,
-        minWidth: 50,
-        flex: 0,
+      },
+      {
+        field: "actions",
+        headerName: "Action",
+        width: 120,
+        cellRenderer: ActionsRenderer,
+        sortable: false,
+        filter: false,
       },
       {
         field: "name",
@@ -259,17 +293,8 @@ const CompanyManager: React.FC = () => {
           valueFormatter: (params: any) => (params.value ? "Active" : "Inactive"),
         },
       },
-      {
-        headerName: "Actions",
-        cellRenderer: ActionsRenderer,
-        flex: 0.8,
-        minWidth: 100,
-        sortable: false,
-        filter: false,
-        pinned: "right",
-      },
     ],
-    []
+    [ActionsRenderer]
   );
 
   const defaultColDef = useMemo<ColDef>(
@@ -281,89 +306,112 @@ const CompanyManager: React.FC = () => {
     []
   );
 
-  // Fetch companies
-  const fetchCompanies = useCallback(async () => {
-    setLoading(true);
+  // Fetch companies (simple pattern like PolDataManager)
+  const fetchCompanies = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const response = await companyService.getCompanies(filters);
-      setData(response.results);
-      setTotalCount(response.count);
+      
+        console.log('API Response:', response);
+        console.log('Results:', response.results);
+        console.log('Results length:', response.results?.length);
+        if (response.results && response.results.length > 0) {
+          console.log('First company:', JSON.stringify(response.results[0], null, 2));
+        }
+        
+        setData(response.results || []);
+      setTotalCount(response.count || 0);
       setPaginationInfo({
         currentPage: filters.page || 1,
-        totalPages: Math.ceil(response.count / (filters.page_size || 12)),
-        totalRecords: response.count,
-        pageSize: filters.page_size || 12,
+        totalPages: Math.ceil((response.count || 0) / (filters.page_size || 10)),
+        totalRecords: response.count || 0,
+        pageSize: filters.page_size || 10,
       });
-    } catch (error: any) {
-      console.error("Error fetching companies:", error);
-      toast.error("Failed to fetch companies");
+    } catch (err: any) {
+      console.error('Error loading companies:', err);
+      setError(err.message || 'Failed to load companies');
+      toast.error(err.message || 'Failed to load companies');
+      setData([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  };
 
   // Load data on mount and when filters change
   useEffect(() => {
     fetchCompanies();
-  }, [fetchCompanies]);
+  }, [filters]);
+
+  // Auto-clear errors
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Sync grid page when filters change externally (e.g., search/filter resets to page 1)
+  useEffect(() => {
+    if (gridRef.current?.api && filters.page) {
+      const api = gridRef.current.api;
+      const currentGridPage = api.paginationGetCurrentPage() + 1; // Convert 0-indexed to 1-indexed
+      
+      // Only sync if grid page doesn't match filter page
+      if (currentGridPage !== filters.page) {
+        api.paginationGoToPage(filters.page - 1); // Convert 1-indexed to 0-indexed
+      }
+    }
+  }, [filters.page]);
 
   // Handle grid ready
   const onGridReady = useCallback((params: GridReadyEvent) => {
+    console.log('Grid ready, row count:', params.api.getDisplayedRowCount());
     params.api.sizeColumnsToFit();
   }, []);
 
-  // Handle search
+  // Handle search - reset to page 1 when searching
   const handleSearch = useCallback((searchTerm: string) => {
     setFilters(prev => ({
       ...prev,
       search: searchTerm,
-      page: 1,
+      page: 1, // Reset to first page on new search
     }));
   }, []);
 
-  // Handle filter changes
+  // Handle filter changes - reset to page 1 when filters change
   const handleFilterChange = useCallback((key: keyof CompanyListRequest, value: any) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,
-      page: 1,
+      page: 1, // Reset to first page on filter change
     }));
   }, []);
 
-  // Handle pagination changes
+  // Handle pagination changes - sync AG Grid pagination to backend filters
   const onPaginationChanged = useCallback(() => {
-    if (gridRef.current) {
-      const api = gridRef.current.api;
-      const currentPage = api.paginationGetCurrentPage();
-      const pageSize = api.paginationGetPageSize();
-      
-      // Update filters with new page (convert from 0-based to 1-based)
-      const newPage = currentPage + 1;
-      
-      if (newPage !== filters.page || pageSize !== filters.page_size) {
-        setFilters(prev => ({
-          ...prev,
-          page: newPage,
-          page_size: pageSize,
-        }));
+    if (!gridRef.current?.api) return;
+
+    const api = gridRef.current.api;
+    const currentPage = api.paginationGetCurrentPage() + 1; // AG Grid is 0-indexed, backend is 1-indexed
+    const pageSize = api.paginationGetPageSize();
+
+    // Only update if changed to prevent infinite loops
+    setFilters(prev => {
+      if (prev.page !== currentPage || prev.page_size !== pageSize) {
+        return { ...prev, page: currentPage, page_size: pageSize };
       }
-    }
-  }, [filters.page, filters.page_size]);
+      return prev;
+    });
+  }, []);
 
   // Handle create -> navigate to add page
   const handleCreate = useCallback(() => {
     router.push("/company-management/add");
   }, [router]);
-
-  // Handle edit -> navigate to edit page with id
-  const handleEdit = useCallback((company: Company) => {
-    router.push(`/company-management/edit?id=${company.id}`);
-  }, [router]);
-
-  // Handle delete
-  const handleDelete = useCallback((company: Company) => {
-    setDeleteItem(company);
-  }, []);
 
   // Handle confirm delete
   const handleConfirmDelete = useCallback(async () => {
@@ -382,8 +430,6 @@ const CompanyManager: React.FC = () => {
       setIsSubmitting(false);
     }
   }, [deleteItem, fetchCompanies]);
-
-  // No inline modal anymore
 
   // Handle export to Excel
   const handleExportExcel = useCallback(() => {
@@ -425,6 +471,29 @@ const CompanyManager: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Company Management</h1>
         <p className="text-gray-600 dark:text-gray-400">
           Manage companies, company types, and company relationships
+        </p>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Debug Info */}
+      <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-md">
+        <p className="text-sm">
+          <strong>Debug:</strong> Data count: {data.length} | Loading: {loading ? 'Yes' : 'No'} | Total: {totalCount}
         </p>
       </div>
 
@@ -545,18 +614,18 @@ const CompanyManager: React.FC = () => {
         </div>
       </div>
 
-
       {/* AG Grid Table */}
       <div
         className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden"
         style={{ height: "600px" }}
       >
-        <AgGridReact
+        <AgGridReact<Company>
           ref={gridRef}
           rowData={data}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           loading={loading}
+          key={`grid-${data.length}`}
           pagination={true}
           paginationPageSize={filters.page_size}
           paginationAutoPageSize={false}
@@ -569,14 +638,10 @@ const CompanyManager: React.FC = () => {
           paginationPageSizeSelector={[10, 25, 50, 100]}
           suppressRowClickSelection={false}
           rowSelection="multiple"
-          context={{
-            onEdit: handleEdit,
-            onDelete: handleDelete,
-          }}
+          context={gridContext}
+          getRowId={(params) => params.data.id.toString()}
         />
       </div>
-
-      {/* Inline modal removed; using dedicated add/edit pages */}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal

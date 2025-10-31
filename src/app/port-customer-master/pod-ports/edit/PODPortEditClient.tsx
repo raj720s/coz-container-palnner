@@ -51,12 +51,17 @@ export default function PODPortEditClient() {
         name: formData.name,
         code: formData.code,
         country: formData.country,
-        city: formData.city,
+        unlocode: formData.unlocode || undefined,
         timezone: formData.timezone,
         is_active: formData.is_active,
         latitude: formData.latitude,
         longitude: formData.longitude,
+        address: formData.address || undefined,
+        description: formData.description || undefined,
       };
+
+      // Debug: Log payload to verify city is not included
+      console.log('POD Payload:', JSON.stringify(payload, null, 2));
 
       if (isEditMode && id) {
         await podService.updatePOD(Number(id), payload);
@@ -127,12 +132,14 @@ export default function PODPortEditClient() {
                   code: podData.code,
                   name: podData.name,
                   country: podData.country,
-                  city: podData.city,
+                  unlocode: podData.unlocode || "",
                   timezone: podData.timezone,
                   type: "POD" as const,
                   is_active: podData.is_active,
                   latitude: podData.latitude,
                   longitude: podData.longitude,
+                  address: podData.address || "",
+                  description: podData.description || "",
                 }
               : undefined
           }

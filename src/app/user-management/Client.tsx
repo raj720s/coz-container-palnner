@@ -334,6 +334,23 @@ function AdminUserManagementClient() {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
+      field: "checkbox",
+      headerName: "",
+      width: 50,
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
+      sortable: false,
+      filter: false,
+    },
+    {
+      field: "actions",
+      headerName: "Action",
+      width: 120,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
+    },
+    {
       field: "firstName",
       headerName: "User",
       minWidth: 250,
@@ -341,7 +358,6 @@ function AdminUserManagementClient() {
       sortable: true,
       filter: true,
       cellRenderer: UserInfoRenderer,
-      pinned: "left",
     },
     {
       field: "roleName",
@@ -378,15 +394,6 @@ function AdminUserManagementClient() {
       sortable: true,
       filter: true,
       cellRenderer: DateRenderer,
-    },
-    {
-      headerName: "Actions",
-      minWidth: 150,
-      flex: 0.8,
-      cellRenderer: ActionsRenderer,
-      sortable: false,
-      filter: false,
-      pinned: "right",
     },
   ], [ActionsRenderer]);
 

@@ -219,22 +219,26 @@ export interface CreatePOLRequest {
   name: string;
   code: string;
   country: string;
-  city: string;
+  unlocode?: string;
   timezone: string;
   is_active: boolean;
   latitude: string;
   longitude: string;
+  address?: string;
+  description?: string;
 }
 
 export interface UpdatePOLRequest {
   name?: string;
   code?: string;
   country?: string;
-  city?: string;
+  unlocode?: string;
   timezone?: string;
   is_active?: boolean;
   latitude?: string;
   longitude?: string;
+  address?: string;
+  description?: string;
 }
 
 export interface POLResponse {
@@ -242,11 +246,13 @@ export interface POLResponse {
   name: string;
   code: string;
   country: string;
-  city: string;
+  unlocode?: string;
   timezone: string;
   is_active: boolean;
   latitude: string;
   longitude: string;
+  address?: string;
+  description?: string;
   created_on?: string;
   modified_on?: string;
   created_by?: number;
@@ -257,22 +263,18 @@ export interface POLListRequest {
   name?: string;
   code?: string;
   country?: string;
-  city?: string;
+  unlocode?: string;
   timezone?: string;
-  order_by?: string;
-  order_type?: string;
-  created_on_start_date?: string;
+  latitude?: string;
+  longitude?: string;
+  address?: string;
+  description?: string;
   created_by?: number;
   modified_by?: number;
-  created_by_name?: string;
-  created_on_end_date?: string;
-  modified_by_name?: string;
-  modified_on_start_date?: string;
-  modified_on_end_date?: string;
+  order_by?: string;
+  order_type?: string;
   page?: number;
   page_size?: number;
-  export?: boolean;
-  module_id?: number;
 }
 
 export interface POLListResponse {
@@ -285,22 +287,26 @@ export interface CreatePODRequest {
   name: string;
   code: string;
   country: string;
-  city: string;
+  unlocode?: string;
   timezone: string;
   is_active: boolean;
   latitude: string;
   longitude: string;
+  address?: string;
+  description?: string;
 }
 
 export interface UpdatePODRequest {
   name?: string;
   code?: string;
   country?: string;
-  city?: string;
+  unlocode?: string;
   timezone?: string;
   is_active?: boolean;
   latitude?: string;
   longitude?: string;
+  address?: string;
+  description?: string;
 }
 
 export interface PODResponse {
@@ -308,11 +314,13 @@ export interface PODResponse {
   name: string;
   code: string;
   country: string;
-  city: string;
+  unlocode?: string;
   timezone: string;
   is_active: boolean;
   latitude: string;
   longitude: string;
+  address?: string;
+  description?: string;
   created_on?: string;
   modified_on?: string;
   created_by?: number;
@@ -323,22 +331,18 @@ export interface PODListRequest {
   name?: string;
   code?: string;
   country?: string;
-  city?: string;
+  unlocode?: string;
   timezone?: string;
+  latitude?: string;
+  longitude?: string;
+  address?: string;
+  description?: string;
+  created_by?: number;
+  modified_by?: number;
   order_by?: string;
   order_type?: string;
   page?: number;
   page_size?: number;
-  created_by?: number;
-  modified_by?: number;
-  created_by_name?: string;
-  created_on_start_date?: string;
-  created_on_end_date?: string;
-  modified_by_name?: string;
-  modified_on_start_date?: string;
-  modified_on_end_date?: string;
-  export?: boolean;
-  module_id?: number;
 }
 
 export interface PODListResponse {

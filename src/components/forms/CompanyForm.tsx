@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import Label from "@/components/form/Label";
 import Select from "@/components/form/select/SelectField";
 import CheckboxField from "@/components/form/checkbox/CheckboxField";
 import { Company, CompanyFormData, COMPANY_TYPES, COUNTRIES } from "@/types/company";
@@ -98,99 +99,116 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Company Name */}
-        <div className="md:col-span-2">
-          <Input
-            label="Company Name *"
-            placeholder="Enter company name"
-            {...register("name")}
-            error={errors.name?.message}
-            required
-          />
+    <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
+      {/* ---------- BASIC DETAILS ---------- */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+          Basic Details
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Company Name */}
+          <div>
+            <Label>
+              Company Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              placeholder="Enter company name"
+              {...register("name")}
+              error={errors.name?.message}
+            />
+          </div>
+
+          {/* Short Name */}
+          <div>
+            <Label>Short Name</Label>
+            <Input
+              placeholder="Enter short name"
+              {...register("short_name")}
+              error={errors.short_name?.message}
+            />
+          </div>
+
+          {/* Company Type */}
+          <div>
+            <Label>
+              Company Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              placeholder="Select company type"
+              {...register("company_type", { valueAsNumber: true })}
+              error={errors.company_type?.message}
+            >
+              {COMPANY_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+
+          {/* Email */}
+          <div>
+            <Label>
+              Email <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              type="email"
+              placeholder="Enter email address"
+              {...register("email")}
+              error={errors.email?.message}
+            />
+          </div>
         </div>
 
-        {/* Short Name */}
-        <div>
-          <Input
-            label="Short Name"
-            placeholder="Enter short name"
-            {...register("short_name")}
-            error={errors.short_name?.message}
-          />
-        </div>
+        {/* Second row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          {/* Phone */}
+          <div>
+            <Label>Phone</Label>
+            <Input
+              placeholder="Enter phone number"
+              {...register("phone")}
+              error={errors.phone?.message}
+            />
+          </div>
 
-        {/* Company Type */}
-        <div>
-          <Select
-            label="Company Type *"
-            placeholder="Select company type"
-            {...register("company_type", { valueAsNumber: true })}
-            error={errors.company_type?.message}
-            required
-          >
-            {COMPANY_TYPES.map((type) => (
-              <option key={type.value} value={type.value}>
-                {type.label}
-              </option>
-            ))}
-          </Select>
-        </div>
+          {/* Country */}
+          <div>
+            <Label>Country</Label>
+            <Select
+              placeholder="Select country"
+              {...register("country")}
+              error={errors.country?.message}
+            >
+              <option value="">Select country</option>
+              {COUNTRIES.map((country) => (
+                <option key={country.value} value={country.value}>
+                  {country.label}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-        {/* Email */}
-        <div>
-          <Input
-            label="Email *"
-            type="email"
-            placeholder="Enter email address"
-            {...register("email")}
-            error={errors.email?.message}
-            required
-          />
+          {/* Parent Company */}
+          <div>
+            <Label>Parent Company</Label>
+            <Input
+              placeholder="Enter parent company"
+              {...register("parent_company")}
+              error={errors.parent_company?.message}
+            />
+          </div>
         </div>
+      </section>
 
-        {/* Phone */}
-        <div>
-          <Input
-            label="Phone"
-            placeholder="Enter phone number"
-            {...register("phone")}
-            error={errors.phone?.message}
-          />
-        </div>
+      {/* ---------- STATUS & SETTINGS ---------- */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+          Status & Settings
+        </h2>
 
-        {/* Country */}
-        <div>
-          <Select
-            label="Country"
-            placeholder="Select country"
-            {...register("country")}
-            error={errors.country?.message}
-          >
-            <option value="">Select country</option>
-            {COUNTRIES.map((country) => (
-              <option key={country.value} value={country.value}>
-                {country.label}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        {/* Parent Company */}
-        <div>
-          <Input
-            label="Parent Company"
-            placeholder="Enter parent company"
-            {...register("parent_company")}
-            error={errors.parent_company?.message}
-          />
-        </div>
-      </div>
-
-      {/* Checkboxes */}
-      <div className="space-y-4">
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center gap-6">
           <CheckboxField
             label="Third Party Company"
             {...register("is_third_party")}
@@ -202,10 +220,10 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
             error={errors.is_active?.message}
           />
         </div>
-      </div>
+      </section>
 
-      {/* Form Actions */}
-      <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+      {/* ---------- BUTTONS ---------- */}
+      <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
         <Button
           type="button"
           variant="outline"
@@ -217,8 +235,16 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
         <Button
           type="submit"
           disabled={isSubmitting}
+          className="min-w-[100px]"
         >
-          {isSubmitting ? "Saving..." : (isEditing ? "Update" : "Save")}
+          {isSubmitting ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Saving...
+            </div>
+          ) : (
+            isEditing ? "Update" : "Save"
+          )}
         </Button>
       </div>
     </form>

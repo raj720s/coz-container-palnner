@@ -244,16 +244,22 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
       {
-        colId: "checkbox",
+        field: "checkbox",
         headerName: "",
+        width: 50,
         checkboxSelection: true,
         headerCheckboxSelection: true,
-        pinned: "left",
         sortable: false,
         filter: false,
-        minWidth: 50,
-        flex: .3,
       },
+    {
+      field: "actions",
+      headerName: "Action",
+      width: 120,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
+    },
     {
       field: "customer_code",
       headerName: "Customer Code",
@@ -262,7 +268,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: CodeRenderer,
-      pinned: "left",
     },
     {
       field: "name",
@@ -325,15 +330,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: StatusRenderer,
-    },
-    {
-      headerName: "Actions",
-      minWidth: 120,
-      // flex: 0.8,
-      cellRenderer: ActionsRenderer,
-      sortable: false,
-      filter: false,
-      pinned: "right",
     },
   ], [ActionsRenderer]);
 

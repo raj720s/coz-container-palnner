@@ -1,4 +1,4 @@
-"use client";
+/*"use client";
 
 import { withSimplifiedRBAC } from "@/components/auth/withSimplifiedRBAC";
 import Button from "@/components/ui/button/Button";
@@ -188,7 +188,7 @@ function ShipmentUploadManager() {
         Upload Excel files containing shipment data for container load planning. Only Excel files (.xlsx, .xls) are supported.
       </p>
 
-      {/* Upload Area */}
+      
       <div className="mb-8">
         <div
           {...getRootProps()}
@@ -216,7 +216,7 @@ function ShipmentUploadManager() {
         </div>
       </div>
 
-      {/* Upload Progress */}
+      
       {uploadProgress.length > 0 && (
         <div className="mb-6">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
@@ -256,7 +256,7 @@ function ShipmentUploadManager() {
         </div>
       )}
 
-      {/* Action Buttons */}
+      
       <div className="flex flex-wrap gap-4 mb-8">
         <Button 
           onClick={handleUpload}
@@ -267,8 +267,7 @@ function ShipmentUploadManager() {
         </Button>
       </div>
 
-      {/* Upload History */}
-      {/* The history section was removed as per the edit hint */}
+      
     </div>
   );
 }
@@ -276,3 +275,5 @@ function ShipmentUploadManager() {
 export default withSimplifiedRBAC(ShipmentUploadManager, {
   route: "/admin/shipment-upload"
 }); 
+
+*/

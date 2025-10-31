@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Button from "@/components/ui/button/Button";
 import Input from "@/components/form/input/InputField";
+import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
 
 // Form validation schema
@@ -34,66 +35,81 @@ export const CarrierForm: React.FC<CarrierFormProps> = ({
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
     reset,
     watch,
     setValue,
   } = useForm<CarrierFormData>({
-    resolver: zodResolver(carrierSchema) as any,
+    resolver: zodResolver(carrierSchema),
     defaultValues: {
-      name: initialData?.name ?? "",
-      carrier_code: initialData?.carrier_code ?? "",
-      transportation_mode: initialData?.transportation_mode ?? 5,
-      is_active: initialData?.is_active ?? true,
-    } as CarrierFormData,
+      name: "",
+      carrier_code: "",
+      transportation_mode: 5,
+      is_active: true,
+    },
   });
+
+  const isActive = watch("is_active");
+  const isEditing = !!initialData;
+
+  useEffect(() => {
+    if (initialData) {
+      reset({
+        name: initialData.name ?? "",
+        carrier_code: initialData.carrier_code ?? "",
+        transportation_mode: initialData.transportation_mode ?? 5,
+        is_active: initialData.is_active ?? true,
+      });
+    } else {
+      reset({
+        name: "",
+        carrier_code: "",
+        transportation_mode: 5,
+        is_active: true,
+      });
+    }
+  }, [initialData, reset]);
 
   const handleFormSubmit = (data: CarrierFormData) => {
     onSubmit(data);
-    reset();
   };
 
   return (
-    <form onSubmit={(...args) => (handleSubmit as any)(handleFormSubmit)(...args)} className="p-6 space-y-8">
-      {/* Basic Details */}
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="p-6 space-y-8">
+      {/* ---------- BASIC DETAILS ---------- */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Basic Details</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Carrier Name *
-            </label>
-            <Input
-              id="name"
-              {...register("name")}
-              placeholder="Enter carrier name (e.g., MAERSK LINE, COSCO SHIPPING)"
-              error={errors.name?.message}
-              disabled={isLoading}
-            />
-          </div>
-          <div>
-            <label htmlFor="carrier_code" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Carrier Code *
-            </label>
-            <Input
-              id="carrier_code"
-              {...register("carrier_code")}
-              placeholder="Enter carrier code (e.g., MAEU, COSU)"
-              error={errors.carrier_code?.message}
-              disabled={isLoading}
-            />
-          </div>
-        </div>
-      </section>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+          Basic Details
+        </h2>
 
-      {/* Configuration */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">Configuration</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Carrier Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Transportation Mode
-            </label>
+            <Label>
+              Carrier Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              placeholder="Enter carrier name"
+              {...register("name")}
+              error={errors.name?.message}
+            />
+          </div>
+
+          {/* Carrier Code */}
+          <div>
+            <Label>
+              Carrier Code <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              placeholder="Enter carrier code"
+              {...register("carrier_code")}
+              error={errors.carrier_code?.message}
+            />
+          </div>
+
+          {/* Transportation Mode */}
+          <div>
+            <Label>Transportation Mode</Label>
             <Select
               options={[
                 { value: '5', label: 'Ocean' },
@@ -101,48 +117,69 @@ export const CarrierForm: React.FC<CarrierFormProps> = ({
                 { value: '15', label: 'Road' },
                 { value: '20', label: 'Rail' },
               ]}
+              placeholder="Select mode"
               value={String(watch('transportation_mode'))}
               onChange={(value) => setValue('transportation_mode', Number(value))}
-              disabled={isLoading}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
-            <div className="flex items-center gap-6">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  value="true"
-                  checked={watch('is_active') === true}
-                  onChange={() => setValue('is_active', true)}
-                  className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
-                  disabled={isLoading}
-                />
-                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
-              </label>
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  value="false"
-                  checked={watch('is_active') === false}
-                  onChange={() => setValue('is_active', false)}
-                  className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
-                  disabled={isLoading}
-                />
-                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Inactive</span>
-              </label>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* Actions */}
+      {/* ---------- STATUS & NOTES ---------- */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
+          Status & Notes
+        </h2>
+
+        {/* Radio - Active / Inactive */}
+        <div className="flex items-center gap-6 mb-4">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="radio"
+              value="true"
+              checked={isActive === true}
+              onChange={() => setValue('is_active', true)}
+              className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
+          </label>
+
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="radio"
+              value="false"
+              checked={isActive === false}
+              onChange={() => setValue('is_active', false)}
+              className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Inactive</span>
+          </label>
+        </div>
+
+        {/* Description */}
+        <div>
+          <Label>Description</Label>
+          <textarea
+            rows={3}
+            placeholder="Enter Description"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+          />
+        </div>
+      </section>
+
+      {/* ---------- BUTTONS ---------- */}
       <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+        <Button
+          variant="outline"
+          onClick={onCancel}
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={!isValid || isLoading} className="min-w-[100px]">
-          {isLoading ? "Saving..." : initialData ? "Update" : "Create"}
+        <Button
+          type="submit"
+          className="min-w-[100px]"
+        >
+          {isEditing ? "Update" : "Save"}
         </Button>
       </div>
     </form>

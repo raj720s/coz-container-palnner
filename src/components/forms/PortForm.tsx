@@ -13,12 +13,14 @@ const portSchema = z.object({
   code: z.string().min(1, "Port code is required"),
   name: z.string().min(1, "Port name is required"),
   country: z.string().min(1, "Country is required"),
-  city: z.string().min(1, "City is required"),
+  unlocode: z.string().optional(),
   timezone: z.string().min(1, "Timezone is required"),
   type: z.enum(["POL", "POD"], { required_error: "Port type is required" }),
   is_active: z.boolean(),
   latitude: z.string().min(1, "Latitude is required"),
   longitude: z.string().min(1, "Longitude is required"),
+  address: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export type PortFormData = z.infer<typeof portSchema>;
@@ -158,12 +160,14 @@ export const PortForm: React.FC<PortFormProps> = ({
       code: "",
       name: "",
       country: "",
-      city: "",
+      unlocode: "",
       timezone: "",
       type: portType ?? "POL",
       is_active: true,
       latitude: "",
       longitude: "",
+      address: "",
+      description: "",
     },
   });
 
@@ -179,12 +183,14 @@ export const PortForm: React.FC<PortFormProps> = ({
         code: "",
         name: "",
         country: "",
-        city: "",
+        unlocode: "",
         timezone: "",
         type: portType || "POL",
         is_active: true,
         latitude: "",
         longitude: "",
+        address: "",
+        description: "",
       });
     }
   }, [initialData, reset, portType]);
@@ -243,21 +249,7 @@ export const PortForm: React.FC<PortFormProps> = ({
             )}
           </div>
 
-          {/* City */}
-          <div>
-            <Label>
-              City <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              placeholder="Enter City"
-              {...register("city")}
-              error={errors.city?.message}
-            />
-          </div>
-        </div>
-
-        {/* Second row - Timezone */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          {/* Timezone */}
           <div>
             <Label>
               Timezone <span className="text-red-500">*</span>
@@ -273,11 +265,17 @@ export const PortForm: React.FC<PortFormProps> = ({
               <p className="mt-1.5 text-xs text-red-500">{errors.timezone.message}</p>
             )}
           </div>
+        </div>
 
-          {/* UNLOCODE (optional – not in schema) */}
+        {/* Second row - UNLOCODE */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
           <div>
             <Label>UNLOCODE</Label>
-            <Input placeholder="Enter UNLOCODE" />
+            <Input
+              placeholder="Enter UNLOCODE"
+              {...register("unlocode")}
+              error={errors.unlocode?.message}
+            />
           </div>
         </div>
       </section>
@@ -313,7 +311,11 @@ export const PortForm: React.FC<PortFormProps> = ({
 
           <div>
             <Label>Address</Label>
-            <Input placeholder="Enter Address" />
+            <Input
+              placeholder="Enter Address"
+              {...register("address")}
+              error={errors.address?.message}
+            />
           </div>
         </div>
       </section>
@@ -359,6 +361,7 @@ export const PortForm: React.FC<PortFormProps> = ({
           <textarea
             rows={3}
             placeholder="Enter Description"
+            {...register("description")}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
           />
         </div>

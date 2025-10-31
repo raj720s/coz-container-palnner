@@ -221,15 +221,21 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
-      colId: "checkbox",
+      field: "checkbox",
       headerName: "",
+      width: 50,
       checkboxSelection: true,
       headerCheckboxSelection: true,
-      pinned: "left",
       sortable: false,
       filter: false,
-      minWidth: 50,
-      flex: 0,
+    },
+    {
+      field: "actions",
+      headerName: "Action",
+      width: 120,
+      cellRenderer: ActionsRenderer,
+      sortable: false,
+      filter: false,
     },
     {
       field: "carrier_code",
@@ -267,14 +273,6 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
       filter: true,
       cellRenderer: StatusRenderer,
     },
-    {
-      headerName: "Actions",
-      minWidth: 120,
-      cellRenderer: ActionsRenderer,
-      sortable: false,
-      filter: false,
-      pinned: "right",
-    },
   ], [ActionsRenderer]);
 
   // Default Column Definition
@@ -299,7 +297,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
     }
 
     try {
-      setModalLoading(true);
+      setLoading(true);
       await carrierService.deleteCarrier(deletingItem.id);
       toast.success('Carrier deleted successfully');
       setDeleteModalOpen(false);
@@ -309,7 +307,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
       console.error('Error deleting carrier:', error);
       toast.error(error.message || 'Failed to delete carrier');
     } finally {
-      setModalLoading(false);
+      setLoading(false);
     }
   };
 
