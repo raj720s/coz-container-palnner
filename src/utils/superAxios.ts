@@ -4,6 +4,33 @@ import Cookies from 'js-cookie';
 import { globalErrorService } from '@/services/globalErrorService';
 import { getAccessToken, AUTH_STORAGE_KEYS } from '@/utils/authStateHelper';
 
+/**
+ * Helper function to handle logout and redirect when authentication fails
+ * This ensures we stop all retry mechanisms and properly clean up
+ */
+const handleLogoutAndRedirect = () => {
+  // Stop auto-refresh service to prevent infinite retries
+  if (typeof window !== 'undefined') {
+    // Import tokenAutoRefreshService dynamically
+    import('@/services/tokenAutoRefreshService').then(({ tokenAutoRefreshService }) => {
+      tokenAutoRefreshService.stopAutoRefresh();
+    });
+    
+    // Clear all auth-related storage
+    localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
+    localStorage.removeItem(AUTH_STORAGE_KEYS.FALLBACK_USER);
+    localStorage.removeItem('auth_user_fallback');
+    localStorage.removeItem('persist:auth_user');
+    
+    // Clear session storage as well
+    sessionStorage.clear();
+    
+    // Redirect to login page
+    window.location.href = '/signin';
+  }
+};
+
 const getToken = () => {
   return process.env.NEXT_PUBLIC_TOKEN;
 }
@@ -58,39 +85,54 @@ superAxios.interceptors.response.use(
 
     // Handle 401 Unauthorized errors
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Don't retry if this is already a refresh token request - logout immediately
+      if (originalRequest.url?.includes('/token/refresh/')) {
+        console.error('Refresh token endpoint returned 401, logging out');
+        handleLogoutAndRedirect();
+        return Promise.reject(error);
+      }
+
       originalRequest._retry = true;
 
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         
-        if (refreshToken) {
-          // Import authService dynamically to avoid circular dependency
-          const { authService } = await import('@/services/authService');
-          
-          // Attempt to refresh the token
-          const newTokens = await authService.refreshToken(refreshToken);
-          
-          // Update session storage with new access token
-          localStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
-          
-          // Update the original request with new token
-          originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
-          
-          // Retry the original request
-          return superAxios(originalRequest);
+        if (!refreshToken) {
+          // No refresh token available, logout immediately
+          console.error('No refresh token available, logging out');
+          handleLogoutAndRedirect();
+          return Promise.reject(error);
         }
-      } catch (refreshError) {
-        // Refresh failed, clear tokens and redirect to login
-        console.error('Token refresh failed:', refreshError);
-        localStorage.removeItem(AUTH_STORAGE_KEYS.TOKEN);
-        localStorage.removeItem(AUTH_STORAGE_KEYS.REFRESH_TOKEN);
-        localStorage.removeItem(AUTH_STORAGE_KEYS.FALLBACK_USER);
-        // Redux persist will be cleared by logout action
+
+        // Import services dynamically to avoid circular dependency
+        const { authService } = await import('@/services/authService');
+        const { tokenAutoRefreshService } = await import('@/services/tokenAutoRefreshService');
         
-        // Redirect to login page
-        if (typeof window !== 'undefined') {
-          window.location.href = '/signin';
+        // Stop auto-refresh before attempting manual refresh to prevent conflicts
+        tokenAutoRefreshService.stopAutoRefresh();
+        
+        // Attempt to refresh the token
+        const newTokens = await authService.refreshToken(refreshToken);
+        
+        // Update session storage with new access token
+        localStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
+        
+        // Update the original request with new token
+        originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
+        
+        // Retry the original request
+        return superAxios(originalRequest);
+      } catch (refreshError: any) {
+        // Refresh failed, logout and redirect to login
+        console.error('Token refresh failed:', refreshError);
+        
+        // If refresh token endpoint itself returned 401, don't retry
+        if (refreshError.response?.status === 401) {
+          console.error('Refresh token is invalid, logging out immediately');
         }
+        
+        handleLogoutAndRedirect();
+        return Promise.reject(refreshError);
       }
     }
 

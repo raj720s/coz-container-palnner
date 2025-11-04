@@ -59,7 +59,7 @@ interface UserFormProps {
     firstName: string;
     lastName: string;
     email: string;
-    role: number;
+    role: number | null; // Allow null for users without roles
     status: string;
     organisation_name?: string;
   };
@@ -139,6 +139,7 @@ export const UserForm: React.FC<UserFormProps> = ({
 
   const role = watch("role");
   const status = watch("status");
+  const isActive = status === "true";
 
   // Load existing customer assignments when editing - commented out for next version
   // useEffect(() => {
@@ -154,7 +155,7 @@ export const UserForm: React.FC<UserFormProps> = ({
         first_name: initialData.firstName,
         last_name: initialData.lastName,
         email: initialData.email,
-        role: initialData.role.toString(), // Convert number to string for form
+        role: initialData.role != null ? initialData.role.toString() : "", // Handle null/undefined role
         status: initialData.status === "active" ? "true" : "false",
         organisation_name: initialData.organisation_name || "",
         company: undefined,
@@ -416,16 +417,29 @@ export const UserForm: React.FC<UserFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <Label htmlFor="status">Status</Label>
-            <Select
-              options={[
-                { value: "true", label: "Active" },
-                { value: "false", label: "Inactive" }
-              ]}
-              value={watch("status")}
-              onChange={(value) => setValue("status", value)}
-              placeholder="Select status"
-              className="w-full"
-            />
+            <div className="flex items-center gap-6 mt-2">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="true"
+                  checked={isActive === true}
+                  onChange={() => setValue("status", "true")}
+                  className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
+              </label>
+
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="false"
+                  checked={isActive === false}
+                  onChange={() => setValue("status", "false")}
+                  className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Inactive</span>
+              </label>
+            </div>
             {errors.status && (
               <p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
             )}

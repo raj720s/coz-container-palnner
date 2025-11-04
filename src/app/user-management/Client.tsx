@@ -309,12 +309,20 @@ function AdminUserManagementClient() {
 
   // Actions Cell Renderer
   const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    const handleEditClick = () => {
+      router.push(`/user-management/edit?id=${params.data.id}`);
+    };
+
+    const handleDeleteClick = () => {
+      handleDeleteUser(params.data.id);
+    };
+
     return (
-      <div className="flex space-x-2">
+      <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => router.push(`/user-management/edit?id=${params.data.id}`)}
+          onClick={handleEditClick}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -322,7 +330,7 @@ function AdminUserManagementClient() {
         <Button
           size="sm"
           variant="outline"
-          onClick={() => handleDeleteUser(params.data.id)}
+          onClick={handleDeleteClick}
           className="p-1 text-red-600 hover:text-red-700"
         >
           <TrashBinIcon className="w-4 h-4" />
@@ -334,21 +342,14 @@ function AdminUserManagementClient() {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
-      field: "checkbox",
-      headerName: "",
-      width: 50,
-      checkboxSelection: true,
-      headerCheckboxSelection: true,
-      sortable: false,
-      filter: false,
-    },
-    {
       field: "actions",
       headerName: "Action",
       width: 120,
       cellRenderer: ActionsRenderer,
       sortable: false,
       filter: false,
+      suppressMovable: true,
+      lockPosition: 'left',
     },
     {
       field: "firstName",
@@ -509,7 +510,7 @@ function AdminUserManagementClient() {
   }, [exportSelectedOnly]);
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h1>
         <p className="text-gray-600 dark:text-gray-400">
@@ -708,8 +709,8 @@ function AdminUserManagementClient() {
       domLayout="normal"
       animateRows={true}
       suppressMenuHide={false}
-      rowSelection="multiple"
-      suppressRowClickSelection={false}
+      rowSelection={{ mode: "multiRow" }}
+      suppressRowClickSelection={true}
       rowHeight={48}
       headerHeight={44}
       suppressCellFocus={true}

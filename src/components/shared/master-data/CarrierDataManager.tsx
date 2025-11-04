@@ -193,12 +193,20 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
 
   // Actions Cell Renderer
   const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    const handleEditClick = () => {
+      router.push(`/carrier-management/edit?id=${params.data.id}`);
+    };
+
+    const handleDeleteButtonClick = () => {
+      handleDeleteClick(params.data);
+    };
+
     return (
-      <div className="flex space-x-2">
+      <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => router.push(`/carrier-management/edit?id=${params.data.id}`)}
+          onClick={handleEditClick}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -208,7 +216,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleDeleteClick(params.data)}
+            onClick={handleDeleteButtonClick}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -221,21 +229,14 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
-      field: "checkbox",
-      headerName: "",
-      width: 50,
-      checkboxSelection: true,
-      headerCheckboxSelection: true,
-      sortable: false,
-      filter: false,
-    },
-    {
       field: "actions",
       headerName: "Action",
       width: 120,
       cellRenderer: ActionsRenderer,
       sortable: false,
       filter: false,
+      suppressMovable: true,
+      lockPosition: 'left',
     },
     {
       field: "carrier_code",
@@ -362,7 +363,7 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       {/* Header */}
       <div className="mb-6">         
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -483,8 +484,8 @@ function CarrierDataManager({ rbacContext }: CarrierDataManagerProps) {
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"
-          suppressRowClickSelection={false}
-          rowSelection="multiple"
+          suppressRowClickSelection={true}
+          rowSelection={{ mode: "multiRow" }}
         />
       </div>
 

@@ -126,6 +126,21 @@ export const staticModules: Record<number, StaticModule> = {
     color: "cyan",
     group: "master-data"
   },
+
+  // Module 69: Supplier Management
+  69: {
+    id: 69,
+    name: "Supplier Management",
+    description: "Manage suppliers, supplier codes, and supplier information",
+    routes: ["/supplier-management"],
+    privileges: [
+      "VIEW_SUPPLIERS", "CREATE_SUPPLIER", "VIEW_SUPPLIER", "UPDATE_SUPPLIER", "DELETE_SUPPLIER",
+      "EXPORT_SUPPLIERS"
+    ],
+    icon: "shopping-bag",
+    color: "green",
+    group: "master-data"
+  },
   
   // Module 70: Shipment Operations
   70: {

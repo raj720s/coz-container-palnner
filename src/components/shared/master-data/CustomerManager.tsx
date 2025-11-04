@@ -216,12 +216,20 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
   // Actions Cell Renderer
   const ActionsRenderer = useCallback((params: ICellRendererParams) => {
+    const handleEditClick = () => {
+      router.push(`/port-customer-master/customers/edit?id=${params.data.id}`);
+    };
+
+    const handleDeleteButtonClick = () => {
+      handleDeleteClick(params.data);
+    };
+
     return (
-      <div className="flex space-x-2">
+      <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => router.push(`/port-customer-master/customers/edit?id=${params.data.id}`)}
+          onClick={handleEditClick}
           className="p-1"
         >
           <PencilIcon className="w-4 h-4" />
@@ -231,7 +239,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleDeleteClick(params.data)}
+            onClick={handleDeleteButtonClick}
             className="p-1 text-red-600 hover:text-red-700"
           >
             <TrashBinIcon className="w-4 h-4" />
@@ -243,15 +251,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
-      {
-        field: "checkbox",
-        headerName: "",
-        width: 50,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        sortable: false,
-        filter: false,
-      },
     {
       field: "actions",
       headerName: "Action",
@@ -259,6 +258,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       cellRenderer: ActionsRenderer,
       sortable: false,
       filter: false,
+      suppressMovable: true,
+      lockPosition: 'left',
     },
     {
       field: "customer_code",
@@ -617,8 +618,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           // Server-side pagination configuration
           paginationPageSizeSelector={[10, 25, 50, 100]}
           // Ensure pagination is server-side
-          suppressRowClickSelection={false}
-          rowSelection="multiple"
+          suppressRowClickSelection={true}
+          rowSelection={{ mode: "multiRow" }}
         />
       </div>
 

@@ -4,19 +4,17 @@ import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
+import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, AlertIcon, CheckCircleIcon } from "@/icons";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import toast from "react-hot-toast";
-import { POLResponse, POLListRequest, CreatePOLRequest, UpdatePOLRequest } from "@/types/api";
-import { polService } from "@/services";
+import { Supplier, SupplierListRequest, COUNTRIES } from "@/types/supplier";
+import { supplierService } from "@/services/supplierService";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
 
 // AG Grid imports
 import type {
   ColDef,
   GridReadyEvent,
-  CellClickedEvent,
-  ValueFormatterParams,
   ICellRendererParams,
 } from "ag-grid-community";
 import { 
@@ -41,23 +39,23 @@ const StatusRenderer = (params: ICellRendererParams) => {
   const isActive = params.value;
   return (
     <span
-      className={`px-2 py-1 text-xs font-medium rounded-full ${
+      className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
         isActive
           ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
           : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
       }`}
     >
-      {isActive ? "Active" : "Inactive"}
-    </span>
-  );
-};
-
-// CityRenderer removed - city field no longer exists in API
-
-const TimezoneRenderer = (params: ICellRendererParams) => {
-  return (
-    <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-      {params.value}
+      {isActive ? (
+        <>
+          <CheckCircleIcon className="w-3 h-3 mr-1" />
+          Active
+        </>
+      ) : (
+        <>
+          <AlertIcon className="w-3 h-3 mr-1" />
+          Inactive
+        </>
+      )}
     </span>
   );
 };
@@ -78,47 +76,47 @@ const NameRenderer = (params: ICellRendererParams) => {
   );
 };
 
-interface PolDataManagerProps {
+interface SupplierManagerProps {
   rbacContext?: SimplifiedRBACProps['rbacContext'];
 }
 
-function PolDataManager({ rbacContext }: PolDataManagerProps) {
+function SupplierManager({ rbacContext }: SupplierManagerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
   
   const { can, isAdmin, isSuperUser } = rbacContext || {};
   
-  const [pols, setPols] = useState<POLResponse[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
-  const gridRef = useRef<AgGridReact<POLResponse>>(null);
+  const gridRef = useRef<AgGridReact<Supplier>>(null);
   
-  const [filters, setFilters] = useState<POLListRequest>({
+  const [filters, setFilters] = useState<SupplierListRequest>({
     page: 1,
     page_size: 10,
-    order_by: "created_on",
-    order_type: "desc"
+    order_by: "name",
+    order_type: "asc"
   });
   
   const [globalFilter, setGlobalFilter] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
+  const [deletingItem, setDeletingItem] = useState<Supplier | null>(null);
 
-  const canDeletePOL = can?.("DELETE_POL") || isAdmin?.() || isSuperUser;
+  const canDeleteSupplier = can?.("DELETE_SUPPLIER") || isAdmin?.() || isSuperUser;
 
   // Redirect to add page if action=add
   useEffect(() => {
     if (action === 'add') {
-      router.push('/port-customer-master/pol-ports/add');
+      router.push('/supplier-management/add');
     }
   }, [action, router]);
 
-  // Load POL ports
+  // Load suppliers
   useEffect(() => {
-    loadPOLs();
+    loadSuppliers();
   }, [filters]);
 
   // Auto-clear errors
@@ -131,16 +129,16 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   }, [error]);
 
-  const loadPOLs = async () => {
+  const loadSuppliers = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await polService.getPOLs(filters);
-      setPols(response.results || []);
+      const response = await supplierService.getSuppliers(filters);
+      setSuppliers(response.results || []);
       setTotal(response.count || 0);
     } catch (err: any) {
-      console.error('Error loading POL ports:', err);
-      setError(err.message || 'Failed to load POL ports');
+      console.error('Error loading suppliers:', err);
+      setError(err.message || 'Failed to load suppliers');
     } finally {
       setLoading(false);
     }
@@ -151,11 +149,11 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     if (gridRef.current) {
       try {
         gridRef.current.api.exportDataAsExcel({
-          fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.xlsx`,
-          sheetName: "POL Ports",
+          fileName: `suppliers_${new Date().toISOString().split('T')[0]}.xlsx`,
+          sheetName: "Suppliers",
           onlySelected: exportSelectedOnly,
         });
-        toast.success("POL ports exported to Excel successfully");
+        toast.success("Suppliers exported to Excel successfully");
       } catch (error: any) {
         console.error("Error exporting to Excel:", error);
         toast.error("Failed to export to Excel");
@@ -168,10 +166,10 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     if (gridRef.current) {
       try {
         gridRef.current.api.exportDataAsCsv({
-          fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.csv`,
+          fileName: `suppliers_${new Date().toISOString().split('T')[0]}.csv`,
           onlySelected: exportSelectedOnly,
         });
-        toast.success("POL ports exported to CSV successfully");
+        toast.success("Suppliers exported to CSV successfully");
       } catch (error: any) {
         console.error("Error exporting to CSV:", error);
         toast.error("Failed to export to CSV");
@@ -179,20 +177,20 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   }, [exportSelectedOnly]);
 
-  const handleDeleteClick = (pol: POLResponse) => {
-    if (!canDeletePOL) {
-      toast.error("You don't have permission to delete POL data");
+  const handleDeleteClick = (supplier: Supplier) => {
+    if (!canDeleteSupplier) {
+      toast.error("You don't have permission to delete suppliers");
       return;
     }
     
-    setDeletingItem(pol);
+    setDeletingItem(supplier);
     setDeleteModalOpen(true);
   };
 
   // Actions Cell Renderer
   const ActionsRenderer = useCallback((params: ICellRendererParams) => {
     const handleEditClick = () => {
-      router.push(`/port-customer-master/pol-ports/edit?id=${params.data.id}`);
+      router.push(`/supplier-management/edit?id=${params.data.id}`);
     };
 
     const handleDeleteButtonClick = () => {
@@ -210,7 +208,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           <PencilIcon className="w-4 h-4" />
         </Button>
         
-        {canDeletePOL && (
+        {canDeleteSupplier && (
           <Button
             size="sm"
             variant="outline"
@@ -222,7 +220,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         )}
       </div>
     );
-  }, [canDeletePOL, router]);
+  }, [canDeleteSupplier, router]);
 
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
@@ -238,7 +236,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     },
     {
       field: "code",
-      headerName: "Port Code",
+      headerName: "Supplier Code",
       minWidth: 150,
       flex: 1,
       sortable: true,
@@ -247,7 +245,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     },
     {
       field: "name",
-      headerName: "Port Name",
+      headerName: "Supplier Name",
       minWidth: 200,
       flex: 2,
       sortable: true,
@@ -255,45 +253,35 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       cellRenderer: NameRenderer,
     },
     {
+      field: "email",
+      headerName: "Email",
+      minWidth: 180,
+      flex: 1.5,
+      sortable: true,
+      filter: true,
+    },
+    {
+      field: "phone",
+      headerName: "Phone",
+      minWidth: 120,
+      flex: 1,
+      sortable: true,
+      filter: true,
+    },
+    {
       field: "country",
       headerName: "Country",
-      minWidth: 150,
-      flex: 1,
-      sortable: true,
-      filter: true,
-    },
-    {
-      field: "unlocode",
-      headerName: "UNLOCODE",
-      minWidth: 150,
-      flex: 1,
-      sortable: true,
-      filter: true,
-    },
-    {
-      field: "timezone",
-      headerName: "Timezone",
-      minWidth: 150,
-      flex: 1,
-      sortable: true,
-      filter: true,
-      cellRenderer: TimezoneRenderer,
-    },
-    {
-      field: "latitude",
-      headerName: "Latitude",
       minWidth: 120,
       flex: 1,
       sortable: true,
-      filter: true,
-    },
-    {
-      field: "longitude",
-      headerName: "Longitude",
-      minWidth: 120,
-      flex: 1,
-      sortable: true,
-      filter: true,
+      filter: "agSetColumnFilter",
+      filterParams: {
+        values: COUNTRIES.map(country => country.value),
+        valueFormatter: (params: any) => {
+          const country = COUNTRIES.find(c => c.value === params.value);
+          return country?.label || params.value;
+        },
+      },
     },
     {
       field: "is_active",
@@ -301,7 +289,11 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       minWidth: 120,
       flex: 0.8,
       sortable: true,
-      filter: true,
+      filter: "agSetColumnFilter",
+      filterParams: {
+        values: [true, false],
+        valueFormatter: (params: any) => (params.value ? "Active" : "Inactive"),
+      },
       cellRenderer: StatusRenderer,
     },
   ], [ActionsRenderer]);
@@ -315,12 +307,11 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     minWidth: 100,
   }), []);
 
-
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
 
-    if (!canDeletePOL) {
-      toast.error("You don't have permission to delete POL data");
+    if (!canDeleteSupplier) {
+      toast.error("You don't have permission to delete suppliers");
       setDeleteModalOpen(false);
       setDeletingItem(null);
       return;
@@ -328,59 +319,14 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
 
     try {
       setLoading(true);
-      await polService.deletePOL(deletingItem.id);
-      toast.success('POL port deleted successfully');
+      await supplierService.deleteSupplier(deletingItem.id);
+      toast.success('Supplier deleted successfully');
       setDeleteModalOpen(false);
       setDeletingItem(null);
-      loadPOLs();
+      loadSuppliers();
     } catch (error: any) {
-      console.error('Error deleting POL port:', error);
-      toast.error(error.message || 'Failed to delete POL port');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      setLoading(true);
-      const exportData = await polService.exportPOLs({
-        ...filters,
-        page_size: 1000
-      });
-      
-      const headers = ['Code', 'Name', 'Country', 'UNLOCODE', 'Timezone', 'Latitude', 'Longitude', 'Address', 'Status', 'Created On'];
-      const csvRows = [
-        headers.join(','),
-        ...exportData.map(pol => [
-          pol.code,
-          pol.name,
-          pol.country,
-          pol.unlocode || '',
-          pol.timezone,
-          pol.latitude,
-          pol.longitude,
-          pol.address || '',
-          pol.is_active ? 'Active' : 'Inactive',
-          pol.created_on ? new Date(pol.created_on).toLocaleDateString() : 'N/A'
-        ].join(','))
-      ];
-      
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `pol_ports_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast.success('POL ports exported successfully');
-    } catch (error: any) {
-      console.error('Error exporting POL ports:', error);
-      toast.error('Failed to export POL ports');
+      console.error('Error deleting supplier:', error);
+      toast.error(error.message || 'Failed to delete supplier');
     } finally {
       setLoading(false);
     }
@@ -390,30 +336,30 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     setGlobalFilter(searchTerm);
     setFilters(prev => ({ 
       ...prev,
-      name: searchTerm,
+      search: searchTerm,
       page: 1 
     }));
   };
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       {/* Header */}
       <div className="mb-6">         
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          POL Master
+          Supplier Management
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Manage Port of Loading (POL) ports and their configurations
+          Manage suppliers, supplier codes, and supplier information
         </p>
         
-        {!canDeletePOL && (
+        {!canDeleteSupplier && (
           <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-md">
             <div className="flex items-center">
               <svg className="h-5 w-5 text-yellow-400 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               <span className="text-sm">
-                <strong>Read-only mode:</strong> You can view and edit POL data, but cannot delete records.
+                <strong>Read-only mode:</strong> You can view and edit supplier data, but cannot delete records.
               </span>
             </div>
           </div>
@@ -439,25 +385,25 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Total POL Ports</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Total Suppliers</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Active Ports</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Active Suppliers</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-            {pols.filter(p => p.is_active).length}
+            {suppliers.filter(s => s.is_active).length}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="text-sm text-gray-500 dark:text-gray-400">Inactive Suppliers</div>
+          <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+            {suppliers.filter(s => !s.is_active).length}
           </div>
         </div>
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Countries</div>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {new Set(pols.map(p => p.country)).size}
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Timezone Zones</div>
-          <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-            {new Set(pols.map(p => p.timezone)).size}
+            {new Set(suppliers.map(s => s.country).filter(Boolean)).size}
           </div>
         </div>
       </div>
@@ -468,7 +414,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           <div className="flex flex-col lg:flex-row gap-4">
             <div className="flex-1">
               <Input
-                placeholder="Search ports by Port Name"
+                placeholder="Search suppliers by name"
                 value={globalFilter}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="max-w-md"
@@ -480,7 +426,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                   type="checkbox"
                   checked={exportSelectedOnly}
                   onChange={(e) => setExportSelectedOnly(e.target.checked)}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                 />
                 <span>Selected Rows Only</span>
               </label>
@@ -492,9 +438,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
                 <DownloadIcon className="w-4 h-4" />
                 Export CSV
               </Button>
-              <Button type="button" onClick={() => router.push('/port-customer-master/pol-ports/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
+              <Button type="button" onClick={() => router.push('/supplier-management/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
                 <PlusIcon className="w-4 h-4" />
-                Add POL Port
+                Add Supplier
               </Button>
             </div>
           </div>
@@ -505,7 +451,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden" style={{ height: '600px' }}>
         <AgGridReact
           ref={gridRef}
-          rowData={pols}
+          rowData={suppliers}
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           loading={loading}
@@ -530,8 +476,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           setDeletingItem(null);
         }}
         onConfirm={handleDeleteConfirm}
-        title="Delete POL Port"
-        message={`Are you sure you want to delete the POL port "${deletingItem?.name}" (${deletingItem?.code})? This action cannot be undone.`}
+        title="Delete Supplier"
+        message={`Are you sure you want to delete the supplier "${deletingItem?.name}" (${deletingItem?.code})? This action cannot be undone.`}
         itemName={deletingItem?.name}
         isLoading={loading}
         variant="danger"
@@ -540,12 +486,13 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   );
 }
 
-export default withSimplifiedRBAC(PolDataManager, {
-  privilege: "VIEW_POL_PORTS",
-  module: [60],
+export default withSimplifiedRBAC(SupplierManager, {
+  privilege: "VIEW_SUPPLIERS",
+  module: [69],
   allowSuperUserBypass: true,
   redirectTo: "/dashboard"
 });
 
-// DEBUG: This component should have role [1, 2, 3]
-console.log('🔐 PolDataManager loaded with role config:', [1, 2, 3]);
+// DEBUG: This component should have role config
+console.log('🔐 SupplierManager loaded with role config:', [69]);
+

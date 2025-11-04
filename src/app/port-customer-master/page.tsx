@@ -67,7 +67,7 @@ function PortCustomerMasterPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
           Master Data Management

@@ -5,6 +5,7 @@ class TokenAutoRefreshService {
   private refreshInterval: NodeJS.Timeout | null = null;
   private readonly REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
   private isRefreshing = false;
+  private isLoggingOut = false; // Prevent multiple logout attempts
 
   /**
    * Start the auto-refresh mechanism
@@ -37,6 +38,8 @@ class TokenAutoRefreshService {
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
     }
+    // Reset refreshing flag when stopping
+    this.isRefreshing = false;
   }
 
   /**
@@ -93,6 +96,17 @@ class TokenAutoRefreshService {
     } catch (error: any) {
       console.error('❌ Token auto-refresh failed:', error);
       
+      // Prevent multiple logout attempts
+      if (this.isLoggingOut) {
+        console.log('⚠️ Logout already in progress, skipping...');
+        return;
+      }
+      
+      this.isLoggingOut = true;
+      
+      // Stop auto-refresh immediately to prevent further retries
+      this.stopAutoRefresh();
+      
       // Show error notification to user
       toast.error('Session expired. Please log in again.', {
         duration: 5000,
@@ -105,6 +119,7 @@ class TokenAutoRefreshService {
       if (typeof window !== 'undefined') {
         localStorage.removeItem('auth_user_fallback');
         localStorage.removeItem('persist:auth_user');
+        sessionStorage.clear();
       }
       
       // Dispatch a custom event to notify other parts of the app
@@ -112,12 +127,11 @@ class TokenAutoRefreshService {
         detail: { error: error.message }
       }));
       
-      // Stop auto-refresh since tokens are invalid
-      this.stopAutoRefresh();
-      
-      // Redirect to login page
+      // Redirect to login page (use setTimeout to ensure cleanup completes)
       if (typeof window !== 'undefined') {
-        window.location.href = '/signin';
+        setTimeout(() => {
+          window.location.href = '/signin';
+        }, 100);
       }
     } finally {
       this.isRefreshing = false;

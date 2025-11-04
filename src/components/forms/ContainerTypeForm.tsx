@@ -128,15 +128,31 @@ export const ContainerTypeForm: React.FC<ContainerTypeFormProps> = ({
         <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           Status
         </label>
-        <Select
-          options={[
-            { value: "true", label: "Active" },
-            { value: "false", label: "Inactive" }
-          ]}
-          value={watch("status") ? "true" : "false"}
-          onChange={(value) => setValue("status", value === "true")}
-          disabled={isLoading}
-        />
+        <div className="flex items-center gap-6">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="radio"
+              value="true"
+              checked={watch("status") === true}
+              onChange={() => setValue("status", true)}
+              disabled={isLoading}
+              className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
+          </label>
+
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="radio"
+              value="false"
+              checked={watch("status") === false}
+              onChange={() => setValue("status", false)}
+              disabled={isLoading}
+              className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+            />
+            <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Inactive</span>
+          </label>
+        </div>
       </div>
 
       {/* Form Actions */}

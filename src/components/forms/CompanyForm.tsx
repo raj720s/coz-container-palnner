@@ -47,6 +47,7 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<CompanyFormSchema>({
     resolver: zodResolver(companySchema),
     defaultValues: {
@@ -208,17 +209,43 @@ export function CompanyForm({ initialData, onSuccess, onCancel, isEditing = fals
           Status & Settings
         </h2>
 
-        <div className="flex items-center gap-6">
-          <CheckboxField
-            label="Third Party Company"
-            {...register("is_third_party")}
-            error={errors.is_third_party?.message}
-          />
-          <CheckboxField
-            label="Active"
-            {...register("is_active")}
-            error={errors.is_active?.message}
-          />
+        <div className="space-y-4">
+          <div>
+            <CheckboxField
+              label="Third Party Company"
+              {...register("is_third_party")}
+              error={errors.is_third_party?.message}
+            />
+          </div>
+          <div>
+            <Label>Status</Label>
+            <div className="flex items-center gap-6 mt-2">
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="true"
+                  checked={watch("is_active") === true}
+                  onChange={() => setValue("is_active", true)}
+                  className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Active</span>
+              </label>
+
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  value="false"
+                  checked={watch("is_active") === false}
+                  onChange={() => setValue("is_active", false)}
+                  className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Inactive</span>
+              </label>
+            </div>
+            {errors.is_active && (
+              <p className="mt-1 text-sm text-red-600">{errors.is_active?.message}</p>
+            )}
+          </div>
         </div>
       </section>
 

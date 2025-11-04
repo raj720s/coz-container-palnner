@@ -452,17 +452,25 @@ function AdminRoleManagementClient() {
   // Actions Cell Renderer
   const ActionsRenderer = useCallback(
     (params: ICellRendererParams) => {
+      const handleEditClick = () => {
+        openModal(params.data);
+      };
+
+      const handleDeleteClick = () => {
+        handleDeleteRole(params.data.id.toString());
+      };
+
       return (
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
         <button
-            onClick={() => openModal(params.data)}
+            onClick={handleEditClick}
             className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded"
             title="Edit role"
         >
             <PencilIcon className="w-4 h-4" />
         </button>
         <button
-            onClick={() => handleDeleteRole(params.data.id.toString())}
+            onClick={handleDeleteClick}
             className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
             title="Delete role"
         >
@@ -478,6 +486,16 @@ function AdminRoleManagementClient() {
 
   // AG Grid Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
+    {
+      field: "actions",
+      headerName: "Actions",
+      minWidth: 120,
+      sortable: false,
+      filter: false,
+      cellRenderer: ActionsRenderer,
+      suppressMovable: true,
+      lockPosition: 'left',
+    },
     {
       field: "role_name",
       headerName: "Role Name",
@@ -549,15 +567,6 @@ function AdminRoleManagementClient() {
       filter: true,
       cellRenderer: DateRenderer,
     },
-    {
-      field: "actions",
-      headerName: "Actions",
-      minWidth: 120,
-      // flex: 1,
-      sortable: false,
-      filter: false,
-      cellRenderer: ActionsRenderer,
-    },
   ], [PrivilegesRenderer, UserRenderer, ActionsRenderer, usersLoading, getUserName]);
 
   // Default Column Definition
@@ -625,7 +634,7 @@ function AdminRoleManagementClient() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Role Management</h1>
         <p className="text-gray-600 dark:text-gray-400">
@@ -721,8 +730,8 @@ function AdminRoleManagementClient() {
             domLayout="normal"
             animateRows={true}
             suppressMenuHide={false}
-            rowSelection="multiple"
-            suppressRowClickSelection={false}
+            rowSelection={{ mode: "multiRow" }}
+            suppressRowClickSelection={true}
             rowHeight={48}
             headerHeight={44}
             suppressCellFocus={true}

@@ -141,7 +141,7 @@ function UserDashboard() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       {/* Header */}
       <div className="mb-8">
         <div className="mb-4">

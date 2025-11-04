@@ -544,10 +544,18 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
   // Actions Cell Renderer
   const ActionsRenderer = useCallback(
     (params: ICellRendererParams) => {
+      const handleEditClick = () => {
+        handleEdit(params.data);
+      };
+
+      const handleDeleteButtonClick = () => {
+        handleDeleteClick(params.data);
+      };
+
       return (
-        <div className="flex items-center justify-center gap-1">
+        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={() => handleEdit(params.data)}
+            onClick={handleEditClick}
             className="p-1 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded"
             title="Edit booking"
           >
@@ -555,7 +563,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
           </button>
           {canDeleteShipment && (
             <button
-              onClick={() => handleDeleteClick(params.data)}
+              onClick={handleDeleteButtonClick}
               className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded"
               title="Delete booking"
             >
@@ -609,23 +617,14 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
     
     return [
       {
-        field: "checkbox",
-        headerName: "",
-        width: 50,
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        sortable: false,
-        filter: false,
-        // pinned: "left",
-      },
-      {
         field: "actions",
         headerName: "Action",
         width: 120,
         cellRenderer: ActionsRenderer,
         sortable: false,
         filter: false,
-        // pinned: "left",
+        suppressMovable: true,
+        lockPosition: 'left',
       },
       ...dataColumns,
     ];
@@ -651,7 +650,7 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
 
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-0 bg-gray-50 min-h-screen">
       {/* Status Tabs */}
       <div className="mb-6 flex flex-wrap gap-2">
         {STATUS_TABS.map((tab) => (
@@ -733,8 +732,8 @@ const ShipmentOrderManager: React.FC<ShipmentOrderManagerProps> = ({
             domLayout="normal"
             animateRows={true}
             suppressMenuHide={false}
-            rowSelection="multiple"
-            suppressRowClickSelection={false}
+            rowSelection={{ mode: "multiRow" }}
+            suppressRowClickSelection={true}
             rowHeight={48}
             headerHeight={44}
             suppressCellFocus={true}

@@ -11,6 +11,7 @@ export { default as privilegeService } from './privilegeService';
 export { authService } from './authService';
 export { companyService } from './companyService';
 export { default as carrierService } from './carrierService';
+export { supplierService } from './supplierService';
 
 // Export base service class for inheritance
 export { BaseService } from './baseService';
