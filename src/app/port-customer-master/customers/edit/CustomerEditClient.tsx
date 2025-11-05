@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CustomerForm, type CustomerFormData } from "@/components/forms/CustomerForm";
 import { CustomerResponse, CreateCustomerRequest, UpdateCustomerRequest } from "@/types/api";
 import { customerService } from "@/services";
+import { companyService } from "@/services/companyService";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import { ArrowLeftIcon } from "@/icons";
@@ -31,6 +32,19 @@ export default function CustomerEditClient() {
       setLoading(true);
       setError(null);
       const data = await customerService.getCustomer(Number(id));
+      
+      // Fetch company details if company ID exists
+      if (data.company) {
+        try {
+          const company = await companyService.getCompany(data.company);
+          // Attach full company object to customer data for form
+          (data as any).company_data = company;
+        } catch (companyErr) {
+          console.warn("Failed to load company details:", companyErr);
+          // Continue without company data - form will handle it
+        }
+      }
+      
       setCustomerData(data);
     } catch (err: any) {
       console.error(err);
@@ -128,6 +142,7 @@ export default function CustomerEditClient() {
               ? {
                   id: customerData.id.toString(),
                   company: (customerData as any).company,
+                  company_data: (customerData as any).company_data, // Pass full company object
                   customer_code: customerData.customer_code,
                   name: customerData.name,
                   contact_person: customerData.contact_person,

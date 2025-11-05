@@ -104,9 +104,19 @@ export const userService = {
     return response.data;
   },
 
-  // Create user-company mapping
+  // Create user-company mapping (POST - used for update flow)
   async createUserCompanyMapping(data: { user: number; company: number; is_active?: boolean }): Promise<any> {
     const response = await superAxios.post(`${BASEURL}/master-data/v1/user/company`, {
+      user: data.user,
+      company: data.company,
+      is_active: data.is_active ?? true,
+    });
+    return response.data;
+  },
+
+  // Create user-company mapping (PUT - used for create flow)
+  async createUserCompanyMappingPut(data: { user: number; company: number; is_active?: boolean }): Promise<any> {
+    const response = await superAxios.put(`${BASEURL}/master-data/v1/user/company`, {
       user: data.user,
       company: data.company,
       is_active: data.is_active ?? true,

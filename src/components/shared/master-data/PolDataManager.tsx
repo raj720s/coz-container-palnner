@@ -19,40 +19,45 @@ import type {
   ValueFormatterParams,
   ICellRendererParams,
 } from "ag-grid-community";
-import { 
-  AllCommunityModule, 
-  ModuleRegistry, 
+import {
+  AllCommunityModule,
+  ModuleRegistry,
   CsvExportModule,
 } from "ag-grid-community";
-import { 
+import {
   AgGridReact,
 } from "ag-grid-react";
-import { ExcelExportModule, SetFilterModule } from "ag-grid-enterprise";
+import {
+  ExcelExportModule,
+  SetFilterModule,
+  ContextMenuModule, // Add this import
+  ColumnMenuModule   // This is also useful for column header menus
+} from "ag-grid-enterprise";
 
+// Register modules including ContextMenuModule
 ModuleRegistry.registerModules([
   AllCommunityModule,
   CsvExportModule,
   ExcelExportModule,
   SetFilterModule,
+  ContextMenuModule,    // This enables the right-click context menu
+  ColumnMenuModule,     // This enables column header menus (optional)
 ]);
 
-// Custom Cell Renderers
+// Custom Cell Renderers (keeping existing ones)
 const StatusRenderer = (params: ICellRendererParams) => {
   const isActive = params.value;
   return (
     <span
-      className={`px-2 py-1 text-xs font-medium rounded-full ${
-        isActive
+      className={`px-2 py-1 text-xs font-medium rounded-full ${isActive
           ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
           : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-      }`}
+        }`}
     >
       {isActive ? "Active" : "Inactive"}
     </span>
   );
 };
-
-// CityRenderer removed - city field no longer exists in API
 
 const TimezoneRenderer = (params: ICellRendererParams) => {
   return (
@@ -86,23 +91,22 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const action = searchParams.get('action');
-  
+
   const { can, isAdmin, isSuperUser } = rbacContext || {};
-  
+
   const [pols, setPols] = useState<POLResponse[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
   const gridRef = useRef<AgGridReact<POLResponse>>(null);
-  
+
   const [filters, setFilters] = useState<POLListRequest>({
     page: 1,
     page_size: 10,
     order_by: "created_on",
     order_type: "desc"
   });
-  
+
   const [globalFilter, setGlobalFilter] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<POLResponse | null>(null);
@@ -146,45 +150,20 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   };
 
-  // Handle export to Excel
-  const handleExportExcel = useCallback(() => {
+  // Helper function to check if any rows are selected
+  const getSelectedRowsCount = useCallback(() => {
     if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsExcel({
-          fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.xlsx`,
-          sheetName: "POL Ports",
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("POL ports exported to Excel successfully");
-      } catch (error: any) {
-        console.error("Error exporting to Excel:", error);
-        toast.error("Failed to export to Excel");
-      }
+      return gridRef.current.api.getSelectedRows().length;
     }
-  }, [exportSelectedOnly]);
-
-  // Handle export to CSV
-  const handleExportCSV = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsCsv({
-          fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.csv`,
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("POL ports exported to CSV successfully");
-      } catch (error: any) {
-        console.error("Error exporting to CSV:", error);
-        toast.error("Failed to export to CSV");
-      }
-    }
-  }, [exportSelectedOnly]);
+    return 0;
+  }, []);
 
   const handleDeleteClick = (pol: POLResponse) => {
     if (!canDeletePOL) {
       toast.error("You don't have permission to delete POL data");
       return;
     }
-    
+
     setDeletingItem(pol);
     setDeleteModalOpen(true);
   };
@@ -209,7 +188,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         >
           <PencilIcon className="w-4 h-4" />
         </Button>
-        
+
         {canDeletePOL && (
           <Button
             size="sm"
@@ -235,6 +214,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       filter: false,
       suppressMovable: true,
       lockPosition: 'left',
+      checkboxSelection: false, // Disable checkbox for actions column
     },
     {
       field: "code",
@@ -244,6 +224,8 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: CodeRenderer,
+      checkboxSelection: true, // Enable checkbox selection on first data column
+      headerCheckboxSelection: true, // Enable select all checkbox in header
     },
     {
       field: "name",
@@ -315,7 +297,6 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     minWidth: 100,
   }), []);
 
-
   const handleDeleteConfirm = async () => {
     if (!deletingItem) return;
 
@@ -341,71 +322,26 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
     }
   };
 
-  const handleExport = async () => {
-    try {
-      setLoading(true);
-      const exportData = await polService.exportPOLs({
-        ...filters,
-        page_size: 1000
-      });
-      
-      const headers = ['Code', 'Name', 'Country', 'UNLOCODE', 'Timezone', 'Latitude', 'Longitude', 'Address', 'Status', 'Created On'];
-      const csvRows = [
-        headers.join(','),
-        ...exportData.map(pol => [
-          pol.code,
-          pol.name,
-          pol.country,
-          pol.unlocode || '',
-          pol.timezone,
-          pol.latitude,
-          pol.longitude,
-          pol.address || '',
-          pol.is_active ? 'Active' : 'Inactive',
-          pol.created_on ? new Date(pol.created_on).toLocaleDateString() : 'N/A'
-        ].join(','))
-      ];
-      
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `pol_ports_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      toast.success('POL ports exported successfully');
-    } catch (error: any) {
-      console.error('Error exporting POL ports:', error);
-      toast.error('Failed to export POL ports');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSearch = (searchTerm: string) => {
     setGlobalFilter(searchTerm);
-    setFilters(prev => ({ 
+    setFilters(prev => ({
       ...prev,
       name: searchTerm,
-      page: 1 
+      page: 1
     }));
   };
 
   return (
-    <div className="p-6">
+    <div className="p-0">
       {/* Header */}
-      <div className="mb-6">         
+      <div className="py-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           POL Master
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
           Manage Port of Loading (POL) ports and their configurations
         </p>
-        
+
         {!canDeletePOL && (
           <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-md">
             <div className="flex items-center">
@@ -437,7 +373,7 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 py-4">
         <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-500 dark:text-gray-400">Total POL Ports</div>
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">{total}</div>
@@ -462,10 +398,9 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
+      {/* Filters - Removed export options from filter section */}
+  
+          <div className="flex flex-col lg:flex-row gap-4 py-4">
             <div className="flex-1">
               <Input
                 placeholder="Search ports by Port Name"
@@ -475,31 +410,17 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
               />
             </div>
             <div className="flex gap-2">
-              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={exportSelectedOnly}
-                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                />
-                <span>Selected Rows Only</span>
-              </label>
-              <Button type="button" onClick={handleExportExcel} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
-                <DownloadIcon className="w-4 h-4" />
-                Export Excel
-              </Button>
-              <Button type="button" onClick={handleExportCSV} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
-                <DownloadIcon className="w-4 h-4" />
-                Export CSV
-              </Button>
-              <Button type="button" onClick={() => router.push('/port-customer-master/pol-ports/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
+              <Button
+                type="button"
+                onClick={() => router.push('/port-customer-master/pol-ports/add')}
+                className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap"
+              >
                 <PlusIcon className="w-4 h-4" />
                 Add POL Port
               </Button>
             </div>
           </div>
-        </div>
-      </div>
+    
 
       {/* AG Grid Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden" style={{ height: '600px' }}>
@@ -517,8 +438,17 @@ function PolDataManager({ rbacContext }: PolDataManagerProps) {
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"
-          suppressRowClickSelection={true}
-          rowSelection={{ mode: "multiRow" }}
+          rowSelection={{ mode: "multiRow" }} // Enable multi-row selection
+          // Add these properties to configure default export behavior
+          defaultCsvExportParams={{
+            fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.csv`,
+            onlySelected: true, // This will make context menu CSV export only selected rows
+          }}
+          defaultExcelExportParams={{
+            fileName: `pol_ports_${new Date().toISOString().split('T')[0]}.xlsx`,
+            sheetName: "POL Ports",
+            onlySelected: true, // This will make context menu Excel export only selected rows
+          }}
         />
       </div>
 

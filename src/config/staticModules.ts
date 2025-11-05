@@ -126,7 +126,7 @@ export const staticModules: Record<number, StaticModule> = {
     color: "cyan",
     group: "master-data"
   },
-
+  
   // Module 69: Supplier Management
   69: {
     id: 69,

@@ -130,7 +130,7 @@ class TokenAutoRefreshService {
       // Redirect to login page (use setTimeout to ensure cleanup completes)
       if (typeof window !== 'undefined') {
         setTimeout(() => {
-          window.location.href = '/signin';
+        window.location.href = '/signin';
         }, 100);
       }
     } finally {

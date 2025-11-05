@@ -65,6 +65,8 @@ const CodeRenderer = (params: ICellRendererParams) => {
   );
 };
 
+// CompanyRenderer will be defined inside the component to access getCompanyName
+
 const NameRenderer = (params: ICellRendererParams) => {
   return (
     <span className="font-medium">
@@ -214,6 +216,27 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     setDeleteModalOpen(true);
   };
 
+  // Company Renderer - uses nested company object (new format) or number (legacy format)
+  const CompanyRenderer = useCallback((params: ICellRendererParams) => {
+    console.log('Company Renderer params:', params);
+    const {company} = params.data; 
+    if (!company) {
+      return <span className="text-gray-400">-</span>;
+    }
+    
+    // Handle new format: company is an object with {id, name}
+    if (typeof company === 'object' && 'name' in company) {
+      return (
+        <span className="text-sm text-gray-700 dark:text-gray-300">
+          {company.name || '-'}
+        </span>
+      );
+    }
+    
+    // Legacy format: company is a number (shouldn't happen with new API, but handle gracefully)
+    return <span className="text-gray-400">-</span>;
+  }, []);
+
   // Actions Cell Renderer
   const ActionsRenderer = useCallback((params: ICellRendererParams) => {
     const handleEditClick = () => {
@@ -249,6 +272,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     );
   }, [canDeleteCustomer, router]);
 
+
   // Column Definitions
   const columnDefs = useMemo<ColDef[]>(() => [
     {
@@ -262,6 +286,15 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       lockPosition: 'left',
     },
     {
+      field: "name",
+      headerName: "Customer Name",
+      minWidth: 200,
+      flex: 2,
+      sortable: true,
+      filter: true,
+      cellRenderer: NameRenderer,
+    },
+    {
       field: "customer_code",
       headerName: "Customer Code",
       minWidth: 150,
@@ -271,13 +304,26 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       cellRenderer: CodeRenderer,
     },
     {
-      field: "name",
-      headerName: "Company Name",
-      minWidth: 200,
-      flex: 2,
+      field: "company",
+      headerName: "Company",
+      minWidth: 150,
+      flex: 1,
       sortable: true,
       filter: true,
-      cellRenderer: NameRenderer,
+      valueGetter: (params: any) => {
+        // Extract company name from nested object for sorting/filtering
+        const company = params.data?.company;
+        if (!company) return '';
+        
+        // Handle new format: company is an object with {id, name}
+        if (typeof company === 'object' && 'name' in company) {
+          return company.name || '';
+        }
+        
+        // Legacy format: company is a number (shouldn't happen with new API)
+        return '';
+      },
+      cellRenderer: CompanyRenderer,
     },
     {
       field: "contact_person",
@@ -332,7 +378,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       filter: true,
       cellRenderer: StatusRenderer,
     },
-  ], [ActionsRenderer]);
+  ], [ActionsRenderer, CompanyRenderer]);
 
   // Default Column Definition
   const defaultColDef = useMemo<ColDef>(() => ({

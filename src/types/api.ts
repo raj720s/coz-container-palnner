@@ -122,6 +122,12 @@ export interface UserJsonInfoResponse {
   results: Record<string, string>; // Key: user_id, Value: user_name
 }
 
+// Company JSON Info for mapping company IDs to names
+export interface CompanyJsonInfoResponse {
+  count: number;
+  results: Record<string, string>; // Key: company_id, Value: company_name
+}
+
 export interface UserListParams {
   email?: string;
   is_superuser?: boolean;
@@ -392,7 +398,10 @@ export interface UpdateCustomerRequest {
 
 export interface CustomerResponse {
   id: number;
-  company?: number;
+  company?: {
+    id: number;
+    name: string;
+  } | number; // Support both nested object (new format) and number (legacy format)
   name: string;
   customer_code: string;
   contact_person: string;
@@ -402,7 +411,7 @@ export interface CustomerResponse {
   country: string;
   tax_id: string;
   is_active: boolean;
-  optionals?: string[];
+  optionals?: string[] | Record<string, any>;
   custom_fields?: CustomField[];
   dynamic_fields?: DynamicField[];
   created_on?: string;

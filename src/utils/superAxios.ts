@@ -105,23 +105,23 @@ superAxios.interceptors.response.use(
         }
 
         // Import services dynamically to avoid circular dependency
-        const { authService } = await import('@/services/authService');
+          const { authService } = await import('@/services/authService');
         const { tokenAutoRefreshService } = await import('@/services/tokenAutoRefreshService');
         
         // Stop auto-refresh before attempting manual refresh to prevent conflicts
         tokenAutoRefreshService.stopAutoRefresh();
-        
-        // Attempt to refresh the token
-        const newTokens = await authService.refreshToken(refreshToken);
-        
-        // Update session storage with new access token
-        localStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
-        
-        // Update the original request with new token
-        originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
-        
-        // Retry the original request
-        return superAxios(originalRequest);
+          
+          // Attempt to refresh the token
+          const newTokens = await authService.refreshToken(refreshToken);
+          
+          // Update session storage with new access token
+          localStorage.setItem('auth_token', `Bearer ${newTokens.access}`);
+          
+          // Update the original request with new token
+          originalRequest.headers.Authorization = `Bearer ${newTokens.access}`;
+          
+          // Retry the original request
+          return superAxios(originalRequest);
       } catch (refreshError: any) {
         // Refresh failed, logout and redirect to login
         console.error('Token refresh failed:', refreshError);

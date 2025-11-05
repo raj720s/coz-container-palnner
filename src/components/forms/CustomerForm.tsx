@@ -20,7 +20,7 @@ const customFieldSchema = z.object({
 const customerSchema = z.object({
   company: z.number().min(1, "Company is required"),
   customer_code: z.string().min(1, "Customer code is required"),
-  name: z.string().min(1, "Company name is required"),
+  name: z.string().min(1, "Customer name is required"), // Customer name field
   contact_person: z.string().min(1, "Contact person is required"),
   email: z.string().email("Valid email is required"),
   phone: z.string().min(1, "Phone number is required"),
@@ -34,7 +34,7 @@ const customerSchema = z.object({
 export type CustomerFormData = z.infer<typeof customerSchema>;
 
 interface CustomerFormProps {
-  initialData?: CustomerFormData & { id?: string };
+  initialData?: CustomerFormData & { id?: string; company_data?: any };
   onSubmit: (data: CustomerFormData) => void;
   onCancel?: () => void;
   isLoading?: boolean;
@@ -108,6 +108,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
   isLoading = false,
 }) => {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
 
   const {
     register,
@@ -138,6 +139,18 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
 
   useEffect(() => {
     if (initialData) {
+      // If company_data is provided, set it for SearchableSelect
+      if (initialData.company_data) {
+        setSelectedCompany(initialData.company_data);
+      } else if (initialData.company) {
+        // Fetch company if only ID is provided
+        companyService.getCompany(initialData.company).then((company) => {
+          setSelectedCompany(company);
+        }).catch((err) => {
+          console.warn("Failed to fetch company:", err);
+        });
+      }
+      
       reset(initialData);
       if (initialData.custom_fields) {
         setCustomFields(initialData.custom_fields);
@@ -157,8 +170,11 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
         custom_fields: [],
       });
       setCustomFields([]);
+      setSelectedCompany(null);
     }
-  }, [initialData, reset]);
+    // Only run when initialData changes (use a stable reference check)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData?.id, initialData?.company]);
 
   const addCustomField = () => {
     if (customFields.length >= 5) {
@@ -215,14 +231,63 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               label="Company"
               required
               placeholder="Search and select company"
-              value={watch("company") || null}
-              onChange={(value) => setValue("company", (value as number) || 0, { shouldValidate: true, shouldDirty: true })}
-              onSearch={searchCompanies as any}
+              value={selectedCompany?.id || watch("company") || null}
+              onChange={async (value) => {
+                // value is the company ID from valueExtractor
+                const companyId = value as number;
+                if (!companyId) {
+                  setValue("company", 0, { shouldValidate: true, shouldDirty: true });
+                  setSelectedCompany(null);
+                  return;
+                }
+                
+                // Fetch the full company object to update selectedCompany state
+                try {
+                  const companyObj = await companyService.getCompany(companyId);
+                  setValue("company", companyId, { shouldValidate: true, shouldDirty: true });
+                  setSelectedCompany(companyObj);
+                  // Auto-populate name from selected company if name field is empty
+                  if (companyObj?.name && !watch("name")) {
+                    setValue("name", companyObj.name, { shouldValidate: true });
+                  }
+                } catch (err) {
+                  console.error("Failed to fetch company:", err);
+                  // Still update the form value even if fetch fails
+                  setValue("company", companyId, { shouldValidate: true, shouldDirty: true });
+                  // Try to find in recent search results
+                  const results = await searchCompanies("");
+                  const foundCompany = results.find((r: any) => r.id === companyId);
+                  if (foundCompany) {
+                    setSelectedCompany(foundCompany);
+                  }
+                }
+              }}
+              onSearch={async (query: string) => {
+                const results = await searchCompanies(query);
+                // If we have a selected company and it's not in results, add it
+                if (selectedCompany && !query && !results.find((r: any) => r.id === selectedCompany.id)) {
+                  return [selectedCompany, ...results];
+                }
+                return results;
+              }}
               error={(errors as any).company?.message}
               displayFormat={(option: any) => option.name}
               searchPlaceholder="Search companies..."
             />
           </div>
+          
+          {/* Customer Name */}
+          <div>
+            <Label>
+              Customer Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              placeholder="e.g., Global Freight Solutions Ltd"
+              {...register("name")}
+              error={errors.name?.message}
+            />
+          </div>
+          
           {/* Customer Code */}
           <div>
             <Label>
@@ -234,19 +299,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({
               error={errors.customer_code?.message}
             />
           </div>
-
-          {/* Company Name */}
-          <div>
-            <Label>
-              Company Name <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              placeholder="e.g., ABC Corporation"
-              {...register("name")}
-              error={errors.name?.message}
-            />
-          </div>
-
+        </div>
+        
+        {/* Second row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Tax ID */}
           <div>
             <Label>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UserForm, type UserFormData } from "@/components/forms/UserForm";
 import { userService } from "@/services/userService";
+import { companyService } from "@/services/companyService";
 import toast from "react-hot-toast";
 import Button from "@/components/ui/button/Button";
 import { ArrowLeftIcon } from "@/icons";
@@ -30,6 +31,16 @@ export default function UserEditClient() {
       setError(null);
       const apiData = await userService.getUser(Number(id));
       
+      // Fetch company details if company ID exists
+      let companyData = null;
+      if ((apiData as any).company) {
+        try {
+          companyData = await companyService.getCompany((apiData as any).company);
+        } catch (companyErr) {
+          console.warn("Failed to load company details:", companyErr);
+        }
+      }
+      
       // Transform API response to match User type expected by UserForm
       const transformedData = {
         id: apiData.id?.toString() || id?.toString() || "",
@@ -39,6 +50,8 @@ export default function UserEditClient() {
         role: apiData.role_id || apiData.role_details?.id || null, // Handle null role_id
         status: apiData.status ? "active" : "inactive",
         organisation_name: apiData.organisation_name || "",
+        company: (apiData as any).company || undefined,
+        company_data: companyData,
       };
       
       setUserData(transformedData);

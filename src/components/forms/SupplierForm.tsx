@@ -31,7 +31,7 @@ const supplierSchema = z.object({
 type SupplierFormSchema = z.infer<typeof supplierSchema>;
 
 interface SupplierFormProps {
-  initialData?: Supplier;
+  initialData?: Supplier & { company_data?: any };
   onSuccess: () => void;
   onCancel: () => void;
   isEditing?: boolean;
@@ -39,6 +39,7 @@ interface SupplierFormProps {
 
 export function SupplierForm({ initialData, onSuccess, onCancel, isEditing = false }: SupplierFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
 
   const {
     register,
@@ -64,6 +65,18 @@ export function SupplierForm({ initialData, onSuccess, onCancel, isEditing = fal
   // Reset form when initialData changes
   useEffect(() => {
     if (initialData) {
+      // If company_data is provided, set it for SearchableSelect
+      if (initialData.company_data) {
+        setSelectedCompany(initialData.company_data);
+      } else if (initialData.company) {
+        // Fetch company if only ID is provided
+        companyService.getCompany(initialData.company).then((company) => {
+          setSelectedCompany(company);
+        }).catch((err) => {
+          console.warn("Failed to fetch company:", err);
+        });
+      }
+      
       reset({
         company: initialData.company,
         name: initialData.name,
@@ -74,6 +87,8 @@ export function SupplierForm({ initialData, onSuccess, onCancel, isEditing = fal
         description: initialData.description || "",
         is_active: initialData.is_active,
       });
+    } else {
+      setSelectedCompany(null);
     }
   }, [initialData, reset]);
 
@@ -126,9 +141,20 @@ export function SupplierForm({ initialData, onSuccess, onCancel, isEditing = fal
               label="Company"
               required
               placeholder="Search and select company"
-              value={watch("company") || null}
-              onChange={(value) => setValue("company", (value as number) || 0, { shouldValidate: true, shouldDirty: true })}
-              onSearch={searchCompanies as any}
+              value={selectedCompany?.id || watch("company") || null}
+              onChange={(value) => {
+                const companyObj = value as any;
+                setValue("company", companyObj?.id || 0, { shouldValidate: true, shouldDirty: true });
+                setSelectedCompany(companyObj);
+              }}
+              onSearch={async (query: string) => {
+                const results = await searchCompanies(query);
+                // If we have a selected company and it's not in results, add it
+                if (selectedCompany && !query && !results.find((r: any) => r.id === selectedCompany.id)) {
+                  return [selectedCompany, ...results];
+                }
+                return results;
+              }}
               error={errors.company?.message}
               displayFormat={(option: any) => option.name}
               searchPlaceholder="Search companies..."

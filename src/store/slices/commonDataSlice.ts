@@ -1,18 +1,20 @@
 import { ContainerPriorityResponse } from '@/types/api';
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ContainerTypeResponse, PODListResponse , POLListResponse, UserJsonInfoResponse } from '@/types/api';
+import { ContainerTypeResponse, PODListResponse , POLListResponse, UserJsonInfoResponse, CompanyJsonInfoResponse } from '@/types/api';
 import superAxios from '@/utils/superAxios';
 // Removed userInfoSlice dependency - using AuthContext instead
 import { RootState } from '@reduxjs/toolkit/query/react';
 import podService, { PODService } from '@/services/podService';
 import { polService } from '@/services';
 import { userService } from '@/services/userService';
+import { companyService } from '@/services/companyService';
 
 interface CommonDataState {
   
   polList: any[]; // Using any[] to match actual API response structure
   podList: any[]; // Using any[] to match actual API response structure
   usersJson: Record<string, string>; // Key: user_id, Value: user_name
+  companiesJson: Record<string, string>; // Key: company_id, Value: company_name
   isLoading: boolean;
   error: string | null;
   lastFetched: number | null;
@@ -24,6 +26,7 @@ const  initialState: CommonDataState = {
   polList: [],
   podList: [],
   usersJson: {},
+  companiesJson: {},
   isLoading: false,
   error: null,
   lastFetched: null,
@@ -88,6 +91,37 @@ const  initialState: CommonDataState = {
     }
   );
 
+  export const fetchCompaniesJson = createAsyncThunk(
+    'commonData/fetchCompaniesJson',
+    async (_, { rejectWithValue }) => {
+      try {
+        // Fetch all companies using the list API with a large page size
+        const response = await companyService.getCompanies({
+          page: 1,
+          page_size: 10000, // Large page size to get all companies
+          order_by: 'name',
+          order_type: 'asc'
+        });
+        
+        // Transform the results array into a Record<string, string> mapping company IDs to names
+        const companiesJson: Record<string, string> = {};
+        if (response.results && Array.isArray(response.results)) {
+          response.results.forEach((company) => {
+            if (company.id && company.name) {
+              companiesJson[company.id.toString()] = company.name;
+            }
+          });
+        }
+        
+        return companiesJson;
+      } catch (error: any) {
+        return rejectWithValue(
+          error.response?.data?.detail || error.message || 'Failed to fetch companies JSON info'
+        );
+      }
+    }
+  );
+
 
 const commonDataSlice = createSlice({
   name: 'commonData',
@@ -112,6 +146,13 @@ const commonDataSlice = createSlice({
     
     setUsersJson: (state, action: PayloadAction<Record<string, string>>) => {
       state.usersJson = action.payload;
+      state.isInitialized = true;
+      state.lastFetched = Date.now();
+      state.error = null;
+    },
+    
+    setCompaniesJson: (state, action: PayloadAction<Record<string, string>>) => {
+      state.companiesJson = action.payload;
       state.isInitialized = true;
       state.lastFetched = Date.now();
       state.error = null;
@@ -169,11 +210,27 @@ const commonDataSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload as string;
         state.isInitialized = true;
+      })
+      .addCase(fetchCompaniesJson.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchCompaniesJson.fulfilled, (state, action: PayloadAction<Record<string, string>>) => {
+        state.isLoading = false;
+        state.companiesJson = action.payload;
+        state.isInitialized = true;
+        state.lastFetched = Date.now();
+        state.error = null;
+      })
+      .addCase(fetchCompaniesJson.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+        state.isInitialized = true;
       });
   },
 });
 
-export const {  setPortOfLoading, setPortOfDischarge, setUsersJson } = commonDataSlice.actions;
+export const {  setPortOfLoading, setPortOfDischarge, setUsersJson, setCompaniesJson } = commonDataSlice.actions;
 export const selectPortOfLoading = (state: { commonData: CommonDataState }) => state.commonData.polList;
 export const selectPortOfDischarge = (state: { commonData: CommonDataState }) => state.commonData.podList;
 export const selectUsersJson = (state: { commonData: CommonDataState }) => state.commonData.usersJson;

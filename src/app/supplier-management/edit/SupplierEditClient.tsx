@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Supplier } from "@/types/supplier";
 import { supplierService } from "@/services/supplierService";
+import { companyService } from "@/services/companyService";
 import { SupplierForm } from "@/components/forms/SupplierForm";
 import Button from "@/components/ui/button/Button";
 import { ArrowLeftIcon } from "@/icons";
@@ -30,6 +31,19 @@ export default function SupplierEditClient() {
       setLoading(true);
       setError(null);
       const data = await supplierService.getSupplier(Number(id));
+      
+      // Fetch company details if company ID exists
+      if (data.company) {
+        try {
+          const company = await companyService.getCompany(data.company);
+          // Attach full company object to supplier data for form
+          (data as any).company_data = company;
+        } catch (companyErr) {
+          console.warn("Failed to load company details:", companyErr);
+          // Continue without company data - form will handle it
+        }
+      }
+      
       setSupplier(data);
     } catch (err: any) {
       console.error(err);
@@ -87,7 +101,7 @@ export default function SupplierEditClient() {
       {/* Form Card */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
         <SupplierForm
-          initialData={supplier || undefined}
+          initialData={supplier ? { ...supplier, company_data: (supplier as any).company_data } : undefined}
           onSuccess={handleSuccess}
           onCancel={handleCancel}
           isEditing={isEditMode}

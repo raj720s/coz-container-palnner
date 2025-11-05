@@ -6,6 +6,7 @@ import {
   CompanyCreateRequest,
   CompanyUpdateRequest,
 } from '@/types/company';
+import { CompanyJsonInfoResponse } from '@/types/api';
 
 export class CompanyService extends BaseService {
   protected readonly basePath = '/master-data/v1/company';
@@ -101,6 +102,32 @@ export class CompanyService extends BaseService {
     );
     
     return this.post<Blob>(`${this.basePath}/export`, cleanedBody);
+  }
+
+  /**
+   * Get company JSON info for mapping company IDs to names
+   * @deprecated Use getCompanies() instead and transform the results
+   * @returns Promise<CompanyJsonInfoResponse>
+   */
+  async getCompanyJsonInfo(): Promise<CompanyJsonInfoResponse> {
+    // This method is deprecated - use getCompanies() instead
+    // Keeping for backwards compatibility but should be removed in future
+    const response = await this.getCompanies({
+      page: 1,
+      page_size: 10000,
+      order_by: 'name',
+      order_type: 'asc'
+    });
+    
+    // Transform to match CompanyJsonInfoResponse format
+    const results: Record<string, string> = {};
+    response.results.forEach((company) => {
+      if (company.id && company.name) {
+        results[company.id.toString()] = company.name;
+      }
+    });
+    
+    return { results } as CompanyJsonInfoResponse;
   }
 }
 

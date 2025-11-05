@@ -100,6 +100,7 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
   const [customFieldValues, setCustomFieldValues] = useState<{[key: string]: string}>({});
   const [isClient, setIsClient] = useState(false);
   const [isLoadingCustomerFields, setIsLoadingCustomerFields] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerResponse | null>(null);
   
   // Cache for customer data to prevent redundant API calls
   const customerCacheRef = useRef<Map<number, CustomerResponse>>(new Map());
@@ -271,6 +272,9 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
               customerCacheRef.current.set(initialData.customer, customer);
               setIsLoadingCustomerFields(false);
             }
+            
+            // Set selected customer for SearchableSelect
+            setSelectedCustomer(customer);
 
             // Set customer dynamic fields (even if empty)
             if (customer.custom_fields && customer.custom_fields.length > 0) {
@@ -327,6 +331,7 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
           setCustomerDynamicFields([]);
           setCustomFieldValues({});
           setValue("custom_field_values", []);
+          setSelectedCustomer(null);
         }
       };
 
@@ -336,6 +341,7 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
       setCustomerDynamicFields([]);
       setCustomFieldValues({});
       setValue("custom_field_values", []);
+      setSelectedCustomer(null);
     }
   }, [initialData, reset]);
 
@@ -726,9 +732,20 @@ export const ShipmentOrderForm: React.FC<ShipmentOrderFormProps> = ({
             label="Customer"
             required
             placeholder="Search for customer"
-            value={watch("customer")}
-            onChange={(value) => setValue("customer", value as number)}
-            onSearch={searchCustomers}
+            value={selectedCustomer?.id || watch("customer") || null}
+            onChange={(value) => {
+              const customerObj = value as any;
+              setValue("customer", customerObj?.id || 0);
+              setSelectedCustomer(customerObj);
+            }}
+            onSearch={async (query: string) => {
+              const results = await searchCustomers(query);
+              // If we have a selected customer and it's not in results, add it
+              if (selectedCustomer && !query && !results.find((r: any) => r.id === selectedCustomer.id)) {
+                return [selectedCustomer, ...results];
+              }
+              return results;
+            }}
             error={errors.customer?.message}
             displayFormat={(option) => `${option.name} (${option.customer_code || option.code})`}
             searchPlaceholder="Search customers..."

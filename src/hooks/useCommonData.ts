@@ -1,7 +1,7 @@
 import { AppDispatch, RootState } from "@/store";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useCallback } from "react";
-import { fetchUsersJson } from "@/store/slices/commonDataSlice";
+import { fetchUsersJson, fetchCompaniesJson } from "@/store/slices/commonDataSlice";
 
 // Enhanced hook for single data source
 export const useCommonData = (thunkAction: any, selector: (state: RootState) => any) => {
@@ -58,5 +58,39 @@ export const useUsersJson = () => {
     error, 
     refresh,
     getUserName
+  };
+};
+
+// Specialized hook for companies JSON data
+export const useCompaniesJson = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const companiesJson = useSelector((state: RootState) => state.commonData.companiesJson);
+  const loading = useSelector((state: RootState) => state.commonData.isLoading);
+  const error = useSelector((state: RootState) => state.commonData.error);
+  const initialized = useSelector((state: RootState) => state.commonData.isInitialized);
+
+  useEffect(() => {
+    // Check if companiesJson is empty and not loading, then fetch
+    if (Object.keys(companiesJson).length === 0 && !loading && !initialized) {
+      dispatch(fetchCompaniesJson());
+    }
+  }, [dispatch, companiesJson, loading, initialized]);
+    
+  const refresh = useCallback(() => {
+    dispatch(fetchCompaniesJson());
+  }, [dispatch]);
+
+  // Helper function to get company name by ID
+  const getCompanyName = useCallback((companyId: string | number): string => {
+    const id = companyId.toString();
+    return companiesJson[id] || `Company ${id}`;
+  }, [companiesJson]);
+    
+  return { 
+    companiesJson, 
+    loading, 
+    error, 
+    refresh,
+    getCompanyName
   };
 };

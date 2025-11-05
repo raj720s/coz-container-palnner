@@ -62,6 +62,8 @@ interface UserFormProps {
     role: number | null; // Allow null for users without roles
     status: string;
     organisation_name?: string;
+    company?: number;
+    company_data?: any;
   };
   onSuccess?: () => void; // Called when operation succeeds
   onCancel?: () => void;
@@ -74,6 +76,7 @@ export const UserForm: React.FC<UserFormProps> = ({
   onCancel,
   isEditing = false,
 }) => {
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
   // Use the roles hook to get roles from Redux state
   // State for roles
   const [roles, setRoles] = useState<RoleResponse[]>([]);
@@ -151,6 +154,18 @@ export const UserForm: React.FC<UserFormProps> = ({
   // Set initial values when editing
   useEffect(() => {
     if (initialData) {
+      // If company_data is provided, set it for SearchableSelect
+      if (initialData.company_data) {
+        setSelectedCompany(initialData.company_data);
+      } else if (initialData.company) {
+        // Fetch company if only ID is provided
+        companyService.getCompany(initialData.company).then((company) => {
+          setSelectedCompany(company);
+        }).catch((err) => {
+          console.warn("Failed to fetch company:", err);
+        });
+      }
+      
       reset({
         first_name: initialData.firstName,
         last_name: initialData.lastName,
@@ -158,12 +173,12 @@ export const UserForm: React.FC<UserFormProps> = ({
         role: initialData.role != null ? initialData.role.toString() : "", // Handle null/undefined role
         status: initialData.status === "active" ? "true" : "false",
         organisation_name: initialData.organisation_name || "",
-        company: undefined,
+        company: initialData.company || undefined,
         password: "",
         confirmPassword: "",
       });
-
-
+    } else {
+      setSelectedCompany(null);
     }
   }, [initialData, reset, isEditing]);
 
@@ -176,6 +191,15 @@ export const UserForm: React.FC<UserFormProps> = ({
   //     console.error('Error loading customer assignments:', error);
   //   }
   // };
+
+  const searchCompanies = async (query: string) => {
+    try {
+      const response = await companyService.getCompanies({ page: 1, page_size: 10, search: query });
+      return response.results || [];
+    } catch (e) {
+      return [];
+    }
+  };
 
   const handleFormSubmit = async (formData: UserFormData) => {
     console.log("🎯 Form submitted with data:", formData);
@@ -219,27 +243,30 @@ export const UserForm: React.FC<UserFormProps> = ({
           throw new Error("Initial data required for editing");
         }
         
-        const response = await userService.updateUser(parseInt(initialData.id as any), apiData);
+        const userId = parseInt(initialData.id as any);
+        
+        // Step 1: Update the user
+        const response = await userService.updateUser(userId, apiData);
         console.log("✅ User updated successfully:", response);
         
-        // Update customer assignments if any changes - commented out for next version
-        // if (selectedCustomers.length > 0 || (initialData.id && selectedCustomers.length === 0)) {
-        //   try {
-        //     const userId = parseInt(initialData.id!);
-        //     await userCustomerMappingService.replaceCustomerAssignments(
-        //       userId, 
-        //       selectedCustomers, 
-        //       parseInt(currentUser?.id || '1')
-        //     );
-        //     
-        //     console.log("✅ Customer assignments updated successfully");
-        //   } catch (customerError) {
-        //     console.error("❌ Customer assignment update failed:", customerError);
-        //     toast.error("User updated successfully, but customer assignment update failed. Please update customer assignments manually.");
-        //   }
-        // }
-        
-        toast.success("User updated successfully");
+        // Step 2: Update user-company mapping (if company is selected)
+        if (formData.company) {
+          try {
+            console.log("🔗 Updating user-company mapping:", { userId, companyId: formData.company });
+            await userService.createUserCompanyMapping({
+              user: userId,
+              company: formData.company,
+              is_active: true,
+            });
+            console.log("✅ User-company mapping updated successfully");
+            toast.success("User and company mapping updated successfully");
+          } catch (companyMappingError) {
+            console.error("❌ User-company mapping update failed:", companyMappingError);
+            toast.error("User updated successfully, but company mapping update failed. Please update company mapping manually.");
+          }
+        } else {
+          toast.success("User updated successfully");
+        }
         
       } else {
         // Handle user creation
@@ -249,7 +276,7 @@ export const UserForm: React.FC<UserFormProps> = ({
         const response = await userService.createUser(apiData);
         console.log("✅ User created successfully:", response);
         
-        // Step 2: Extract user ID and assign role
+        // Step 2: Extract user ID from response
         try {
           let userId: number;
           
@@ -264,16 +291,13 @@ export const UserForm: React.FC<UserFormProps> = ({
             throw new Error("Could not extract user ID from response");
           }
           
-          console.log("🔗 User created with role:", { roleId: selectedRole.id, userId });
+          console.log("✅ User created with ID:", userId);
           
-          // Note: Role assignment is handled by the API during user creation
-          console.log("✅ User created with role successfully:", userId);
-          
-          // Step 3: Create user-company mapping (if company is selected)
+          // Step 3: Create user-company mapping using PUT (if company is selected)
           if (formData.company) {
             try {
-              console.log("🔗 Creating user-company mapping:", { userId, companyId: formData.company });
-              await userService.createUserCompanyMapping({
+              console.log("🔗 Creating user-company mapping with PUT:", { userId, companyId: formData.company });
+              await userService.createUserCompanyMappingPut({
                 user: userId,
                 company: formData.company,
                 is_active: true,
@@ -288,25 +312,9 @@ export const UserForm: React.FC<UserFormProps> = ({
             toast.success("User created successfully");
           }
           
-          // Step 4: Assign customers to user (if any selected) - commented out for next version
-          // if (selectedCustomers.length > 0) {
-          //   try {
-          //     console.log("🔗 Assigning customers to user:", { userId, customerIds: selectedCustomers });
-          //     await userCustomerMappingService.assignCustomersToUser(
-          //       userId, 
-          //       selectedCustomers, 
-          //       parseInt(currentUser?.id || '1')
-          //     );
-          //     console.log("✅ Customers assigned successfully to user:", userId);
-          //   } catch (customerError) {
-          //     console.error("❌ Customer assignment failed:", customerError);
-          //     toast.error("User created and role assigned, but customer assignment failed. Please assign customers manually.");
-          //   }
-          // }
-          
-        } catch (roleError) {
-          console.error("❌ Role assignment failed:", roleError);
-          toast.success("User created successfully, but role assignment failed. Please assign role manually.");
+        } catch (error) {
+          console.error("❌ Error processing user creation:", error);
+          toast.error("User created successfully, but there was an error processing the response.");
         }
       }
       
@@ -464,15 +472,40 @@ export const UserForm: React.FC<UserFormProps> = ({
               id="company"
               label="Company (optional)"
               placeholder="Search and select company"
-              value={watch("company") ?? null}
-              onChange={(value) => setValue("company", (value as number) || undefined, { shouldDirty: true, shouldValidate: true })}
-              onSearch={async (query: string) => {
-                try {
-                  const res = await companyService.getCompanies({ page: 1, page_size: 10, search: query });
-                  return res.results || [];
-                } catch {
-                  return [];
+              value={selectedCompany?.id || watch("company") || null}
+              onChange={async (value) => {
+                // value is the company ID from valueExtractor
+                const companyId = value as number;
+                if (!companyId) {
+                  setValue("company", undefined, { shouldValidate: true, shouldDirty: true });
+                  setSelectedCompany(null);
+                  return;
                 }
+                
+                // Fetch the full company object to update selectedCompany state
+                try {
+                  const companyObj = await companyService.getCompany(companyId);
+                  setValue("company", companyId, { shouldValidate: true, shouldDirty: true });
+                  setSelectedCompany(companyObj);
+                } catch (err) {
+                  console.error("Failed to fetch company:", err);
+                  // Still update the form value even if fetch fails
+                  setValue("company", companyId, { shouldValidate: true, shouldDirty: true });
+                  // Try to find in recent search results
+                  const results = await searchCompanies("");
+                  const foundCompany = results.find((r: any) => r.id === companyId);
+                  if (foundCompany) {
+                    setSelectedCompany(foundCompany);
+                  }
+                }
+              }}
+              onSearch={async (query: string) => {
+                const results = await searchCompanies(query);
+                // If we have a selected company and it's not in results, add it
+                if (selectedCompany && !query && !results.find((r: any) => r.id === selectedCompany.id)) {
+                  return [selectedCompany, ...results];
+                }
+                return results;
               }}
               displayFormat={(option: any) => option.name}
               searchPlaceholder="Search companies..."

@@ -16,7 +16,6 @@ export const metadata: Metadata = {
   description: 'Streamline your vendor booking and management process with our comprehensive booking tool',
 };
 
-
 const outfit = Outfit({
   subsets: ["latin"],
 });
