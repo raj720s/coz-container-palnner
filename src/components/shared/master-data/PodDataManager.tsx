@@ -4,7 +4,7 @@ import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import toast from "react-hot-toast";
 import { withSimplifiedRBAC, SimplifiedRBACProps } from "@/components/auth/withSimplifiedRBAC";
@@ -27,13 +27,20 @@ import {
 import { 
   AgGridReact,
 } from "ag-grid-react";
-import { ExcelExportModule, SetFilterModule } from "ag-grid-enterprise";
+import {
+  ExcelExportModule,
+  SetFilterModule,
+  ContextMenuModule,
+  ColumnMenuModule
+} from "ag-grid-enterprise";
 
 ModuleRegistry.registerModules([
   AllCommunityModule,
   CsvExportModule,
   ExcelExportModule,
   SetFilterModule,
+  ContextMenuModule,
+  ColumnMenuModule,
 ]);
 
 // Custom Cell Renderers
@@ -93,7 +100,6 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
   const gridRef = useRef<AgGridReact<PODResponse>>(null);
   
   const [filters, setFilters] = useState<PODListRequest>({
@@ -146,38 +152,6 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
     }
   };
 
-  // Handle export to Excel
-  const handleExportExcel = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsExcel({
-          fileName: `pod_ports_${new Date().toISOString().split('T')[0]}.xlsx`,
-          sheetName: "POD Ports",
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("POD ports exported to Excel successfully");
-      } catch (error: any) {
-        console.error("Error exporting to Excel:", error);
-        toast.error("Failed to export to Excel");
-      }
-    }
-  }, [exportSelectedOnly]);
-
-  // Handle export to CSV
-  const handleExportCSV = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsCsv({
-          fileName: `pod_ports_${new Date().toISOString().split('T')[0]}.csv`,
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("POD ports exported to CSV successfully");
-      } catch (error: any) {
-        console.error("Error exporting to CSV:", error);
-        toast.error("Failed to export to CSV");
-      }
-    }
-  }, [exportSelectedOnly]);
 
   const handleDeleteClick = (pod: PODResponse) => {
     if (!canDeletePOD) {
@@ -235,6 +209,7 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       filter: false,
       suppressMovable: true,
       lockPosition: 'left',
+      checkboxSelection: false,
     },
     {
       field: "code",
@@ -244,6 +219,8 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: CodeRenderer,
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
     },
     {
       field: "name",
@@ -457,41 +434,24 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search ports by Port Name"
-                value={globalFilter}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="max-w-md"
-              />
-            </div>
-            <div className="flex gap-2">
-              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={exportSelectedOnly}
-                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                />
-                <span>Selected Rows Only</span>
-              </label>
-              <Button type="button" onClick={handleExportExcel} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
-                <DownloadIcon className="w-4 h-4" />
-                Export Excel
-              </Button>
-              <Button type="button" onClick={handleExportCSV} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
-                <DownloadIcon className="w-4 h-4" />
-                Export CSV
-              </Button>
-              <Button type="button" onClick={() => router.push('/port-customer-master/pod-ports/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
-                <PlusIcon className="w-4 h-4" />
-                Add POD Port
-              </Button>
-            </div>
-          </div>
+      <div className="flex flex-col lg:flex-row gap-4 py-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search ports by Port Name"
+            value={globalFilter}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="max-w-md"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            onClick={() => router.push('/port-customer-master/pod-ports/add')}
+            className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add POD Port
+          </Button>
         </div>
       </div>
 
@@ -511,8 +471,16 @@ function PodDataManager({ rbacContext }: PodDataManagerProps) {
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"
-          suppressRowClickSelection={true}
           rowSelection={{ mode: "multiRow" }}
+          defaultCsvExportParams={{
+            fileName: `pod_ports_${new Date().toISOString().split('T')[0]}.csv`,
+            onlySelected: true,
+          }}
+          defaultExcelExportParams={{
+            fileName: `pod_ports_${new Date().toISOString().split('T')[0]}.xlsx`,
+            sheetName: "POD Ports",
+            onlySelected: true,
+          }}
         />
       </div>
 

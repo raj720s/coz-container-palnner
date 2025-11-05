@@ -14,7 +14,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       <div className="flex-1">
         <div className="px-6 py-4 container mx-auto max-w-full">
           {/* Breadcrumb navigation - appears above page content */}
-          <div className="mb-4">
+          <div className="px-6">
             <Breadcrumb />
           </div>
           {children}

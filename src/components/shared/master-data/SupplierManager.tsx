@@ -4,7 +4,7 @@ import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon, AlertIcon, CheckCircleIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon, AlertIcon, CheckCircleIcon } from "@/icons";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import toast from "react-hot-toast";
 import { Supplier, SupplierListRequest, COUNTRIES } from "@/types/supplier";
@@ -25,13 +25,20 @@ import {
 import { 
   AgGridReact,
 } from "ag-grid-react";
-import { ExcelExportModule, SetFilterModule } from "ag-grid-enterprise";
+import {
+  ExcelExportModule,
+  SetFilterModule,
+  ContextMenuModule,
+  ColumnMenuModule
+} from "ag-grid-enterprise";
 
 ModuleRegistry.registerModules([
   AllCommunityModule,
   CsvExportModule,
   ExcelExportModule,
   SetFilterModule,
+  ContextMenuModule,
+  ColumnMenuModule,
 ]);
 
 // Custom Cell Renderers
@@ -91,7 +98,6 @@ function SupplierManager({ rbacContext }: SupplierManagerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
   const gridRef = useRef<AgGridReact<Supplier>>(null);
   
   const [filters, setFilters] = useState<SupplierListRequest>({
@@ -144,38 +150,6 @@ function SupplierManager({ rbacContext }: SupplierManagerProps) {
     }
   };
 
-  // Handle export to Excel
-  const handleExportExcel = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsExcel({
-          fileName: `suppliers_${new Date().toISOString().split('T')[0]}.xlsx`,
-          sheetName: "Suppliers",
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("Suppliers exported to Excel successfully");
-      } catch (error: any) {
-        console.error("Error exporting to Excel:", error);
-        toast.error("Failed to export to Excel");
-      }
-    }
-  }, [exportSelectedOnly]);
-
-  // Handle export to CSV
-  const handleExportCSV = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsCsv({
-          fileName: `suppliers_${new Date().toISOString().split('T')[0]}.csv`,
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("Suppliers exported to CSV successfully");
-      } catch (error: any) {
-        console.error("Error exporting to CSV:", error);
-        toast.error("Failed to export to CSV");
-      }
-    }
-  }, [exportSelectedOnly]);
 
   const handleDeleteClick = (supplier: Supplier) => {
     if (!canDeleteSupplier) {
@@ -233,10 +207,13 @@ function SupplierManager({ rbacContext }: SupplierManagerProps) {
       filter: false,
       suppressMovable: true,
       lockPosition: 'left',
+      checkboxSelection: false,
     },
     {
       field: "code",
       headerName: "Supplier Code",
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
       minWidth: 150,
       flex: 1,
       sortable: true,
@@ -342,7 +319,7 @@ function SupplierManager({ rbacContext }: SupplierManagerProps) {
   };
 
   return (
-    <div className="p-0">
+    <div className="p-6">
       {/* Header */}
       <div className="mb-6">         
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -409,41 +386,24 @@ function SupplierManager({ rbacContext }: SupplierManagerProps) {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search suppliers by name"
-                value={globalFilter}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="max-w-md"
-              />
-            </div>
-            <div className="flex gap-2">
-              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={exportSelectedOnly}
-                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
-                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                />
-                <span>Selected Rows Only</span>
-              </label>
-              <Button type="button" onClick={handleExportExcel} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
-                <DownloadIcon className="w-4 h-4" />
-                Export Excel
-              </Button>
-              <Button type="button" onClick={handleExportCSV} variant="outline" className="flex items-center gap-2 whitespace-nowrap" disabled={loading}>
-                <DownloadIcon className="w-4 h-4" />
-                Export CSV
-              </Button>
-              <Button type="button" onClick={() => router.push('/supplier-management/add')} className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap">
-                <PlusIcon className="w-4 h-4" />
-                Add Supplier
-              </Button>
-            </div>
-          </div>
+      <div className="flex flex-col lg:flex-row gap-4 py-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search suppliers by name"
+            value={globalFilter}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="max-w-md"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            onClick={() => router.push('/supplier-management/add')}
+            className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add Supplier
+          </Button>
         </div>
       </div>
 
@@ -463,8 +423,16 @@ function SupplierManager({ rbacContext }: SupplierManagerProps) {
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"
-          suppressRowClickSelection={true}
           rowSelection={{ mode: "multiRow" }}
+          defaultCsvExportParams={{
+            fileName: `suppliers_${new Date().toISOString().split('T')[0]}.csv`,
+            onlySelected: true,
+          }}
+          defaultExcelExportParams={{
+            fileName: `suppliers_${new Date().toISOString().split('T')[0]}.xlsx`,
+            sheetName: "Suppliers",
+            onlySelected: true,
+          }}
         />
       </div>
 

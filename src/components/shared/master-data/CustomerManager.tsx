@@ -4,7 +4,7 @@ import Button from "@/components/ui/button/Button";
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Input from "@/components/form/input/InputField";
-import { DownloadIcon, PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
+import { PencilIcon, TrashBinIcon, PlusIcon } from "@/icons";
 import { DeleteConfirmationModal } from "@/components/ui/modal/DeleteConfirmationModal";
 import toast from "react-hot-toast";
 
@@ -25,12 +25,20 @@ import {
 import { 
   AgGridReact,
 } from "ag-grid-react";
-import { ExcelExportModule } from "ag-grid-enterprise";
+import {
+  ExcelExportModule,
+  SetFilterModule,
+  ContextMenuModule,
+  ColumnMenuModule
+} from "ag-grid-enterprise";
 
 ModuleRegistry.registerModules([
   AllCommunityModule,
   CsvExportModule,
   ExcelExportModule,
+  SetFilterModule,
+  ContextMenuModule,
+  ColumnMenuModule,
 ]);
 
 // Custom Cell Renderers
@@ -132,7 +140,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [exportSelectedOnly, setExportSelectedOnly] = useState(false);
 
   // Pagination state for AG Grid
   const [paginationInfo, setPaginationInfo] = useState({
@@ -284,6 +291,7 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       filter: false,
       suppressMovable: true,
       lockPosition: 'left',
+      checkboxSelection: false,
     },
     {
       field: "name",
@@ -293,6 +301,8 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
       sortable: true,
       filter: true,
       cellRenderer: NameRenderer,
+      checkboxSelection: true,
+      headerCheckboxSelection: true,
     },
     {
       field: "customer_code",
@@ -445,36 +455,6 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
     }
   };
 
-  const handleExportCSV = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsCsv({
-          fileName: `customers_${new Date().toISOString().split('T')[0]}.csv`,
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success('Customers exported to CSV successfully');
-      } catch (error: any) {
-        console.error('Error exporting to CSV:', error);
-        toast.error('Failed to export to CSV');
-      }
-    }
-  }, [exportSelectedOnly]);
-
-  const handleExportExcel = useCallback(() => {
-    if (gridRef.current) {
-      try {
-        gridRef.current.api.exportDataAsExcel({
-          fileName: `customers_${new Date().toISOString().split('T')[0]}.xlsx`,
-          sheetName: "Customers",
-          onlySelected: exportSelectedOnly,
-        });
-        toast.success("Customers exported to Excel successfully");
-      } catch (error: any) {
-        console.error("Error exporting to Excel:", error);
-        toast.error("Failed to export to Excel");
-      }
-    }
-  }, [exportSelectedOnly]);
 
   const handleSearch = (searchTerm: string) => {
     setGlobalFilter(searchTerm);
@@ -581,64 +561,25 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
         </div>
       </div>
 
-      {/* Filters and Controls */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
-        <div className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-center">
-            {/* Search */}
-            <div className="flex-1 min-w-0">
-              <Input
-                placeholder="Search customers by Company Name"
-                value={globalFilter}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="w-full focus:ring-theme-purple-500 focus:border-theme-purple-500"
-              />
-            </div>
-
-            {/* Export Buttons */}
-            <div className="flex items-center gap-3">
-              <label className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={exportSelectedOnly}
-                  onChange={(e) => setExportSelectedOnly(e.target.checked)}
-                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                />
-                <span>Selected Rows Only</span>
-              </label>
-              <Button 
-                type="button"
-                onClick={handleExportExcel} 
-                size="sm" 
-                variant="outline"
-                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
-              >
-                <DownloadIcon className="w-4 h-4 mr-2" />
-                Export Excel
-              </Button>
-              <Button 
-                type="button"
-                onClick={handleExportCSV} 
-                size="sm" 
-                variant="outline"
-                className="border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 whitespace-nowrap"
-              >
-                <DownloadIcon className="w-4 h-4 mr-2" />
-                Export CSV
-              </Button>
-            </div>
-
-            {/* Add Button */}
-            <Button 
-              type="button"
-              onClick={() => router.push('/port-customer-master/customers/add')} 
-              size="sm"
-              className="bg-theme-purple-600 hover:bg-theme-purple-700 text-white px-4 py-2 whitespace-nowrap"
-            >
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Add Customer
-            </Button>
-          </div>
+      {/* Filters */}
+      <div className="flex flex-col lg:flex-row gap-4 py-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search customers by Company Name"
+            value={globalFilter}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="max-w-md"
+          />
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            onClick={() => router.push('/port-customer-master/customers/add')}
+            className="flex items-center gap-2 bg-theme-purple-600 hover:bg-theme-purple-700 text-white whitespace-nowrap"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Add Customer
+          </Button>
         </div>
       </div>
 
@@ -657,15 +598,21 @@ function CustomerManager({ rbacContext }: CustomerManagerProps) {
           paginationPageSize={filters.page_size}
           paginationAutoPageSize={false}
           suppressPaginationPanel={false}
+          paginationPageSizeSelector={[10, 25, 50, 100]}
           domLayout="normal"
           animateRows={true}
           className="ag-theme-alpine"
           onPaginationChanged={onPaginationChanged}
-          // Server-side pagination configuration
-          paginationPageSizeSelector={[10, 25, 50, 100]}
-          // Ensure pagination is server-side
-          suppressRowClickSelection={true}
           rowSelection={{ mode: "multiRow" }}
+          defaultCsvExportParams={{
+            fileName: `customers_${new Date().toISOString().split('T')[0]}.csv`,
+            onlySelected: true,
+          }}
+          defaultExcelExportParams={{
+            fileName: `customers_${new Date().toISOString().split('T')[0]}.xlsx`,
+            sheetName: "Customers",
+            onlySelected: true,
+          }}
         />
       </div>
 
